@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-from prompt_toolkit.styles import default_style_extensions, PygmentsStyle, Style, Attrs, TokenToAttrsCache
+from prompt_toolkit.styles import default_style_extensions, PygmentsStyle, Style, Attrs
 from pygments.formatters.terminal256 import Terminal256Formatter
 from pygments.styles.default import DefaultStyle
 
@@ -46,24 +46,17 @@ class PymuxStyle(Style):
         self.pygments_style = PygmentsStyle(PyMuxStyle)
         self._token_to_attrs_dict = None
 
-    def get_token_to_attributes_dict(self):
-        if self._token_to_attrs_dict is None:
-            pdict = self.pygments_style.get_token_to_attributes_dict()
-
-            def get_attributes(token):
-                if token and token[0] == 'C':
-                    c, fg, bg, bold, underline, reverse = token
+    def get_attrs_for_token(self, token):
+        if token and token[0] == 'C':
+            c, fg, bg, bold, underline, reverse = token
 
 
-                    fg = self._colors.get(fg, fg)
-                    bg = self._colors.get(bg, bg)
+            fg = self._colors.get(fg, fg)
+            bg = self._colors.get(bg, bg)
 
-                    return Attrs(fg, bg, bold, underline, reverse)
-                else:
-                    return pdict[token]
-
-            self._token_to_attrs_dict = TokenToAttrsCache(get_attributes)
-        return self._token_to_attrs_dict
+            return Attrs(fg, bg, bold, underline, reverse)
+        else:
+            return self.pygments_style.get_attrs_for_token(token)
 
     def invalidation_hash(self):
         return None

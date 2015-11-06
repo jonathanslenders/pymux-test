@@ -10,9 +10,10 @@ from __future__ import unicode_literals
 from collections import defaultdict
 from pyte import charsets as cs
 from pyte import modes as mo
-from pyte.screens import Margins
+from pyte.screens import Margins, Savepoint
 import pyte
 import pyte.graphics
+import copy
 
 from prompt_toolkit.layout.screen import Screen, Char
 from prompt_toolkit.styles import Attrs
@@ -346,12 +347,13 @@ class BetterScreen(object):
 
     def save_cursor(self):
         """Push the current cursor position onto the stack."""
-        self.savepoints.append(Savepoint(copy.copy(self.pt_screen.cursor_position),
-                                         self.g0_charset,
-                                         self.g1_charset,
-                                         self.charset,
-                                         mo.DECOM in self.mode,
-                                         mo.DECAWM in self.mode))
+        self.savepoints.append(Savepoint(
+            copy.copy(self.pt_screen.cursor_position),
+            self.g0_charset,
+            self.g1_charset,
+            self.charset,
+            mo.DECOM in self.mode,
+            mo.DECAWM in self.mode))
 
     def restore_cursor(self):
         """Set the current cursor position to whatever cursor is on top
@@ -583,18 +585,21 @@ class BetterScreen(object):
         :param bool private: when ``True`` character attributes aren left
                              unchanged **not implemented**.
         """
-        def should_we_delete(column): # TODO: check for off-by-one errors!
-            if type_of == 0:
-                return column >= self.pt_screen.cursor_position.x
-            if type_of == 1:
-                return column <= self.pt_screen.cursor_position.x
-            if type_of == 2:
-                return True
+        if type_of == 2:
+            # Delete line completely.
+            del self.data_buffer[self.pt_screen.cursor_position.y]
+        else:
+            line = self.data_buffer[self.pt_screen.cursor_position.y]
 
-        line = self.data_buffer[self.pt_screen.cursor_position.y]
-        for column in list(line.keys()):
-           if should_we_delete(column):
-               del line[column]
+            def should_we_delete(column): # TODO: check for off-by-one errors!
+                if type_of == 0:
+                    return column >= self.pt_screen.cursor_position.x
+                if type_of == 1:
+                    return column <= self.pt_screen.cursor_position.x
+
+            for column in list(line.keys()):
+               if should_we_delete(column):
+                   del line[column]
 
     def erase_in_display(self, type_of=0, private=False):
         """Erases display in a specific way.
@@ -733,7 +738,6 @@ class BetterScreen(object):
 
     def select_graphic_rendition(self, *attrs):
         """ Support 256 colours """
-        g = pyte.graphics
         replace = {}
 
         if not attrs:
@@ -741,7 +745,6 @@ class BetterScreen(object):
         else:
             attrs = list(attrs[::-1])
 
-        orig = list(attrs)
         while attrs:
             attr = attrs.pop()
 
