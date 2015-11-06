@@ -122,6 +122,9 @@ class LayoutManager(object):
                 ]),
                 Window(
                     Pane(self.pymux, process),
+                    get_vertical_scroll=
+                        lambda window: process.screen.line_offset,
+                    allow_scroll_beyond_bottom=True,
                 )
             ])
 

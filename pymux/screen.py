@@ -40,6 +40,7 @@ class BetterScreen(object):
             'tabstops',
             'line_offset',
             'data_buffer',
+            'max_y',
             ]
 
     def __init__(self, lines, columns, cpr_response_callback):
@@ -72,6 +73,7 @@ class BetterScreen(object):
         self.margins = Margins(0, self.lines - 1)
 
         self.line_offset = 0 # Index of the line that's currently displayed on top.
+        self.max_y = 0  # Max 'y' position to which is written.
 
         # According to VT220 manual and ``linux/drivers/tty/vt.c``
         # the default G0 charset is latin-1, but for reasons unknown
@@ -90,7 +92,7 @@ class BetterScreen(object):
         lines = lines if lines is not None else self.lines
         columns = columns if columns is not None else self.columns
 
-        if self.lines != lines and self.columns != columns:
+        if self.lines != lines or self.columns != columns:
             self.lines =  lines
             self.columns = columns
 
@@ -134,8 +136,7 @@ class BetterScreen(object):
             self.line_offset = 0
 
         elif self.data_buffer:
-            max_screen_y_value = max(self.pt_screen.cursor_position.y, max(self.data_buffer.keys()))
-            self.line_offset = max(0, max_screen_y_value - self.lines + 1)
+            self.line_offset = max(0, self.max_y - self.lines + 1)
 
     def set_charset(self, code, mode):
         """Set active ``G0`` or ``G1`` charset.
@@ -179,7 +180,7 @@ class BetterScreen(object):
                     if token:
                         token[-1] = True # Reverse.
                     line[pos] = Char(char=char.char, token=tuple(token))
-            self.select_graphic_rendition(pyte.grapics._SGR["+reverse"])
+            self.select_graphic_rendition(pyte.grapics._SGR["+reverse"])  # XXX
 
         # Make the cursor visible.
         if mo.DECTCEM in modes:
@@ -215,7 +216,7 @@ class BetterScreen(object):
         if mo.DECOM in modes:
             self.cursor_position()
 
-        if mo.DECSCNM in modes:
+        if mo.DECSCNM in modes:  # TODO
             for line in self.data_buffer.values():
                 for pos, char in line.items():
                     token = list(line[pos].token)
@@ -278,6 +279,8 @@ class BetterScreen(object):
         # .. note:: We can't use :meth:`cursor_forward()`, because that
         #           way, we'll never know when to linefeed.
         self.pt_screen.cursor_position.x += 1
+
+        self.max_y = max(self.max_y, self.pt_screen.cursor_position.y)
 
     def carriage_return(self):
         " Move the cursor to the beginning of the current line. "
