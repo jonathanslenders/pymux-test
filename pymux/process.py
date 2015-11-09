@@ -13,6 +13,7 @@ import getpass
 import os
 import pwd
 import resource
+import signal
 import time
 import traceback
 
@@ -76,6 +77,11 @@ class Process(object):
     def _in_child(self):
         os.close(self.master)
 
+        # Remove signal handler for SIGWINCH as early as possible.
+        # (We don't want this to be triggered when execv has not been called
+        # yet.)
+        signal.signal(signal.SIGWINCH, 0)
+
         # Set terminal variable. (We emulate xterm.)
         os.environ['TERM'] = 'xterm-256color'
 
@@ -105,7 +111,15 @@ class Process(object):
         # because the garbage collector is still active, and he will close them
         # eventually.)
         max_fd = resource.getrlimit(resource.RLIMIT_NOFILE)[-1]
-        os.closerange(3, max_fd)
+
+        try:
+            os.closerange(3, max_fd)
+        except OverflowError:
+            # On OS X, max_fd can return very big values, than closerange
+            # doesn't understand, e.g. 9223372036854775807. In this case, just
+            # use 4096. This is what Linux systems report, and should be
+            # sufficient. (I hope...)
+            os.closerange(3, 4096)
 
     def write_input(self, data):
         " Write user key strokes to the input. "
