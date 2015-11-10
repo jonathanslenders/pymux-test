@@ -67,7 +67,8 @@ class BetterScreen(object):
 
         self.data_buffer = self.pt_screen.data_buffer
 
-        self._attrs = Attrs(color=None, bgcolor=None, bold=False, underline=False, reverse=False)
+        self._attrs = Attrs(color=None, bgcolor=None, bold=False,
+                            underline=False, italic=False, reverse=False)
 
         self.mode = set([mo.DECAWM, mo.DECTCEM])
         self.margins = Margins(0, self.lines - 1)
@@ -757,19 +758,24 @@ class BetterScreen(object):
                 replace["bgcolor"] = self._bg_colors[attr]
             elif attr == 1:
                 replace["bold"] = True
+            elif attr == 3:
+                replace["italic"] = True
             elif attr == 4:
                 replace["underline"] = True
             elif attr == 7:
                 replace["reverse"] = True
             elif attr == 22:
                 replace["bold"] = False
+            elif attr == 23:
+                replace["italic"] = False
             elif attr == 24:
                 replace["underline"] = False
             elif attr == 27:
                 replace["reverse"] = False
             elif not attr:
                 replace = {}
-                self._attrs = Attrs(color=None, bgcolor=None, bold=False, underline=False, reverse=False)
+                self._attrs = Attrs(color=None, bgcolor=None, bold=False,
+                                    underline=False, italic=False, reverse=False)
 
             elif attr in (38, 48):
                 n = attrs.pop()
