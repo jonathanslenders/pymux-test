@@ -294,28 +294,29 @@ class BetterScreen(object):
         top, bottom = self.margins
 
         # When scrolling over the full screen height -> keep history.
-        if top == 0 and bottom >= self.lines - 1:
-            if self.pt_screen.cursor_position.y >= self.line_offset + self.lines - 1:
-                self.line_offset += 1
-                self.cursor_down()
-            else:
-                self.cursor_down()
-        else:
+        if True:
+        #if top == 0 and bottom >= self.lines:# - 1:
+        #    if self.pt_screen.cursor_position.y >= self.line_offset + self.lines - 1:
+        #        self.line_offset += 1
+        #    self.cursor_down()
+        #else:
             if self.pt_screen.cursor_position.y - self.line_offset == bottom:
                 for line in range(top, bottom):
-                    self.data_buffer[line + self.line_offset] = self.data_buffer[line+1]
-                    del self.data_buffer[line + 1]
+                    self.data_buffer[line + self.line_offset] = \
+                        self.data_buffer[line + self.line_offset + 1]
+                    del self.data_buffer[line + self.line_offset + 1]
             else:
                 self.cursor_down()
 
     def reverse_index(self): # XXX: Used when going multiline with bash. (only second part tested.)
         top, bottom = self.margins
+        line_offset = self.line_offset
 
         # When scrolling over the full screen -> keep history.
-        if self.pt_screen.cursor_position.y == top:
-            for line in range(bottom, top, -1):
-                self.data_buffer[line] = self.data_buffer[line-1]
-                del self.data_buffer[line-1]
+        if self.pt_screen.cursor_position.y - line_offset == top:
+            for i in range(bottom - 1, top - 1, -1):
+                self.data_buffer[i + line_offset + 1] = self.data_buffer[i + line_offset]
+                del self.data_buffer[i + line_offset]
         else:
             self.cursor_up()
 
@@ -394,11 +395,11 @@ class BetterScreen(object):
         top, bottom = self.margins
 
         # If cursor is outside scrolling margins it -- do nothin'.
-        if top <= self.pt_screen.cursor_position.y <= bottom:
+        if top <= self.pt_screen.cursor_position.y - self.line_offset <= bottom:
             #if (bottom + self.line_offset) in self.buffer:
             #    del self.buffer[bottom + self.line_offset]
 
-            for line in range(bottom, self.pt_screen.cursor_position.y + count - 1, -1):
+            for line in range(bottom - 1, self.pt_screen.cursor_position.y + count - 1, -1):
                 self.data_buffer[line + self.line_offset] = self.data_buffer[line + self.line_offset - count]
                 del self.data_buffer[line + self.line_offset - count]
 

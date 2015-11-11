@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-#from prompt_toolkit.shortcuts import create_asyncio_eventloop
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.contrib.completers import WordCompleter
