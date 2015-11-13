@@ -23,9 +23,8 @@ __all__ = (
 
 
 class Process(object):
-    def __init__(self, cli, invalidate):
+    def __init__(self, cli):
         self.cli = cli
-        self.invalidate = invalidate
         self.pid = None
 
         # Create pseudo terminal for this pane.
@@ -123,7 +122,15 @@ class Process(object):
 
     def write_input(self, data):
         " Write user key strokes to the input. "
-        os.write(self.master, data.encode('utf-8'))
+        while True:
+            try:
+                os.write(self.master, data.encode('utf-8'))
+            except OSError as e:
+                # This happens when the window resizes and a SIGWINCH was received.
+                # We get 'Error: [Errno 4] Interrupted system call'
+                if e.errno == 4:
+                    continue
+            return
 
     def _process_pty_output(self):
         # Master side -> attached to terminal emulator.
@@ -132,7 +139,7 @@ class Process(object):
         def read():
             d = reader.read()
             self.stream.feed(d)
-            self.invalidate()
+            self.cli.invalidate()
 
         # Connect read pipe.
         self.cli.eventloop.add_reader(self.master, read)

@@ -19,6 +19,7 @@ from prompt_toolkit.layout.screen import Screen, Char
 from prompt_toolkit.styles import Attrs
 
 from pygments.formatters.terminal256 import Terminal256Formatter
+from wcwidth import wcwidth
 
 
 class CursorPosition(object):
@@ -257,6 +258,8 @@ class BetterScreen(object):
         char = char.translate([self.g0_charset,
                                self.g1_charset][self.charset])
 
+        char_width = wcwidth(char)
+
         # If this was the last column in a line and auto wrap mode is
         # enabled, move the cursor to the beginning of the next line,
         # otherwise replace characters already displayed with newly
@@ -266,20 +269,24 @@ class BetterScreen(object):
                 self.carriage_return()
                 self.linefeed()
             else:
-                self.pt_screen.cursor_position.x -= 1
+                self.pt_screen.cursor_position.x -= char_width
 
         # If Insert mode is set, new characters move old characters to
         # the right, otherwise terminal is in Replace mode and new
         # characters replace old characters at cursor position.
         if mo.IRM in self.mode:
-            self.insert_characters(1)
+            self.insert_characters(char_width)
 
         token = ('C', ) + self._attrs
-        self.pt_screen.data_buffer[self.pt_screen.cursor_position.y][self.pt_screen.cursor_position.x] = Char(char, token)
+        row = self.pt_screen.data_buffer[self.pt_screen.cursor_position.y]
+        row[self.pt_screen.cursor_position.x] = Char(char, token)
+
+        if char_width > 1:
+            del row[self.pt_screen.cursor_position.x + 1]
 
         # .. note:: We can't use :meth:`cursor_forward()`, because that
         #           way, we'll never know when to linefeed.
-        self.pt_screen.cursor_position.x += 1
+        self.pt_screen.cursor_position.x += char_width
 
         self.max_y = max(self.max_y, self.pt_screen.cursor_position.y)
 

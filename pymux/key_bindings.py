@@ -16,6 +16,10 @@ def create_key_bindings(pymux):
 
     @registry.add_binding(Keys.Any, filter=~HasFocus('COMMAND'), invalidate_ui=False)
     def _(event):
+        # NOTE: we don't invalidate the UI, because for pymux itself, nothing
+        #       in the output changes yet. It's the application in the pane
+        #       that will probably echo back the typed characters. When we
+        #       receive them, they are draw to the UI and it's invalidated.
         data = event.data
 
         # Applications like htop with run in application mode require the

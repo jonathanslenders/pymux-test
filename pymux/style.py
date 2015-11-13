@@ -15,16 +15,20 @@ class PyMuxStyle(pygments.style.Style):
 
     styles.update(default_style_extensions)
     styles.update({
-        #Token.Line:        'bg:#888888 #ffffff',
-        Token.Line:        '#888888',
+        Token.Line:                    '#888888',
+        Token.Line.Focussed:           '#448844',
 
-        Token.TitleBar:   'bg:#888888 #dddddd',
-        Token.TitleBar.Focussed:   '#ffffff bold',
-        Token.TitleBar.Right:   'bg:#444444 #ffffff',
-        Token.TitleBar.Line:   '#444444',
-        Token.CommandBar: 'bg:#884444 #ffffff',
-        Token.StatusBar: 'bg:#444444 #ffffff',
+        Token.TitleBar:                'bg:#888888 #dddddd italic',
+        Token.TitleBar.Title:          '',
+        Token.TitleBar.Line:           '#444444',
+        Token.TitleBar.Line.Focussed:  'bg:#448844 #000000',
+        Token.TitleBar.Focussed:       'bg:#448844 #ffffff bold',
+        Token.TitleBar.Focussed.Title: '',
+        Token.TitleBar.Focussed.Right: 'noitalic',
+        Token.CommandBar:              'bg:#884444 #ffffff',
+        Token.StatusBar:               'bg:#444444 #ffffff',
     })
+
 
 
 class PymuxStyle(Style):
@@ -60,5 +64,3 @@ class PymuxStyle(Style):
 
     def invalidation_hash(self):
         return None
-
-

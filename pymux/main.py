@@ -41,7 +41,7 @@ class PyMux(object):
         self.focussed_process = None
 
     def add_process(self):
-        process = Process(self.cli, self.cli.invalidate)
+        process = Process(self.cli)
         self.focussed_process = process
 
         self.processes.append(process)

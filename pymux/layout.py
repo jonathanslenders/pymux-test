@@ -12,6 +12,7 @@ from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput
 from prompt_toolkit.layout.screen import Char
+from prompt_toolkit.filters import Condition
 
 from pygments.token import Token
 import datetime
@@ -34,6 +35,10 @@ class Pane(UIControl):
     def has_focus(self, cli):
         return self.pymux.focussed_process == self.process
 
+    def mouse_handler(self, cli, mouse_event):
+        # Focus this process when the mouse has been clicked.
+        self.pymux.focussed_process = self.process
+
 
 class LayoutManager(object):
     def __init__(self, pymux):
@@ -46,8 +51,9 @@ class LayoutManager(object):
     def _create_layout(self):
         def get_time_tokens(cli):
             return [
-                    (Token.StatusBar,
-                    datetime.datetime.now().strftime('%H:%M %d-%b-%y'))
+                (Token.StatusBar,
+                datetime.datetime.now().strftime('%H:%M %d-%b-%y')),
+                (Token.StatusBar, ' '),
             ]
 
         return FloatContainer(
@@ -93,17 +99,20 @@ class LayoutManager(object):
             def has_focus():
                 return self.pymux.focussed_process == process
 
-            def get_left_title_tokens(cli):
+            def get_titlebar_token(cli):
                 if has_focus():
-                    token = Token.TitleBar.Focussed
+                    return Token.TitleBar.Focussed
                 else:
-                    token = Token.TitleBar
+                    return Token.TitleBar
 
-                return [(token, ' '), (token, process.screen.title), (token, ' ')]
+            def get_left_title_tokens(cli):
+                token = get_titlebar_token(cli)
+                return [(token, ' '), (token.Title, ' %s ' % process.screen.title), (token, ' ')]
 
             def get_right_title_tokens(cli):
+                token = get_titlebar_token(cli)
                 if has_focus():
-                    return [(Token.TitleBar.Right, '[%s]' % process.pid)]
+                    return [(token.Right, '[%s]' % process.pid)]
                 else:
                     return []
 
@@ -111,14 +120,16 @@ class LayoutManager(object):
                 VSplit([
                     Window(
                         height=D.exact(1),
-                        content=TokenListControl(get_left_title_tokens,
-                                                 default_char=Char(' ', Token.TitleBar))
+                        content=TokenListControl(
+                            get_left_title_tokens,
+                            get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
                     ),
                     Window(
-                        height=D.exact(1), width=D.exact(11),
-                        content=TokenListControl(get_right_title_tokens,
-                                                 align_center=True,
-                                                 default_char=Char(' ', Token.TitleBar))),
+                        height=D.exact(1), width=D.exact(8),
+                        content=TokenListControl(
+                            get_right_title_tokens,
+                            align_center=True,
+                            get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))),
                 ]),
                 Window(
                     Pane(self.pymux, process),
@@ -131,17 +142,28 @@ class LayoutManager(object):
         for i, process in enumerate(self.pymux.processes):
             content.append(container_for_process(process))
 
+            def create_condition(p1, p2):
+                def has_focus(cli):
+                    return self.pymux.focussed_process in (p1, p2)
+                return Condition(has_focus)
+
             # Draw a vertical line between windows.
             if i != len(self.pymux.processes) - 1:
-                content.append(
-                    HSplit([
-                        Window(
-                           width=D.exact(1), height=D.exact(1),
-                           content=FillControl('│', token=Token.TitleBar.Line)
-                        ),
-                    Window(width=D.exact(1),
-                           content=FillControl('│', token=Token.Line))
-                ]))
+                # Visible condition.
+                condition = create_condition(self.pymux.processes[i], self.pymux.processes[i+1])
+
+                for titlebar_token, body_token, condition, char in [
+                        (Token.TitleBar.Line, Token.Line, ~condition, '│'),
+                        (Token.TitleBar.Line.Focussed, Token.Line.Focussed, condition, '┃')]:
+
+                    content.append(ConditionalContainer(
+                        HSplit([
+                            Window(
+                               width=D.exact(1), height=D.exact(1),
+                               content=FillControl(char, token=titlebar_token)),
+                            Window(width=D.exact(1),
+                                   content=FillControl(char, token=body_token))
+                        ]), condition))
 
         self.body.children = content
         self.pymux.cli.invalidate()
