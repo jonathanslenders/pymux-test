@@ -75,7 +75,7 @@ class Pane(UIControl):
             elif process.screen.mouse_support_enabled:
                 # Fall back to old mode.
                 if x < 96 and y < 96:
-                    event_no = {
+                    ev = {
                             MouseEventTypes.MOUSE_DOWN: 32,
                             MouseEventTypes.MOUSE_UP: 35,
                             MouseEventTypes.SCROLL_UP: 96,
@@ -83,7 +83,7 @@ class Pane(UIControl):
                     }.get(mouse_event.event_type)
 
                     self.process.write_input('\x1b[M%s%s%s' % (
-                        six.unichr(event_no),
+                        six.unichr(ev),
                         six.unichr(x + 33),
                         six.unichr(y + 33)))
 
