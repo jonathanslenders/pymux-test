@@ -10,8 +10,15 @@ from .layout import LayoutManager
 from .process import Process
 from .key_bindings import create_key_bindings
 
+__all__ = (
+    'Pymux',
+)
 
-class PyMux(object):
+
+class Pymux(object):
+    """
+    The main Pymux application class.
+    """
     def __init__(self):
         self.pymux_layout = LayoutManager(self)
 

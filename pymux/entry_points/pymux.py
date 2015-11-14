@@ -6,7 +6,7 @@ Usage:
 """
 from __future__ import unicode_literals, absolute_import
 
-from pymux.main import PyMux
+from pymux.main import Pymux
 import docopt
 
 __all__ = (
@@ -17,7 +17,7 @@ __all__ = (
 def run():
     a = docopt.docopt(__doc__)
 
-    mux = PyMux()
+    mux = Pymux()
     mux.add_process()
     mux.run()
 
