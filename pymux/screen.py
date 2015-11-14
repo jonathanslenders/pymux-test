@@ -59,6 +59,20 @@ class BetterScreen(object):
         # Not in cursor mode.
         return (1 << 5) in self.mode
 
+    @property
+    def mouse_support_enabled(self):
+        " True when mouse support has been enabled by the application. "
+        return (1000 << 5) in self.mode
+
+    @property
+    def urxvt_mouse_support_enabled(self):
+        return (1015 << 5) in self.mode
+
+    @property
+    def sgr_mouse_support_enabled(self):
+        " Xterm Sgr mouse support. "
+        return (1006 << 5) in self.mode
+
     def reset(self):
         self.pt_screen = Screen()
         self.pt_screen.cursor_position = CursorPosition(0, 0)

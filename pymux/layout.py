@@ -13,9 +13,11 @@ from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput
 from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.filters import Condition
+from prompt_toolkit.mouse_events import MouseEventTypes
 
 from pygments.token import Token
 import datetime
+import six
 
 __all__ = (
     'LayoutManager',
@@ -36,8 +38,54 @@ class Pane(UIControl):
         return self.pymux.focussed_process == self.process
 
     def mouse_handler(self, cli, mouse_event):
-        # Focus this process when the mouse has been clicked.
-        self.pymux.focussed_process = self.process
+        process = self.process
+        x = mouse_event.position.x
+        y = mouse_event.position.y
+
+        if self.pymux.focussed_process != process:
+            # Focus this process when the mouse has been clicked.
+            self.pymux.focussed_process = process
+        else:
+            # Already focussed, send event to application when it requested
+            # mouse support.
+            if process.screen.sgr_mouse_support_enabled:
+                # Xterm SGR mode.
+                ev, m = {
+                    MouseEventTypes.MOUSE_DOWN: ('0', 'M'),
+                    MouseEventTypes.MOUSE_UP: ('0', 'm'),
+                    MouseEventTypes.SCROLL_UP: ('64', 'M'),
+                    MouseEventTypes.SCROLL_DOWN: ('65', 'M'),
+                }.get(mouse_event.event_type)
+
+                self.process.write_input(
+                    '\x1b[<%s;%s;%s%s' % (ev, x + 1, y + 1, m))
+
+            elif process.screen.urxvt_mouse_support_enabled:
+                # Urxvt mode.
+                ev = {
+                    MouseEventTypes.MOUSE_DOWN: 32,
+                    MouseEventTypes.MOUSE_UP: 35,
+                    MouseEventTypes.SCROLL_UP: 96,
+                    MouseEventTypes.SCROLL_DOWN: 97,
+                }.get(mouse_event.event_type)
+
+                self.process.write_input(
+                    '\x1b[%s;%s;%sM' % (ev, x + 1, y + 1))
+
+            elif process.screen.mouse_support_enabled:
+                # Fall back to old mode.
+                if x < 96 and y < 96:
+                    event_no = {
+                            MouseEventTypes.MOUSE_DOWN: 32,
+                            MouseEventTypes.MOUSE_UP: 35,
+                            MouseEventTypes.SCROLL_UP: 96,
+                            MouseEventTypes.SCROLL_DOWN: 97,
+                    }.get(mouse_event.event_type)
+
+                    self.process.write_input('\x1b[M%s%s%s' % (
+                        six.unichr(event_no),
+                        six.unichr(x + 33),
+                        six.unichr(y + 33)))
 
 
 class LayoutManager(object):
