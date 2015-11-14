@@ -94,8 +94,14 @@ class BetterScreen(object):
         # According to VT220 manual and ``linux/drivers/tty/vt.c``
         # the default G0 charset is latin-1, but for reasons unknown
         # latin-1 breaks ascii-graphics; so G0 defaults to cp437.
+
+        # XXX: The comment above comes from the original Pyte implementation,
+        #      it seems for us that LAT1_MAP should indeed be the default, if
+        #      not a French version of Vim would incorrectly show some
+        #      characters.
         self.charset = 0
-        self.g0_charset = cs.IBMPC_MAP
+        #self.g0_charset = cs.IBMPC_MAP
+        self.g0_charset = cs.LAT1_MAP
         self.g1_charset = cs.VT100_MAP
 
         # From ``man terminfo`` -- "... hardware tabs are initially

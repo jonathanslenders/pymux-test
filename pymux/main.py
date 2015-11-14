@@ -17,6 +17,17 @@ class PyMux(object):
 
         registry = create_key_bindings(self)
 
+        def get_title():
+            if self.focussed_process:
+                title = self.focussed_process.screen.title
+            else:
+                title = ''
+
+            if title:
+                return '{} - Pymux'.format(title)
+            else:
+                return 'Pymux'
+
         application = Application(
             layout=self.pymux_layout.layout,
             key_bindings_registry=registry,
@@ -32,7 +43,8 @@ class PyMux(object):
             },
             mouse_support=True,
             use_alternate_screen=True,
-            style=PymuxStyle())
+            style=PymuxStyle(),
+            get_title=get_title)
 
         self.cli = CommandLineInterface(application=application,
                                         )#eventloop=create_asyncio_eventloop())
