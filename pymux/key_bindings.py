@@ -91,7 +91,7 @@ def create_key_bindings(pymux):
             'rename-window %s' % pymux.arrangement.active_window.name)
 
     def create_focus_window_number_func(i):
-        @registry.add_binding(Keys.ControlB, str(i))
+        @registry.add_binding(Keys.ControlB, '%s' % i)
         def _(event):
             " Focus window with this number. "
             try:
