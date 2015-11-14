@@ -74,22 +74,28 @@ class BetterScreen(object):
         return (1006 << 5) in self.mode
 
     def reset(self):
-        self.pt_screen = Screen()
-        self.pt_screen.cursor_position = CursorPosition(0, 0)
-        self.pt_screen.show_cursor = True
+        """Resets the terminal to its initial state.
+
+        * Scroll margins are reset to screen boundaries.
+        * Cursor is moved to home location -- ``(0, 0)`` and its
+          attributes are set to defaults (see :attr:`default_char`).
+        * Screen is cleared -- each character is reset to
+          :attr:`default_char`.
+        * Tabstops are reset to "every eight columns".
+
+        .. note::
+
+           Neither VT220 nor VT102 manuals mentioned that terminal modes
+           and tabstops should be reset as well, thanks to
+           :manpage:`xterm` -- we now know that.
+        """
+        self._reset_screen()
+
         self.title = ''
         self.icon_name = ''
 
-        self.data_buffer = self.pt_screen.data_buffer
-
-        self._attrs = Attrs(color=None, bgcolor=None, bold=False,
-                            underline=False, italic=False, reverse=False)
-
+        # Reset modes.
         self.mode = set([mo.DECAWM, mo.DECTCEM])
-        self.margins = Margins(0, self.lines - 1)
-
-        self.line_offset = 0 # Index of the line that's currently displayed on top.
-        self.max_y = 0  # Max 'y' position to which is written.
 
         # According to VT220 manual and ``linux/drivers/tty/vt.c``
         # the default G0 charset is latin-1, but for reasons unknown
@@ -108,6 +114,24 @@ class BetterScreen(object):
         # set every `n` spaces when the terminal is powered up. Since
         # we aim to support VT102 / VT220 and linux -- we use n = 8.
         self.tabstops = set(range(7, self.columns, 8))
+
+    def _reset_screen(self):
+        """ Reset the Screen content. (also called when switching from/to
+        alternate buffer. """
+        self.pt_screen = Screen()
+        self.pt_screen.cursor_position = CursorPosition(0, 0)
+        self.pt_screen.show_cursor = True
+
+        self.data_buffer = self.pt_screen.data_buffer
+
+        self._attrs = Attrs(color=None, bgcolor=None, bold=False,
+                            underline=False, italic=False, reverse=False)
+
+        self.margins = Margins(0, self.lines - 1)
+
+        self.line_offset = 0 # Index of the line that's currently displayed on top.
+        self.max_y = 0  # Max 'y' position to which is written.
+
 
     def resize(self, lines=None, columns=None):
         # don't do anything except saving the dimensions
@@ -213,7 +237,7 @@ class BetterScreen(object):
             self._original_screen = self.pt_screen
             self._original_screen_vars = \
                 { v:getattr(self, v) for v in self.swap_variables }
-            self.reset()
+            self._reset_screen()
             self._reset_offset_and_margins()
 
     def reset_mode(self, *modes, **kwargs):
