@@ -319,17 +319,21 @@ class HighlightBorders(_ContainerProxy):
             xright = xpos + width
 
             # First line.
-            if xleft > 0:
+            if xleft in data_buffer[ypos]:
                 data_buffer[ypos][xleft] = _focussed_border_char_titlebar
-            if xright < screen.width:
+
+            if xright in data_buffer[ypos]:
                 data_buffer[ypos][xright] = _focussed_border_char_titlebar
 
             # Every following line.
             for y in range(ypos + 1, ypos + height):
-                if xleft > 0:
-                    data_buffer[y][xleft] = _focussed_border_char
-                if xright < screen.width:
-                    data_buffer[y][xright] = _focussed_border_char
+                row = data_buffer[y]
+
+                if xleft in row:
+                    row[xleft] = _focussed_border_char
+
+                if xright in data_buffer[y]:
+                    row[xright] = _focussed_border_char
 
 
 class TraceBorders(_ContainerProxy):
