@@ -39,7 +39,7 @@ class PaneContainer(UIControl):
         process.set_size(width, height)
         return process.screen.pt_screen
 
-    def has_focus(self, cli):
+    def _has_focus(self, cli):
         return self.pymux.arrangement.active_pane == self.pane
 
     def mouse_handler(self, cli, mouse_event):
@@ -47,7 +47,7 @@ class PaneContainer(UIControl):
         x = mouse_event.position.x
         y = mouse_event.position.y
 
-        if not self.has_focus:
+        if not self._has_focus(cli):
             # Focus this process when the mouse has been clicked.
             self.pymux.arrangement.active_window.active_pane = self.pane
         else:
