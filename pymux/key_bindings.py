@@ -4,6 +4,7 @@ from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import HasFocus
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.keys import Keys
+from .layout import focus_right, focus_left, focus_up, focus_down
 
 __all__ = (
     'create_key_bindings',
@@ -70,13 +71,23 @@ def create_key_bindings(pymux):
 
     @registry.add_binding(Keys.ControlB, Keys.ControlL)
     def _(event):
-        " Focus next pane. "
-        pymux.arrangement.active_window.focus_right()
+        " Focus right pane. "
+        focus_right(pymux)
 
     @registry.add_binding(Keys.ControlB, Keys.ControlH)
     def _(event):
-        " Focus previous pane. "
-        pymux.arrangement.active_window.focus_left()
+        " Focus left pane. "
+        focus_left(pymux)
+
+    @registry.add_binding(Keys.ControlB, Keys.ControlJ)
+    def _(event):
+        " Focus down. "
+        focus_down(pymux)
+
+    @registry.add_binding(Keys.ControlB, Keys.ControlK)
+    def _(event):
+        " Focus up. "
+        focus_up(pymux)
 
     @registry.add_binding(Keys.ControlB, ':')
     def _(event):

@@ -102,7 +102,9 @@ class LayoutManager(object):
             Window(TokenListControl(lambda cli: []))
         ])
         self.layout = self._create_layout()
-        self.active_pane_write_position = None
+
+        # Keep track of render information.
+        self.pane_write_positions = {}
 
     def _create_layout(self):
         def get_status_tokens(cli):
@@ -131,7 +133,7 @@ class LayoutManager(object):
                 (Token.StatusBar, ' '),
             ]
 
-        return HighlightBorders(FloatContainer(
+        return HighlightBorders(self.pymux, FloatContainer(
             content=HSplit([
                 self.body,
                 ConditionalContainer(
@@ -249,19 +251,19 @@ def _create_container_for_process(pymux, arrangement_pane, left_edge=False, righ
             (token.Title, '%s' % process.screen.title),
         ]
 
-    return TraceBorders(pymux, HSplit([
-            Window(
-                height=D.exact(1),
-                content=TokenListControl(
-                    get_left_title_tokens,
-                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
-            ),
-            Window(
-                PaneContainer(pymux, arrangement_pane),
-                get_vertical_scroll=lambda window: process.screen.line_offset,
-                allow_scroll_beyond_bottom=True,
-            )
-            ]), Condition(lambda cli: has_focus()))
+    return TracePaneWritePosition(pymux, arrangement_pane, HSplit([
+        Window(
+            height=D.exact(1),
+            content=TokenListControl(
+                get_left_title_tokens,
+                get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+        ),
+        Window(
+            PaneContainer(pymux, arrangement_pane),
+            get_vertical_scroll=lambda window: process.screen.line_offset,
+            allow_scroll_beyond_bottom=True,
+        )
+    ]))
 
     return VSplit(result)
 
@@ -298,63 +300,98 @@ class HighlightBorders(_ContainerProxy):
     done, otherwise, rendering of panes on the right will replace the result of
     this one.
     """
-    def __init__(self, content, layout_manager):
+    def __init__(self, pymux, content, layout_manager):
         _ContainerProxy.__init__(self, content)
+        self.pymux = pymux
         self.layout_manager = layout_manager
 
     def write_to_screen(self, cli, screen, mouse_handlers, write_position):
         # Clear previous list of forder coordinates.
-        self.layout_manager.active_pane_write_position = None
+        self.layout_manager.pane_write_positions = {}
 
         # Render everything.
         _ContainerProxy.write_to_screen(self, cli, screen, mouse_handlers, write_position)
 
         # When rendering is done. Highlight the borders of the active pane.
-        if self.layout_manager.active_pane_write_position:
-            data_buffer = screen.data_buffer
+        data_buffer = screen.data_buffer
 
-            xpos, ypos, width, height = self.layout_manager.active_pane_write_position
+        wp = self.layout_manager.pane_write_positions[self.pymux.arrangement.active_pane]
+        xpos, ypos, width, height = wp.xpos, wp.ypos, wp.width, wp.height
 
-            xleft = xpos - 1
-            xright = xpos + width
+        xleft = xpos - 1
+        xright = xpos + width
 
-            # First line.
-            if xleft in data_buffer[ypos]:
-                data_buffer[ypos][xleft] = _focussed_border_char_titlebar
+        # First line.
+        if xleft in data_buffer[ypos]:
+            data_buffer[ypos][xleft] = _focussed_border_char_titlebar
 
-            if xright in data_buffer[ypos]:
-                data_buffer[ypos][xright] = _focussed_border_char_titlebar
+        if xright in data_buffer[ypos]:
+            data_buffer[ypos][xright] = _focussed_border_char_titlebar
 
-            # Every following line.
-            for y in range(ypos + 1, ypos + height):
-                row = data_buffer[y]
+        # Every following line.
+        for y in range(ypos + 1, ypos + height):
+            row = data_buffer[y]
 
-                if xleft in row:
-                    row[xleft] = _focussed_border_char
+            if xleft in row:
+                row[xleft] = _focussed_border_char
 
-                if xright in data_buffer[y]:
-                    row[xright] = _focussed_border_char
+            if xright in data_buffer[y]:
+                row[xright] = _focussed_border_char
 
 
-class TraceBorders(_ContainerProxy):
+class TracePaneWritePosition(_ContainerProxy):
     """
-    Trace the location of the active pane.
+    Trace the write position of this pane.
     """
-    def __init__(self, pymux, content, filter):
+    def __init__(self, pymux, arrangement_pane, content):
         _ContainerProxy.__init__(self, content)
 
         self.pymux = pymux
-        self.filter = filter
+        self.arrangement_pane = arrangement_pane
 
     def write_to_screen(self, cli, screen, mouse_handlers, write_position):
         _ContainerProxy.write_to_screen(self, cli, screen, mouse_handlers, write_position)
-        active_pane_write_position = self.pymux.layout_manager.active_pane_write_position
 
-        # When this pane is the active pane, register write position.
-        if self.filter(cli):
-            ypos = write_position.ypos
-            xpos = write_position.xpos
-            width = write_position.width
-            height = write_position.height
+        self.pymux.layout_manager.pane_write_positions[self.arrangement_pane] = write_position
 
-            self.pymux.layout_manager.active_pane_write_position = (xpos, ypos, width, height)
+
+
+def focus_left(pymux):
+    " Move focus to the left. "
+    _move_focus(pymux,
+                lambda wp: wp.xpos - 1,
+                lambda wp: wp.ypos)
+
+def focus_right(pymux):
+    " Move focus to the right. "
+    _move_focus(pymux,
+                lambda wp: wp.xpos + wp.width + 1,
+                lambda wp: wp.ypos)
+
+def focus_down(pymux):
+    " Move focus down. "
+    _move_focus(pymux,
+                lambda wp: wp.xpos,
+                lambda wp: wp.ypos + wp.height + 1)
+
+def focus_up(pymux):
+    " Move focus up. "
+    _move_focus(pymux,
+                lambda wp: wp.xpos,
+                lambda wp: wp.ypos - 1)
+
+
+def _move_focus(pymux, get_x, get_y):
+    " Move focus of the active window. "
+    window = pymux.arrangement.active_window
+
+    write_pos = pymux.layout_manager.pane_write_positions[window.active_pane]
+    x = get_x(write_pos)
+    y = get_y(write_pos)
+
+    # Look for the pane at this position.
+    for pane, wp in pymux.layout_manager.pane_write_positions.items():
+        if (wp.xpos <= x <= wp.xpos + wp.width and
+                wp.ypos <= y <= wp.ypos + wp.height):
+            window.active_pane = pane
+            return

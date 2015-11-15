@@ -1,10 +1,16 @@
 """
 """
 from __future__ import unicode_literals
-
 from .process import Process
 
 import os
+
+__all__ = (
+    'Pane',
+    'Window',
+    'Arrangement',
+)
+
 
 class Pane(object):
     def __init__(self, process):
@@ -82,7 +88,7 @@ class Window(object):
         if pane in self.panes:
             # When this pane was focused. Focus next.
             if pane == self.active_pane:
-                self.focus_left()
+                self.focus_next()
 
             # Remove from the parent. When the parent becomes empty, remove the
             # parent itself recursively.
@@ -146,15 +152,9 @@ class Window(object):
         if p is not None:
             return p.process
 
-    def focus_left(self):
+    def focus_next(self):
         panes = self.panes
-        self.active_pane = self.panes[
-                (panes.index(self.active_pane) - 1) % len(panes)]
-
-    def focus_right(self):
-        panes = self.panes
-        self.active_pane = self.panes[
-                (panes.index(self.active_pane) - 1) % len(panes)]
+        self.active_pane = panes[(panes.index(self.active_pane) + 1) % len(panes)]
 
 
 class Arrangement(object):

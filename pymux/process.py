@@ -170,7 +170,10 @@ class Process(object):
 
 def get_cwd_for_pid(pid):
     if sys.platform == 'linux':
-        return os.readlink('/proc/%s/cwd' % pid)
+        try:
+            return os.readlink('/proc/%s/cwd' % pid)
+        except OSError:
+            pass
 
 def get_name_for_fd(fd):
     if sys.platform == 'linux':
