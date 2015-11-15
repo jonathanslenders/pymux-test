@@ -69,22 +69,31 @@ def create_key_bindings(pymux):
         pymux.arrangement.focus_previous_window()
         pymux.layout_manager.update()
 
+    @registry.add_binding(Keys.ControlB, 'o')
+    def _(event):
+        " Focus next pane. "
+        pymux.arrangement.active_window.focus_next()
+
     @registry.add_binding(Keys.ControlB, Keys.ControlL)
+    @registry.add_binding(Keys.ControlB, Keys.Right)
     def _(event):
         " Focus right pane. "
         focus_right(pymux)
 
     @registry.add_binding(Keys.ControlB, Keys.ControlH)
+    @registry.add_binding(Keys.ControlB, Keys.Left)
     def _(event):
         " Focus left pane. "
         focus_left(pymux)
 
     @registry.add_binding(Keys.ControlB, Keys.ControlJ)
+    @registry.add_binding(Keys.ControlB, Keys.Down)
     def _(event):
         " Focus down. "
         focus_down(pymux)
 
     @registry.add_binding(Keys.ControlB, Keys.ControlK)
+    @registry.add_binding(Keys.ControlB, Keys.Up)
     def _(event):
         " Focus up. "
         focus_up(pymux)
