@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.contrib.completers import WordCompleter
 from prompt_toolkit.interface import CommandLineInterface
 
 from .style import PymuxStyle
@@ -10,6 +9,7 @@ from .layout import LayoutManager
 from .process import Process
 from .key_bindings import create_key_bindings
 from .arrangement import Arrangement, Pane
+from .commands.completer import create_command_completer
 
 import os
 
@@ -45,12 +45,8 @@ class Pymux(object):
             buffers={
                 'COMMAND': Buffer(
                     complete_while_typing=True,
-                    completer=WordCompleter([
-                    'new-window', 'kill-pane', 'rename-window'
-                    'list-buffers', 'last-pane', 'list-sessions',
-                    'kill-server', 'break-pane', 'rename-session',
-                    'refresh-client', 'next-layout',
-                ]))
+                    completer=create_command_completer(self),
+                )
             },
             mouse_support=True,
             use_alternate_screen=True,

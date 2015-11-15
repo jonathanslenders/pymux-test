@@ -22,6 +22,7 @@ import six
 import os
 
 from .process import Process
+from .commands.lexer import create_command_lexer
 import pymux.arrangement as arrangement
 
 __all__ = (
@@ -138,9 +139,9 @@ class LayoutManager(object):
                         height=D.exact(1),
                         content=BufferControl(
                             buffer_name='COMMAND',
-                            default_char=Char(' ', Token.CommandBar),
-                            lexer=SimpleLexer(Token.CommandBar),
-                            input_processors=[BeforeInput.static(':', Token.CommandBar)])
+                            default_char=Char(' ', Token.CommandLine),
+                            lexer=create_command_lexer(self.pymux),
+                            input_processors=[BeforeInput.static(':', Token.CommandLine)])
                     ),
                     filter=HasFocus('COMMAND'),
                 ),
