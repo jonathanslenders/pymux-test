@@ -112,7 +112,6 @@ class Window(object):
         for s in self.splits:
             if item in s:
                 return s
-#        return self.root
 
     @property
     def has_panes(self):

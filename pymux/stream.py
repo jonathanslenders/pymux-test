@@ -13,6 +13,7 @@ class BetterStream(Stream):
     """
     csi = {
         'n': 'cpr',
+        'c': 'send_device_attributes',  # csi > Ps c
     }
     csi.update(Stream.csi)
 
@@ -36,3 +37,10 @@ class BetterStream(Stream):
             self.state = "stream"
         else:
             self._square_close_data.append(char)
+
+    def _arguments(self, char):
+        if char == '>':
+            # Correctly handle 'Esc[>c' (send device attributes.)
+            pass
+        else:
+            super(BetterStream, self)._arguments(char)

@@ -21,6 +21,10 @@ from prompt_toolkit.styles import Attrs
 from pygments.formatters.terminal256 import Terminal256Formatter
 from wcwidth import wcwidth
 
+__all__ = (
+    'BetterScreen',
+)
+
 
 class CursorPosition(object):
     def __init__(self, x=0, y=0):
@@ -44,10 +48,10 @@ class BetterScreen(object):
             'max_y',
             ]
 
-    def __init__(self, lines, columns, cpr_response_callback):
+    def __init__(self, lines, columns, write_process_input):
         self.lines = lines
         self.columns = columns
-        self.cpr_response_callback = cpr_response_callback
+        self.write_process_input = write_process_input
         self._original_screen = None  # The original Screen instance, when going to the alternate screen.
         self.reset()
 
@@ -856,5 +860,8 @@ class BetterScreen(object):
             x = self.pt_screen.cursor_position.x + 1
 
             response = '\x1b[%i;%iR' % (y, x)
-            self.cpr_response_callback(response)
+            self.write_process_input(response)
 
+    def send_device_attributes(self, data):
+        response = '\x1b[>84;0;0c'
+        self.write_process_input(response)
