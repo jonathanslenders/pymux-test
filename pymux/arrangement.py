@@ -1,4 +1,8 @@
 """
+Arrangement of panes.
+
+Don't confuse with the prompt_toolkit VSplit/HSplit classes. This is a much
+higher level abstraction.
 """
 from __future__ import unicode_literals
 from .process import Process
@@ -36,6 +40,9 @@ class VSplit(list):
 
 
 class Window(object):
+    """
+    Pymux window.
+    """
     def __init__(self):
         self.root = HSplit()
         self.active_pane = None
@@ -142,6 +149,7 @@ class Window(object):
 
     @property
     def has_panes(self):
+        " True when this window contains at least one pane. "
         return len(self.panes) > 0
 
     @property
@@ -153,6 +161,7 @@ class Window(object):
             return p.process
 
     def focus_next(self):
+        " Focus the next pane. "
         panes = self.panes
         self.active_pane = panes[(panes.index(self.active_pane) + 1) % len(panes)]
 
