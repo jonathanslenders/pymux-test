@@ -15,5 +15,5 @@ __all__ = ( 'create_command_completer', )
 def create_command_completer(pymux):
     return GrammarCompleter(COMMAND_GRAMMAR, {
         #'executable': ExecutableCompleter(),
-        'command': WordCompleter(COMMANDS_TO_HANDLERS.keys()),
+        'command': WordCompleter(sorted(COMMANDS_TO_HANDLERS.keys())),
     })
