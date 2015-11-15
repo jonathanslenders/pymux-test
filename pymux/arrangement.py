@@ -211,6 +211,14 @@ class Arrangement(object):
         self.active_window = self.windows[
             (self.windows.index(self.active_window) + 1) % len(self.windows)]
 
+    def break_pane(self):
+        """ When the current window has multiple panes, remove the pane from
+        this window and put it in a new window. """
+        if len(self.active_window.panes) > 1:
+            pane = self.active_window.active_pane
+            self.active_window.remove_pane(pane)
+            self.create_window(pane)
+
     @property
     def has_panes(self):
         for w in self.windows:

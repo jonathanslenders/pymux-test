@@ -88,6 +88,18 @@ def create_key_bindings(pymux):
         pymux.cli.buffers['COMMAND'].document = Document(
             'rename-window %s' % pymux.arrangement.active_window.name)
 
+    def create_focus_window_number_func(i):
+        @registry.add_binding(Keys.ControlB, str(i))
+        def _(event):
+            " Focus window with this number. "
+            try:
+                pymux.arrangement.active_window = pymux.arrangement.windows[i]
+            except IndexError:
+                pass
+
+    for i in range(10):
+        create_focus_window_number_func(i)
+
     @registry.add_binding(Keys.ControlC, filter=HasFocus('COMMAND'))
     @registry.add_binding(Keys.ControlG, filter=HasFocus('COMMAND'))
     def _(event):

@@ -55,6 +55,12 @@ def new_window(pymux):
     pymux.create_window()
 
 
+@cmd('break-pane')
+def new_window(pymux):
+    pymux.arrangement.break_pane()
+    pymux.layout_manager.update()
+
+
 @_cmd('rename-window')
 def rename_window(pymux, variables):
     text = variables.get('text', '')
