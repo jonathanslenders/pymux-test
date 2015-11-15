@@ -181,7 +181,14 @@ class LayoutManager(object):
         Synchronise the prompt_toolkit layout with the layout defined by the
         pymux Arrangement.
         """
-        content = _create_split(self.pymux, self.pymux.arrangement.active_window.root)
+        active_window = self.pymux.arrangement.active_window
+
+        # When zoomed, only show the current pane, otherwise show all of them.
+        if active_window.zoom:
+            content = _create_container_for_process(self.pymux, active_window.active_pane, zoom=True)
+        else:
+            content = _create_split(self.pymux, self.pymux.arrangement.active_window.root)
+
         self.body.children = [content]
 
         self.pymux.cli.invalidate()
@@ -222,7 +229,7 @@ def _create_split(pymux, split):
     return return_cls(content)
 
 
-def _create_container_for_process(pymux, arrangement_pane):
+def _create_container_for_process(pymux, arrangement_pane, zoom=False):
     """
     Create a `Container` with a titlebar for a process.
     """
@@ -238,10 +245,14 @@ def _create_container_for_process(pymux, arrangement_pane):
     def get_titlebar_name_token(cli):
         return Token.TitleBar.Name.Focussed if has_focus() else Token.TitleBar.Name
 
-    def get_left_title_tokens(cli):
+    def get_title_tokens(cli):
         token = get_titlebar_token(cli)
         name_token = get_titlebar_name_token(cli)
         result = [(token, ' ')]
+
+        if zoom:
+            result.append((Token.TitleBar.Zoom, ' Z '))
+            result.append((token, ' '))
 
         if arrangement_pane.name:
             result.append((name_token, ' %s ' % arrangement_pane.name))
@@ -255,7 +266,7 @@ def _create_container_for_process(pymux, arrangement_pane):
         Window(
             height=D.exact(1),
             content=TokenListControl(
-                get_left_title_tokens,
+                get_title_tokens,
                 get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
         ),
         Window(

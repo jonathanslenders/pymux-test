@@ -10,32 +10,29 @@ __all__ = (
     'PymuxStyle',
 )
 
-class PyMuxStyle(pygments.style.Style):
-    styles = DefaultStyle.styles.copy()
+ui_style = {
+    Token.Line:                    '#888888',
+    Token.Line.Focussed:           '#448844',
 
-    styles.update(default_style_extensions)
-    styles.update({
-        Token.Line:                    '#888888',
-        Token.Line.Focussed:           '#448844',
+    Token.TitleBar:                'bg:#888888 #dddddd italic',
+    Token.TitleBar.Title:          '',
+    Token.TitleBar.Name:           '#ffffff noitalic',
+    Token.TitleBar.Name.Focussed:  'bg:#44aa44',
+    Token.TitleBar.Line:           '#444444',
+    Token.TitleBar.Line.Focussed:  'bg:#448844 #000000',
+    Token.TitleBar.Focussed:       'bg:#448844 #ffffff bold',
+    Token.TitleBar.Focussed.Title: '',
+    Token.TitleBar.Zoom:           'bg:#884400 #ffffff',
 
-        Token.TitleBar:                'bg:#888888 #dddddd italic',
-        Token.TitleBar.Title:          '',
-        Token.TitleBar.Name:           '#ffffff noitalic',
-        Token.TitleBar.Name.Focussed:  'bg:#44aa44',
-        Token.TitleBar.Line:           '#444444',
-        Token.TitleBar.Line.Focussed:  'bg:#448844 #000000',
-        Token.TitleBar.Focussed:       'bg:#448844 #ffffff bold',
-        Token.TitleBar.Focussed.Title: '',
-
-        Token.CommandLine:             'bg:#884444 #ffffff',
-        Token.CommandLine.Executable:  '',
-        Token.CommandLine.Command:     'bold',
-        Token.CommandLine.Text:        'bg:#bbffbb #000000',
-        Token.StatusBar:               'bg:#444444 #ffffff',
-        Token.StatusBar.Window:        'bg:#888888',
-        Token.StatusBar.Window.Active: '#88ff88',
-        Token.AutoSuggestion:          'bg:#884444 #ff8888',
-    })
+    Token.CommandLine:             'bg:#884444 #ffffff',
+    Token.CommandLine.Executable:  '',
+    Token.CommandLine.Command:     'bold',
+    Token.CommandLine.Text:        'bg:#bbffbb #000000',
+    Token.StatusBar:               'bg:#444444 #ffffff',
+    Token.StatusBar.Window:        'bg:#888888',
+    Token.StatusBar.Window.Active: '#88ff88',
+    Token.AutoSuggestion:          'bg:#884444 #ff8888',
+}
 
 
 
@@ -55,7 +52,7 @@ class PymuxStyle(Style):
          _colors[1024 + i] = '%02x%02x%02x' % (r,g,b)
 
     def __init__(self):
-        self.pygments_style = PygmentsStyle(PyMuxStyle)
+        self.pygments_style = PygmentsStyle.from_defaults(style_dict=ui_style)
         self._token_to_attrs_dict = None
 
     def get_attrs_for_token(self, token):

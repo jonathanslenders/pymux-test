@@ -45,8 +45,20 @@ class Window(object):
     """
     def __init__(self):
         self.root = HSplit()
-        self.active_pane = None
+        self._active_pane = None
         self.chosen_name = None
+
+        #: When true, the current pane is zoomed in.
+        self.zoom = False
+
+    @property
+    def active_pane(self):
+        return self._active_pane
+
+    @active_pane.setter
+    def active_pane(self, value):
+        self._active_pane = value
+        self.zoom = False
 
     @property
     def name(self):
@@ -88,6 +100,7 @@ class Window(object):
                 parent[index] = new_split
 
         self.active_pane = pane
+        self.zoom = False
 
     def remove_pane(self, pane):
         assert isinstance(pane, Pane)
