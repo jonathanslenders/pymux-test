@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 from .process import Process
 
 import os
+import weakref
 
 __all__ = (
     'Pane',
@@ -46,6 +47,7 @@ class Window(object):
     def __init__(self):
         self.root = HSplit()
         self._active_pane = None
+        self._prev_active_pane = None
         self.chosen_name = None
 
         #: When true, the current pane is zoomed in.
@@ -57,8 +59,22 @@ class Window(object):
 
     @active_pane.setter
     def active_pane(self, value):
-        self._active_pane = value
+        # Remember previous active pane.
+        if self._active_pane:
+            self._prev_active_pane = weakref.ref(self._active_pane)
+
         self.zoom = False
+        self._active_pane = value
+
+    @property
+    def previous_active_pane(self):
+        " The previous active pane or None if unknown. "
+        p = self._prev_active_pane and self._prev_active_pane()
+
+        # Only return when this pane actually still exists in the current
+        # window.
+        if p and p in self.panes:
+            return p
 
     @property
     def name(self):

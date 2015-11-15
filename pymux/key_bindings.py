@@ -111,6 +111,15 @@ def create_key_bindings(pymux):
         " Enter command mode. "
         pymux.cli.focus_stack.replace('COMMAND')
 
+    @registry.add_binding(Keys.ControlB, ';')
+    def _(event):
+        " Go to previous active pane. "
+        w = pymux.arrangement.active_window
+        prev_active_pane = w.previous_active_pane
+
+        if prev_active_pane:
+            w.active_pane = prev_active_pane
+
     @registry.add_binding(Keys.ControlB, ',')
     def _(event):
         " Rename window. "
