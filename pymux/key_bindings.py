@@ -11,7 +11,9 @@ __all__ = (
 
 
 def create_key_bindings(pymux):
-    manager = KeyBindingManager(enable_all=HasFocus('COMMAND'))
+    manager = KeyBindingManager(
+        enable_all=HasFocus('COMMAND'),
+        enable_auto_suggest_bindings=True)
     registry = manager.registry
 
     @registry.add_binding(Keys.Any, filter=~HasFocus('COMMAND'), invalidate_ui=False)

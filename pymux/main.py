@@ -1,17 +1,18 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.application import Application
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.buffer import Buffer, AcceptAction
-from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.enums import DEFAULT_BUFFER
+from prompt_toolkit.interface import CommandLineInterface
 
-from .style import PymuxStyle
-from .layout import LayoutManager
-from .process import Process
-from .key_bindings import create_key_bindings
 from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
 from .commands.handler import handle_command
+from .key_bindings import create_key_bindings
+from .layout import LayoutManager
+from .process import Process
+from .style import PymuxStyle
 
 import os
 
@@ -60,6 +61,7 @@ class Pymux(object):
                     complete_while_typing=True,
                     completer=create_command_completer(self),
                     accept_action=AcceptAction(handler=_handle_command),
+                    auto_suggest=AutoSuggestFromHistory(),
                 )
             },
             mouse_support=True,

@@ -10,7 +10,7 @@ from prompt_toolkit.layout.controls import TokenListControl, FillControl, UICont
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.layout.processors import BeforeInput
+from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
 from prompt_toolkit.layout.margins import ScrollbarMargin
 from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.filters import Condition
@@ -141,7 +141,10 @@ class LayoutManager(object):
                             buffer_name='COMMAND',
                             default_char=Char(' ', Token.CommandLine),
                             lexer=create_command_lexer(self.pymux),
-                            input_processors=[BeforeInput.static(':', Token.CommandLine)])
+                            input_processors=[
+                                BeforeInput.static(':', Token.CommandLine),
+                                AppendAutoSuggestion(),
+                            ])
                     ),
                     filter=HasFocus('COMMAND'),
                 ),
