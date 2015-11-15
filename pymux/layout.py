@@ -389,9 +389,6 @@ def _move_focus(pymux, get_x, get_y):
     " Move focus of the active window. "
     window = pymux.arrangement.active_window
 
-    with open('/tmp/log', 'a') as f:
-        f.write('%r\n' % pymux.layout_manager.pane_write_positions)
-
     write_pos = pymux.layout_manager.pane_write_positions[window.active_pane]
     x = get_x(write_pos)
     y = get_y(write_pos)
