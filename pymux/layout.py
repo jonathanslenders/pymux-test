@@ -237,28 +237,13 @@ def _create_container_for_process(pymux, arrangement_pane, left_edge=False, righ
         token = get_titlebar_token(cli)
         return [(token, ' '), (token.Title, ' %s ' % process.screen.title), (token, ' ')]
 
-    def get_right_title_tokens(cli):
-        token = get_titlebar_token(cli)
-        if has_focus():
-            return [(token.Right, '[%s]' % process.pid)]
-        else:
-            return []
-
     return TraceBorders(pymux, HSplit([
-            VSplit([
-                Window(
-                    height=D.exact(1),
-                    content=TokenListControl(
-                        get_left_title_tokens,
-                        get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
-                ),
-                Window(
-                    height=D.exact(1), width=D.exact(8),
-                    content=TokenListControl(
-                        get_right_title_tokens,
-                        align_center=True,
-                        get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))),
-            ]),
+            Window(
+                height=D.exact(1),
+                content=TokenListControl(
+                    get_left_title_tokens,
+                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+            ),
             Window(
                 PaneContainer(pymux, arrangement_pane),
                 get_vertical_scroll=lambda window: process.screen.line_offset,
@@ -322,13 +307,17 @@ class HighlightBorders(_ContainerProxy):
             xright = xpos + width
 
             # First line.
-            data_buffer[ypos][xleft] = _focussed_border_char_titlebar
-            data_buffer[ypos][xright] = _focussed_border_char_titlebar
+            if xleft > 0:
+                data_buffer[ypos][xleft] = _focussed_border_char_titlebar
+            if xright < screen.width:
+                data_buffer[ypos][xright] = _focussed_border_char_titlebar
 
             # Every following line.
             for y in range(ypos + 1, ypos + height):
-                data_buffer[y][xleft] = _focussed_border_char
-                data_buffer[y][xright] = _focussed_border_char
+                if xleft > 0:
+                    data_buffer[y][xleft] = _focussed_border_char
+                if xright < screen.width:
+                    data_buffer[y][xright] = _focussed_border_char
 
 
 class TraceBorders(_ContainerProxy):
