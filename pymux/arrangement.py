@@ -198,7 +198,26 @@ class Window(object):
 class Arrangement(object):
     def __init__(self):
         self.windows = []
-        self.active_window = None
+        self._active_window = None
+        self._prev_active_window = None
+
+    @property
+    def active_window(self):
+        return self._active_window
+
+    @active_window.setter
+    def active_window(self, value):
+        if self._active_window:
+            self._prev_active_window = weakref.ref(self._active_window)
+        self._active_window = value
+
+    @property
+    def previous_active_window(self):
+        " The previous active Window or None if unknown. "
+        w = self._prev_active_window and self._prev_active_window()
+
+        if w and w in self.windows:
+            return w
 
     def create_window(self, pane):
         " Create a new window that contains just this pane. "

@@ -30,7 +30,7 @@ ui_style = {
     Token.CommandLine.Text:        'bg:#bbffbb #000000',
     Token.StatusBar:               'bg:#444444 #ffffff',
     Token.StatusBar.Window:        'bg:#888888',
-    Token.StatusBar.Window.Active: '#88ff88',
+    Token.StatusBar.Window.Active: '#88ff88 bold',
     Token.AutoSuggestion:          'bg:#884444 #ff8888',
 }
 

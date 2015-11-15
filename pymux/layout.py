@@ -113,20 +113,19 @@ class LayoutManager(object):
     def _create_layout(self):
         def get_status_tokens(cli):
             result = []
+            previous_window = self.pymux.arrangement.previous_active_window
 
             for i, w in enumerate(self.pymux.arrangement.windows):
+                result.append((Token.StatusBar, ' '))
+
                 if w == self.pymux.arrangement.active_window:
-                    result.extend([
-                        (Token.StatusBar, ' '),
-                        (Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name)),
-                        (Token.StatusBar, ' '),
-                    ])
+                    result.append((Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name)))
+
+                elif w == previous_window:
+                    result.append((Token.StatusBar.Window, '%i:%s-' % (i, w.name)))
+
                 else:
-                    result.extend([
-                        (Token.StatusBar, ' '),
-                        (Token.StatusBar.Window, '%i:%s ' % (i, w.name)),
-                        (Token.StatusBar, ' '),
-                    ])
+                    result.append((Token.StatusBar.Window, '%i:%s ' % (i, w.name)))
 
             return result
 
