@@ -31,6 +31,10 @@ __all__ = (
 
 
 class PaneContainer(UIControl):
+    """
+    User control that takes the Screen from a pymux pane/process.
+    This also handles mouse support.
+    """
     def __init__(self, pymux, pane):
         self.pane = pane
         self.process = pane.process
@@ -133,7 +137,7 @@ class LayoutManager(object):
                 (Token.StatusBar, ' '),
             ]
 
-        return HighlightBorders(self.pymux, FloatContainer(
+        return HighlightBorders(self, self.pymux, FloatContainer(
             content=HSplit([
                 self.body,
                 ConditionalContainer(
@@ -170,23 +174,22 @@ class LayoutManager(object):
                       ycursor=True,
                       content=CompletionsMenu(max_height=12))
             ]
-        ), self)
+        ))
 
     def update(self):
-        content = _create_split(self.pymux, self.pymux.arrangement.active_window.root,
-                                left_edge=True, right_edge=True)
-
+        """
+        Synchronise the prompt_toolkit layout with the layout defined by the
+        pymux Arrangement.
+        """
+        content = _create_split(self.pymux, self.pymux.arrangement.active_window.root)
         self.body.children = [content]
 
         self.pymux.cli.invalidate()
 
 
-def _create_split(pymux, split, left_edge=False, right_edge=False):
+def _create_split(pymux, split):
     """
     Create a prompt_toolkit `Container` instance for the given pymux split.
-
-    :param left_edge: True when this split touches the left edge.
-    :param right_edge: True when this split touches the right edge.
     """
     assert isinstance(split, (arrangement.HSplit, arrangement.VSplit))
 
@@ -196,13 +199,10 @@ def _create_split(pymux, split, left_edge=False, right_edge=False):
     content = []
 
     for i, item in enumerate(split):
-        le = left_edge and ((is_vsplit and i == 0) or is_hsplit)
-        re = right_edge and ((is_vsplit and i == len(split) - 1) or is_hsplit)
-
         if isinstance(item, (arrangement.VSplit, arrangement.HSplit)):
-            content.append(_create_split(pymux, item, left_edge=le, right_edge=re))
+            content.append(_create_split(pymux, item))
         elif isinstance(item, arrangement.Pane):
-            content.append(_create_container_for_process(pymux, item, left_edge=le, right_edge=re))
+            content.append(_create_container_for_process(pymux, item))
         else:
             raise TypeError('Got %r' % (item,))
 
@@ -222,9 +222,9 @@ def _create_split(pymux, split, left_edge=False, right_edge=False):
     return return_cls(content)
 
 
-def _create_container_for_process(pymux, arrangement_pane, left_edge=False, right_edge=False):
+def _create_container_for_process(pymux, arrangement_pane):
     """
-    Create a container with a titlebar for a process.
+    Create a `Container` with a titlebar for a process.
     """
     assert isinstance(arrangement_pane, arrangement.Pane)
     process = arrangement_pane.process
@@ -300,7 +300,7 @@ class HighlightBorders(_ContainerProxy):
     done, otherwise, rendering of panes on the right will replace the result of
     this one.
     """
-    def __init__(self, pymux, content, layout_manager):
+    def __init__(self, layout_manager, pymux, content):
         _ContainerProxy.__init__(self, content)
         self.pymux = pymux
         self.layout_manager = layout_manager
@@ -363,7 +363,7 @@ class TracePaneWritePosition(_ContainerProxy):
 def focus_left(pymux):
     " Move focus to the left. "
     _move_focus(pymux,
-                lambda wp: wp.xpos - 1,
+                lambda wp: wp.xpos - 2,  # 2 in order to skip over the border.
                 lambda wp: wp.ypos)
 
 def focus_right(pymux):
@@ -389,13 +389,16 @@ def _move_focus(pymux, get_x, get_y):
     " Move focus of the active window. "
     window = pymux.arrangement.active_window
 
+    with open('/tmp/log', 'a') as f:
+        f.write('%r\n' % pymux.layout_manager.pane_write_positions)
+
     write_pos = pymux.layout_manager.pane_write_positions[window.active_pane]
     x = get_x(write_pos)
     y = get_y(write_pos)
 
     # Look for the pane at this position.
     for pane, wp in pymux.layout_manager.pane_write_positions.items():
-        if (wp.xpos <= x <= wp.xpos + wp.width and
-                wp.ypos <= y <= wp.ypos + wp.height):
+        if (wp.xpos <= x < wp.xpos + wp.width and
+                wp.ypos <= y < wp.ypos + wp.height):
             window.active_pane = pane
             return
