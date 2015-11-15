@@ -22,7 +22,7 @@ class Pymux(object):
     """
     def __init__(self):
         self.arrangement = Arrangement()
-        self.pymux_layout = LayoutManager(self)
+        self.layout_manager = LayoutManager(self)
 
         registry = create_key_bindings(self)
 
@@ -38,7 +38,7 @@ class Pymux(object):
                 return 'Pymux'
 
         application = Application(
-            layout=self.pymux_layout.layout,
+            layout=self.layout_manager.layout,
             key_bindings_registry=registry,
             buffers={
                 'COMMAND': Buffer(
@@ -66,7 +66,7 @@ class Pymux(object):
             # Remove pane from layout.
             self.arrangement.remove_pane(pane)
 #            self.arrangement.remove_dead_panes()
-            self.pymux_layout.update()
+            self.layout_manager.update()
 
             # No panes left? -> Quit.
             if not self.arrangement.has_panes:
@@ -81,12 +81,12 @@ class Pymux(object):
         pane = self._create_pane()
 
         self.arrangement.create_window(pane)
-        self.pymux_layout.update()
+        self.layout_manager.update()
 
     def add_process(self, vsplit=False):
         pane = self._create_pane()
         self.arrangement.active_window.add_pane(pane, vsplit=vsplit)
-        self.pymux_layout.update()
+        self.layout_manager.update()
 
     def run(self):
         self.cli.run()

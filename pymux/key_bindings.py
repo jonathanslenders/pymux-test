@@ -58,13 +58,13 @@ def create_key_bindings(pymux):
     def _(event):
         " Focus next window. "
         pymux.arrangement.focus_next_window()
-        pymux.pymux_layout.update()
+        pymux.layout_manager.update()
 
     @registry.add_binding(Keys.ControlB, 'p')
     def _(event):
         " Focus previous window. "
         pymux.arrangement.focus_previous_window()
-        pymux.pymux_layout.update()
+        pymux.layout_manager.update()
 
     @registry.add_binding(Keys.ControlB, Keys.ControlL)
     def _(event):

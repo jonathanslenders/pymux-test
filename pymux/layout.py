@@ -5,12 +5,13 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.filters import HasFocus
-from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer
+from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput
+from prompt_toolkit.layout.margins import ScrollbarMargin
 from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.mouse_events import MouseEventTypes
@@ -48,7 +49,7 @@ class PaneContainer(UIControl):
 
         if not self.has_focus:
             # Focus this process when the mouse has been clicked.
-            self.pymux.arrangement.active_pane = self.pane
+            self.pymux.arrangement.active_window.active_pane = self.pane
         else:
             # Already focussed, send event to application when it requested
             # mouse support.
@@ -99,6 +100,7 @@ class LayoutManager(object):
             Window(TokenListControl(lambda cli: []))
         ])
         self.layout = self._create_layout()
+        self.active_pane_write_position = None
 
     def _create_layout(self):
         def get_status_tokens(cli):
@@ -127,7 +129,7 @@ class LayoutManager(object):
                 (Token.StatusBar, ' '),
             ]
 
-        return FloatContainer(
+        return HighlightBorders(FloatContainer(
             content=HSplit([
                 self.body,
                 ConditionalContainer(
@@ -161,66 +163,59 @@ class LayoutManager(object):
                       ycursor=True,
                       content=CompletionsMenu(max_height=12))
             ]
-        )
+        ), self)
 
     def update(self):
-        content = _create_split(self.pymux, self.pymux.arrangement.active_window.root)
+        content = _create_split(self.pymux, self.pymux.arrangement.active_window.root,
+                                left_edge=True, right_edge=True)
 
         self.body.children = [content]
 
         self.pymux.cli.invalidate()
 
 
-def _create_split(pymux, split):
+def _create_split(pymux, split, left_edge=False, right_edge=False):
     """
     Create a prompt_toolkit `Container` instance for the given pymux split.
+
+    :param left_edge: True when this split touches the left edge.
+    :param right_edge: True when this split touches the right edge.
     """
     assert isinstance(split, (arrangement.HSplit, arrangement.VSplit))
 
     is_vsplit = isinstance(split, arrangement.VSplit)
-
-    def create_condition(p1, p2):
-        " True when one of the given processes has the focus. "
-        def has_focus(cli):
-            return True
-#            return pymux.focussed_process in (p1, p2)
-        return Condition(has_focus)
+    is_hsplit = not is_vsplit
 
     content = []
 
     for i, item in enumerate(split):
+        le = left_edge and ((is_vsplit and i == 0) or is_hsplit)
+        re = right_edge and ((is_vsplit and i == len(split) - 1) or is_hsplit)
+
         if isinstance(item, (arrangement.VSplit, arrangement.HSplit)):
-            content.append(_create_split(pymux, item))
+            content.append(_create_split(pymux, item, left_edge=le, right_edge=re))
         elif isinstance(item, arrangement.Pane):
-            content.append(_create_container_for_process(pymux, item))
+            content.append(_create_container_for_process(pymux, item, left_edge=le, right_edge=re))
         else:
             raise TypeError('Got %r' % (item,))
 
         # Draw a vertical line between windows. (In case of a vsplit)
-        if is_vsplit:
-            if i != len(split) - 1:  # TODO
-                # Visible condition.
-                condition = create_condition(None, None)#pymux.processes[i], pymux.processes[i+1])
-
-                for titlebar_token, body_token, condition, char in [
-                        (Token.TitleBar.Line, Token.Line, ~condition, '│'),
-                        (Token.TitleBar.Line.Focussed, Token.Line.Focussed, condition, '┃')]:
-
-                    content.append(ConditionalContainer(
-                        HSplit([
-                            Window(
-                               width=D.exact(1), height=D.exact(1),
-                               content=FillControl(char, token=titlebar_token)),
-                            Window(width=D.exact(1),
-                                   content=FillControl(char, token=body_token))
-                        ]), condition))
+        if is_vsplit and i != len(split) - 1:
+            char = '│'
+            content.append(HSplit([
+                    Window(
+                       width=D.exact(1), height=D.exact(1),
+                       content=FillControl(char, token=Token.TitleBar.Line)),
+                    Window(width=D.exact(1),
+                           content=FillControl(char, token=Token.Line))
+                ]))
 
     # Create prompt_toolkit Container.
     return_cls = VSplit if is_vsplit else HSplit
     return return_cls(content)
 
 
-def _create_container_for_process(pymux, arrangement_pane):
+def _create_container_for_process(pymux, arrangement_pane, left_edge=False, right_edge=False):
     """
     Create a container with a titlebar for a process.
     """
@@ -247,26 +242,112 @@ def _create_container_for_process(pymux, arrangement_pane):
         else:
             return []
 
-    return HSplit([
-        VSplit([
+    return TraceBorders(pymux, HSplit([
+            VSplit([
+                Window(
+                    height=D.exact(1),
+                    content=TokenListControl(
+                        get_left_title_tokens,
+                        get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+                ),
+                Window(
+                    height=D.exact(1), width=D.exact(8),
+                    content=TokenListControl(
+                        get_right_title_tokens,
+                        align_center=True,
+                        get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))),
+            ]),
             Window(
-                height=D.exact(1),
-                content=TokenListControl(
-                    get_left_title_tokens,
-                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
-            ),
-            Window(
-                height=D.exact(1), width=D.exact(8),
-                content=TokenListControl(
-                    get_right_title_tokens,
-                    align_center=True,
-                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))),
-        ]),
-        Window(
-            PaneContainer(pymux, arrangement_pane),
-            get_vertical_scroll=
-                lambda window: process.screen.line_offset,
-            allow_scroll_beyond_bottom=True,
-        )
-    ])
+                PaneContainer(pymux, arrangement_pane),
+                get_vertical_scroll=lambda window: process.screen.line_offset,
+                allow_scroll_beyond_bottom=True,
+            )
+            ]), Condition(lambda cli: has_focus()))
 
+    return VSplit(result)
+
+
+class _ContainerProxy(Container):
+    def __init__(self, content):
+        self.content = content
+
+    def reset(self):
+        self.content.reset()
+
+    def preferred_width(self, cli, max_available_width):
+        return self.content.preferred_width(cli, max_available_width)
+
+    def preferred_height(self, cli, width):
+        return self.content.preferred_height(cli, width)
+
+    def write_to_screen(self, cli, screen, mouse_handlers, write_position):
+        self.content.write_to_screen(cli, screen, mouse_handlers, write_position)
+
+    def walk(self):
+        return self.content.walk()
+
+
+_focussed_border_char = Char('┃', Token.Line.Focussed)
+_focussed_border_char_titlebar = Char('┃', Token.TitleBar.Line.Focussed)
+
+
+class HighlightBorders(_ContainerProxy):
+    """
+    Highlight the active borders. Happens post rendering.
+
+    (We highlight the active pane when the rendering of everything else is
+    done, otherwise, rendering of panes on the right will replace the result of
+    this one.
+    """
+    def __init__(self, content, layout_manager):
+        _ContainerProxy.__init__(self, content)
+        self.layout_manager = layout_manager
+
+    def write_to_screen(self, cli, screen, mouse_handlers, write_position):
+        # Clear previous list of forder coordinates.
+        self.layout_manager.active_pane_write_position = None
+
+        # Render everything.
+        _ContainerProxy.write_to_screen(self, cli, screen, mouse_handlers, write_position)
+
+        # When rendering is done. Highlight the borders of the active pane.
+        if self.layout_manager.active_pane_write_position:
+            data_buffer = screen.data_buffer
+
+            xpos, ypos, width, height = self.layout_manager.active_pane_write_position
+
+            xleft = xpos - 1
+            xright = xpos + width
+
+            # First line.
+            data_buffer[ypos][xleft] = _focussed_border_char_titlebar
+            data_buffer[ypos][xright] = _focussed_border_char_titlebar
+
+            # Every following line.
+            for y in range(ypos + 1, ypos + height):
+                data_buffer[y][xleft] = _focussed_border_char
+                data_buffer[y][xright] = _focussed_border_char
+
+
+class TraceBorders(_ContainerProxy):
+    """
+    Trace the location of the active pane.
+    """
+    def __init__(self, pymux, content, filter):
+        _ContainerProxy.__init__(self, content)
+
+        self.pymux = pymux
+        self.filter = filter
+
+    def write_to_screen(self, cli, screen, mouse_handlers, write_position):
+        _ContainerProxy.write_to_screen(self, cli, screen, mouse_handlers, write_position)
+        active_pane_write_position = self.pymux.layout_manager.active_pane_write_position
+
+        # When this pane is the active pane, register write position.
+        if self.filter(cli):
+            ypos = write_position.ypos
+            xpos = write_position.xpos
+            width = write_position.width
+            height = write_position.height
+
+            self.pymux.layout_manager.active_pane_write_position = (xpos, ypos, width, height)
