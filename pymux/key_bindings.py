@@ -24,7 +24,7 @@ def create_key_bindings(pymux):
 
         # Applications like htop with run in application mode require the
         # following input.
-        if pymux.focussed_process.screen.in_application_mode:
+        if pymux.active_process.screen.in_application_mode:
             data = {
                     Keys.Up: '\x1bOA',
                     Keys.Left: '\x1bOD',
@@ -32,12 +32,12 @@ def create_key_bindings(pymux):
                     Keys.Down: '\x1bOB',
             }.get(event.key_sequence[0].key, data)
 
-        pymux.focussed_process.write_input(data)
+        pymux.active_process.write_input(data)
 
     @registry.add_binding(Keys.ControlB, Keys.ControlB)
     def _(event):
         " Send Ctrl-B to active process. "
-        pymux.focussed_process.write_input(event.data)
+        pymux.active_process.write_input(event.data)
 
     @registry.add_binding(Keys.ControlB, '"')
     def _(event):

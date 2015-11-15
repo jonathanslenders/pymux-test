@@ -11,6 +11,8 @@ from .process import Process
 from .key_bindings import create_key_bindings
 from .arrangement import Arrangement, Pane
 
+import os
+
 __all__ = (
     'Pymux',
 )
@@ -27,8 +29,8 @@ class Pymux(object):
         registry = create_key_bindings(self)
 
         def get_title():
-            if self.focussed_process:
-                title = self.focussed_process.screen.title
+            if self.active_process:
+                title = self.active_process.screen.title
             else:
                 title = ''
 
@@ -58,19 +60,25 @@ class Pymux(object):
         self.cli = CommandLineInterface(application=application)
 
     @property
-    def focussed_process(self):
+    def active_process(self):
         return self.arrangement.active_process
 
     def _create_pane(self):
         def done_callback():
             # Remove pane from layout.
             self.arrangement.remove_pane(pane)
-#            self.arrangement.remove_dead_panes()
             self.layout_manager.update()
 
             # No panes left? -> Quit.
             if not self.arrangement.has_panes:
                 self.cli.set_return_value(None)
+
+        # When the path of the active process is known,
+        # start the new process at the same location.
+        if self.active_process:
+            path = self.active_process.get_cwd()
+            if path:
+                os.chdir(path)
 
         process = Process(self.cli, done_callback)
         pane = Pane(process)

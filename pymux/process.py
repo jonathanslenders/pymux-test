@@ -11,9 +11,11 @@ from .utils import set_size
 
 import getpass
 import os
+import os
 import pwd
 import resource
 import signal
+import sys
 import time
 import traceback
 
@@ -157,3 +159,25 @@ class Process(object):
 
         # Connect read pipe.
         self.cli.eventloop.add_reader(self.master, read)
+
+    def get_cwd(self):
+        return get_cwd_for_pid(self.pid)
+
+    def get_name(self):
+        # TODO: Cache for short time.
+        return get_name_for_fd(self.master)
+
+
+def get_cwd_for_pid(pid):
+    if sys.platform == 'linux':
+        return os.readlink('/proc/%s/cwd' % pid)
+
+def get_name_for_fd(fd):
+    if sys.platform == 'linux':
+        pgrp = os.tcgetpgrp(fd)
+
+        try:
+            with open('/proc/%s/cmdline' % pgrp, 'rb') as f:
+                return f.read().decode('utf-8', 'ignore').split('\0')[0]
+        except IOError:
+            pass

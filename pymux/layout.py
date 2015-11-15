@@ -19,6 +19,7 @@ from prompt_toolkit.mouse_events import MouseEventTypes
 from pygments.token import Token
 import datetime
 import six
+import os
 
 from .process import Process
 import pymux.arrangement as arrangement

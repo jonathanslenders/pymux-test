@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 from .process import Process
 
+import os
 
 class Pane(object):
     def __init__(self, process):
@@ -31,7 +32,20 @@ class Window(object):
     def __init__(self):
         self.root = HSplit()
         self.active_pane = None
-        self.name = None
+        self.chosen_name = None
+
+    @property
+    def name(self):
+        if self.chosen_name:
+            return self.chosen_name
+        else:
+            p = self.active_process
+            if p:
+                name = self.active_process.get_name()
+                if name:
+                    return os.path.basename(name)
+
+        return '(noname)'
 
     def add_pane(self, pane, vsplit=False):
         assert isinstance(pane, Pane)
@@ -117,6 +131,14 @@ class Window(object):
     def has_panes(self):
         return len(self.panes) > 0
 
+    @property
+    def active_process(self):
+        " Return `Process` that should receive user input. "
+        p = self.active_pane
+
+        if p is not None:
+            return p.process
+
     def focus_left(self):
         panes = self.panes
         self.active_pane = self.panes[
@@ -147,12 +169,16 @@ class Arrangement(object):
 
     @property
     def active_pane(self):
-        return self.active_window.active_pane
+        " Return the active :class:`.Pane` or `None`."
+        if self.active_window is not None:
+            return self.active_window.active_pane
 
     @property
     def active_process(self):
         " Return `Process` that should receive user input. "
-        return self.active_pane.process
+        p = self.active_pane
+        if p is not None:
+            return p.process
 
     def remove_pane(self, pane):
         assert isinstance(pane, Pane)
