@@ -20,11 +20,13 @@ class PyMuxStyle(pygments.style.Style):
 
         Token.TitleBar:                'bg:#888888 #dddddd italic',
         Token.TitleBar.Title:          '',
+        Token.TitleBar.Name:           '#ffffff noitalic',
+        Token.TitleBar.Name.Focussed:  'bg:#44aa44',
         Token.TitleBar.Line:           '#444444',
         Token.TitleBar.Line.Focussed:  'bg:#448844 #000000',
         Token.TitleBar.Focussed:       'bg:#448844 #ffffff bold',
         Token.TitleBar.Focussed.Title: '',
-        Token.TitleBar.Focussed.Right: 'noitalic',
+
         Token.CommandLine:             'bg:#884444 #ffffff',
         Token.CommandLine.Executable:  '',
         Token.CommandLine.Command:     'bold',

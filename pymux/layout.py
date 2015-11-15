@@ -231,14 +231,23 @@ def _create_container_for_process(pymux, arrangement_pane, left_edge=False, righ
         return pymux.arrangement.active_pane == arrangement_pane
 
     def get_titlebar_token(cli):
-        if has_focus():
-            return Token.TitleBar.Focussed
-        else:
-            return Token.TitleBar
+        return Token.TitleBar.Focussed if has_focus() else Token.TitleBar
+
+    def get_titlebar_name_token(cli):
+        return Token.TitleBar.Name.Focussed if has_focus() else Token.TitleBar.Name
 
     def get_left_title_tokens(cli):
         token = get_titlebar_token(cli)
-        return [(token, ' '), (token.Title, ' %s ' % process.screen.title), (token, ' ')]
+        name_token = get_titlebar_name_token(cli)
+        result = [(token, ' ')]
+
+        if arrangement_pane.name:
+            result.append((name_token, ' %s ' % arrangement_pane.name))
+            result.append((token, ' '))
+
+        return result + [
+            (token.Title, '%s' % process.screen.title),
+        ]
 
     return TraceBorders(pymux, HSplit([
             Window(

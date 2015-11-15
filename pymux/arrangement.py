@@ -11,6 +11,7 @@ class Pane(object):
         assert isinstance(process, Process)
 
         self.process = process
+        self.name = None
 
 
 class HSplit(list):
@@ -36,14 +37,20 @@ class Window(object):
 
     @property
     def name(self):
+        # Name, explicitely set for the window.
         if self.chosen_name:
             return self.chosen_name
         else:
-            p = self.active_process
-            if p:
-                name = self.active_process.get_name()
-                if name:
-                    return os.path.basename(name)
+            pane = self.active_pane
+            if pane:
+                # Name, explicitely set for the pane.
+                if pane.name:
+                    return pane.name
+                else:
+                    # Name from the process running inside the pane.
+                    name = pane.process.get_name()
+                    if name:
+                        return os.path.basename(name)
 
         return '(noname)'
 

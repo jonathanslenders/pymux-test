@@ -65,3 +65,9 @@ def new_window(pymux):
 def rename_window(pymux, variables):
     text = variables.get('text', '')
     pymux.arrangement.active_window.chosen_name = text
+
+
+@_cmd('rename-pane')
+def rename_pane(pymux, variables):
+    text = variables.get('text', '')
+    pymux.arrangement.active_pane.name = text

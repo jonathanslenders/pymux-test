@@ -12,7 +12,7 @@ COMMAND_GRAMMAR = compile(r"""
         (?P<command>vsplit|split) \s+ (?P<executable>[^\s]+)     |
 
         # Commands accepting a text.
-        (?P<command>rename-window) \s+ (?P<text>.+)          |
+        (?P<command>rename-window|rename-pane) \s+ (?P<text>.+)          |
 
         # Any other normal command.
         (?P<command>[^\s]+) \s+  ([^\s]*)             |
