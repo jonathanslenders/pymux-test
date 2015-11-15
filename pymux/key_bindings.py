@@ -81,12 +81,18 @@ def create_key_bindings(pymux):
         " Enter command mode. "
         pymux.cli.focus_stack.replace('COMMAND')
 
+    @registry.add_binding(Keys.ControlB, ',')
+    def _(event):
+        " Rename window. "
+        pymux.cli.focus_stack.replace('COMMAND')
+        pymux.cli.buffers['COMMAND'].document = Document(
+            'rename-window %s' % pymux.arrangement.active_window.name)
+
     @registry.add_binding(Keys.ControlC, filter=HasFocus('COMMAND'))
     @registry.add_binding(Keys.ControlG, filter=HasFocus('COMMAND'))
     def _(event):
         " Leave command mode. "
-        pymux.cli.buffers['COMMAND'].document = Document()
-        pymux.cli.focus_stack.replace(DEFAULT_BUFFER)
+        pymux.leave_command_mode(append_to_history=False)
 
     @registry.add_binding(Keys.ControlB, Keys.Any)
     def _(event):

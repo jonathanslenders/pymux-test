@@ -12,5 +12,6 @@ __all__ = ('create_command_lexer',)
 def create_command_lexer(pymux):
     return GrammarLexer(COMMAND_GRAMMAR, default_token=Token.CommandLine, lexers={
         'executable': SimpleLexer(Token.CommandLine.Executable),
+        'text': SimpleLexer(Token.CommandLine.Text),
         'command': SimpleLexer(Token.CommandLine.Command),
     })

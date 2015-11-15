@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.application import Application
-from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.interface import CommandLineInterface
+from prompt_toolkit.enums import DEFAULT_BUFFER
 
 from .style import PymuxStyle
 from .layout import LayoutManager
@@ -10,6 +11,7 @@ from .process import Process
 from .key_bindings import create_key_bindings
 from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
+from .commands.handler import handle_command
 
 import os
 
@@ -39,6 +41,17 @@ class Pymux(object):
             else:
                 return 'Pymux'
 
+        def _handle_command(cli, buffer):
+            " When text is accepted in the command line. "
+            text = buffer.text
+
+            # First leave command mode. We want to make sure that the working
+            # pane is focussed again before executing the command handers.
+            self.leave_command_mode(append_to_history=True)
+
+            # Execute command.
+            self.handle_command(text)
+
         application = Application(
             layout=self.layout_manager.layout,
             key_bindings_registry=registry,
@@ -46,6 +59,7 @@ class Pymux(object):
                 'COMMAND': Buffer(
                     complete_while_typing=True,
                     completer=create_command_completer(self),
+                    accept_action=AcceptAction(handler=_handle_command),
                 )
             },
             mouse_support=True,
@@ -91,6 +105,13 @@ class Pymux(object):
         pane = self._create_pane()
         self.arrangement.active_window.add_pane(pane, vsplit=vsplit)
         self.layout_manager.update()
+
+    def leave_command_mode(self, append_to_history=False):
+        self.cli.buffers['COMMAND'].reset(append_to_history=append_to_history)
+        self.cli.focus_stack.replace(DEFAULT_BUFFER)
+
+    def handle_command(self, command):
+        handle_command(self, command)
 
     def run(self):
         self.cli.run()
