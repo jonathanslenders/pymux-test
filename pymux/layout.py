@@ -315,28 +315,32 @@ class HighlightBorders(_ContainerProxy):
         # When rendering is done. Highlight the borders of the active pane.
         data_buffer = screen.data_buffer
 
-        wp = self.layout_manager.pane_write_positions[self.pymux.arrangement.active_pane]
-        xpos, ypos, width, height = wp.xpos, wp.ypos, wp.width, wp.height
+        try:
+            wp = self.layout_manager.pane_write_positions[self.pymux.arrangement.active_pane]
+        except KeyError:
+            pass
+        else:
+            xpos, ypos, width, height = wp.xpos, wp.ypos, wp.width, wp.height
 
-        xleft = xpos - 1
-        xright = xpos + width
+            xleft = xpos - 1
+            xright = xpos + width
 
-        # First line.
-        if xleft in data_buffer[ypos]:
-            data_buffer[ypos][xleft] = _focussed_border_char_titlebar
+            # First line.
+            if xleft in data_buffer[ypos]:
+                data_buffer[ypos][xleft] = _focussed_border_char_titlebar
 
-        if xright in data_buffer[ypos]:
-            data_buffer[ypos][xright] = _focussed_border_char_titlebar
+            if xright in data_buffer[ypos]:
+                data_buffer[ypos][xright] = _focussed_border_char_titlebar
 
-        # Every following line.
-        for y in range(ypos + 1, ypos + height):
-            row = data_buffer[y]
+            # Every following line.
+            for y in range(ypos + 1, ypos + height):
+                row = data_buffer[y]
 
-            if xleft in row:
-                row[xleft] = _focussed_border_char
+                if xleft in row:
+                    row[xleft] = _focussed_border_char
 
-            if xright in data_buffer[y]:
-                row[xright] = _focussed_border_char
+                if xright in data_buffer[y]:
+                    row[xright] = _focussed_border_char
 
 
 class TracePaneWritePosition(_ContainerProxy):
