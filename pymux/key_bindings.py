@@ -74,7 +74,6 @@ def create_key_bindings(pymux):
         " Focus next pane. "
         pymux.arrangement.active_window.focus_next()
 
-
     @registry.add_binding(Keys.ControlB, 'z')
     def _(event):
         " Zoom pane. "
@@ -119,6 +118,16 @@ def create_key_bindings(pymux):
 
         if prev_active_pane:
             w.active_pane = prev_active_pane
+
+
+    @registry.add_binding(Keys.ControlB, 'l')
+    def _(event):
+        " Go to previous active window. "
+        w = pymux.arrangement.previous_active_window
+
+        if w:
+            pymux.arrangement.active_window = w
+            pymux.layout_manager.update()
 
     @registry.add_binding(Keys.ControlB, ',')
     def _(event):
