@@ -23,9 +23,11 @@ __all__ = (
 
 
 class Process(object):
-    def __init__(self, cli):
+    def __init__(self, cli, done_callback=None):
         self.cli = cli
+        self.done_callback = done_callback
         self.pid = None
+        self.is_terminated = False
 
         # Create pseudo terminal for this pane.
         self.master, self.slave = os.openpty()
@@ -41,6 +43,7 @@ class Process(object):
         self.set_size(self.sx, self.sy)
         self._start()
         self._process_pty_output()
+        self._waitpid()
 
     def _start(self):
         os.environ['TERM'] = 'screen'
@@ -62,16 +65,27 @@ class Process(object):
 
             self.pid = pid
 
+    def _waitpid(self):
+        def wait_for_finished():
+            " Wait for PID in executor. "
+            os.waitpid(self.pid, 0)
+            self.cli.eventloop.remove_reader(self.master)
+
+            self.cli.eventloop.call_from_executor(done)
+
+        def done():
+            " PID received. Back in the main thread. "
+            self.is_terminated = True
+            self.done_callback()
+
+        self.cli.eventloop.run_in_executor(wait_for_finished)
+
     def set_size(self, width, height):
         set_size(self.master, height, width)
         self.screen.resize(lines=height, columns=width)
 
         self.screen.lines = height
         self.screen.columns = width
-
-    def waitpid(self):
-        os.waitpid(self.pid, 0)
-        self.cli.eventloop.remove_reader(self.master)
 
     def _in_child(self):
         os.close(self.master)
@@ -143,4 +157,3 @@ class Process(object):
 
         # Connect read pipe.
         self.cli.eventloop.add_reader(self.master, read)
-

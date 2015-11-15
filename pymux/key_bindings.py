@@ -39,22 +39,42 @@ def create_key_bindings(pymux):
         " Send Ctrl-B to active process. "
         pymux.focussed_process.write_input(event.data)
 
+    @registry.add_binding(Keys.ControlB, '"')
+    def _(event):
+        " Split horizontally. "
+        pymux.add_process()
+
     @registry.add_binding(Keys.ControlB, '%')
     def _(event):
         " Split vertically. "
-        pymux.add_process()
+        pymux.add_process(vsplit=True)
+
+    @registry.add_binding(Keys.ControlB, 'c')
+    def _(event):
+        " Create window. "
+        pymux.create_window()
+
+    @registry.add_binding(Keys.ControlB, 'n')
+    def _(event):
+        " Focus next window. "
+        pymux.arrangement.focus_next_window()
+        pymux.pymux_layout.update()
+
+    @registry.add_binding(Keys.ControlB, 'p')
+    def _(event):
+        " Focus previous window. "
+        pymux.arrangement.focus_previous_window()
+        pymux.pymux_layout.update()
 
     @registry.add_binding(Keys.ControlB, Keys.ControlL)
     def _(event):
         " Focus next pane. "
-        new_index = (pymux.processes.index(pymux.focussed_process) + 1) % len(pymux.processes)
-        pymux.focussed_process = pymux.processes[new_index]
+        pymux.arrangement.active_window.focus_right()
 
     @registry.add_binding(Keys.ControlB, Keys.ControlH)
     def _(event):
         " Focus previous pane. "
-        new_index = (pymux.processes.index(pymux.focussed_process) - 1) % len(pymux.processes)
-        pymux.focussed_process = pymux.processes[new_index]
+        pymux.arrangement.active_window.focus_left()
 
     @registry.add_binding(Keys.ControlB, ':')
     def _(event):

@@ -27,6 +27,8 @@ class PyMuxStyle(pygments.style.Style):
         Token.TitleBar.Focussed.Right: 'noitalic',
         Token.CommandBar:              'bg:#884444 #ffffff',
         Token.StatusBar:               'bg:#444444 #ffffff',
+        Token.StatusBar.Window:        'bg:#888888',
+        Token.StatusBar.Window.Active: '#88ff88',
     })
 
 

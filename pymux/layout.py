@@ -19,14 +19,18 @@ from pygments.token import Token
 import datetime
 import six
 
+from .process import Process
+import pymux.arrangement as arrangement
+
 __all__ = (
     'LayoutManager',
 )
 
 
-class Pane(UIControl):
-    def __init__(self, pymux, process):
-        self.process = process
+class PaneContainer(UIControl):
+    def __init__(self, pymux, pane):
+        self.pane = pane
+        self.process = pane.process
         self.pymux = pymux
 
     def create_screen(self, cli, width, height):
@@ -35,16 +39,16 @@ class Pane(UIControl):
         return process.screen.pt_screen
 
     def has_focus(self, cli):
-        return self.pymux.focussed_process == self.process
+        return self.pymux.arrangement.active_pane == self.pane
 
     def mouse_handler(self, cli, mouse_event):
         process = self.process
         x = mouse_event.position.x
         y = mouse_event.position.y
 
-        if self.pymux.focussed_process != process:
+        if not self.has_focus:
             # Focus this process when the mouse has been clicked.
-            self.pymux.focussed_process = process
+            self.pymux.arrangement.active_pane = self.pane
         else:
             # Already focussed, send event to application when it requested
             # mouse support.
@@ -97,6 +101,25 @@ class LayoutManager(object):
         self.layout = self._create_layout()
 
     def _create_layout(self):
+        def get_status_tokens(cli):
+            result = []
+
+            for i, w in enumerate(self.pymux.arrangement.windows):
+                if w == self.pymux.arrangement.active_window:
+                    result.extend([
+                        (Token.StatusBar, ' '),
+                        (Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name)),
+                        (Token.StatusBar, ' '),
+                    ])
+                else:
+                    result.extend([
+                        (Token.StatusBar, ' '),
+                        (Token.StatusBar.Window, '%i:%s ' % (i, w.name)),
+                        (Token.StatusBar, ' '),
+                    ])
+
+            return result
+
         def get_time_tokens(cli):
             return [
                 (Token.StatusBar,
@@ -122,7 +145,7 @@ class LayoutManager(object):
                     content=VSplit([
                         Window(
                             height=D.exact(1),
-                            content=TokenListControl(lambda cli: [(Token.StatusBar, ' pymux')],
+                            content=TokenListControl(get_status_tokens,
                                 default_char=Char(' ', Token.StatusBar))),
                         Window(
                             height=D.exact(1), width=D.exact(20),
@@ -141,64 +164,43 @@ class LayoutManager(object):
         )
 
     def update(self):
-        content = []
+        content = _create_split(self.pymux, self.pymux.arrangement.active_window.root)
 
-        def container_for_process(process):
-            def has_focus():
-                return self.pymux.focussed_process == process
+        self.body.children = [content]
 
-            def get_titlebar_token(cli):
-                if has_focus():
-                    return Token.TitleBar.Focussed
-                else:
-                    return Token.TitleBar
+        self.pymux.cli.invalidate()
 
-            def get_left_title_tokens(cli):
-                token = get_titlebar_token(cli)
-                return [(token, ' '), (token.Title, ' %s ' % process.screen.title), (token, ' ')]
 
-            def get_right_title_tokens(cli):
-                token = get_titlebar_token(cli)
-                if has_focus():
-                    return [(token.Right, '[%s]' % process.pid)]
-                else:
-                    return []
+def _create_split(pymux, split):
+    """
+    Create a prompt_toolkit `Container` instance for the given pymux split.
+    """
+    assert isinstance(split, (arrangement.HSplit, arrangement.VSplit))
 
-            return HSplit([
-                VSplit([
-                    Window(
-                        height=D.exact(1),
-                        content=TokenListControl(
-                            get_left_title_tokens,
-                            get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
-                    ),
-                    Window(
-                        height=D.exact(1), width=D.exact(8),
-                        content=TokenListControl(
-                            get_right_title_tokens,
-                            align_center=True,
-                            get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))),
-                ]),
-                Window(
-                    Pane(self.pymux, process),
-                    get_vertical_scroll=
-                        lambda window: process.screen.line_offset,
-                    allow_scroll_beyond_bottom=True,
-                )
-            ])
+    is_vsplit = isinstance(split, arrangement.VSplit)
 
-        for i, process in enumerate(self.pymux.processes):
-            content.append(container_for_process(process))
+    def create_condition(p1, p2):
+        " True when one of the given processes has the focus. "
+        def has_focus(cli):
+            return True
+#            return pymux.focussed_process in (p1, p2)
+        return Condition(has_focus)
 
-            def create_condition(p1, p2):
-                def has_focus(cli):
-                    return self.pymux.focussed_process in (p1, p2)
-                return Condition(has_focus)
+    content = []
 
-            # Draw a vertical line between windows.
-            if i != len(self.pymux.processes) - 1:
+    for i, item in enumerate(split):
+        if isinstance(item, (arrangement.VSplit, arrangement.HSplit)):
+            content.append(_create_split(pymux, item))
+        elif isinstance(item, arrangement.Pane):
+            content.append(_create_container_for_process(pymux, item))
+        else:
+            raise TypeError('Got %r' % (item,))
+
+        # Draw a vertical line between windows. (In case of a vsplit)
+        if is_vsplit:
+            if i != len(split) - 1:  # TODO
                 # Visible condition.
-                condition = create_condition(self.pymux.processes[i], self.pymux.processes[i+1])
+                condition = create_condition(None, None)#pymux.processes[i], pymux.processes[i+1])
 
                 for titlebar_token, body_token, condition, char in [
                         (Token.TitleBar.Line, Token.Line, ~condition, '│'),
@@ -213,7 +215,58 @@ class LayoutManager(object):
                                    content=FillControl(char, token=body_token))
                         ]), condition))
 
-        self.body.children = content
-        self.pymux.cli.invalidate()
+    # Create prompt_toolkit Container.
+    return_cls = VSplit if is_vsplit else HSplit
+    return return_cls(content)
 
+
+def _create_container_for_process(pymux, arrangement_pane):
+    """
+    Create a container with a titlebar for a process.
+    """
+    assert isinstance(arrangement_pane, arrangement.Pane)
+    process = arrangement_pane.process
+
+    def has_focus():
+        return pymux.arrangement.active_pane == arrangement_pane
+
+    def get_titlebar_token(cli):
+        if has_focus():
+            return Token.TitleBar.Focussed
+        else:
+            return Token.TitleBar
+
+    def get_left_title_tokens(cli):
+        token = get_titlebar_token(cli)
+        return [(token, ' '), (token.Title, ' %s ' % process.screen.title), (token, ' ')]
+
+    def get_right_title_tokens(cli):
+        token = get_titlebar_token(cli)
+        if has_focus():
+            return [(token.Right, '[%s]' % process.pid)]
+        else:
+            return []
+
+    return HSplit([
+        VSplit([
+            Window(
+                height=D.exact(1),
+                content=TokenListControl(
+                    get_left_title_tokens,
+                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+            ),
+            Window(
+                height=D.exact(1), width=D.exact(8),
+                content=TokenListControl(
+                    get_right_title_tokens,
+                    align_center=True,
+                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))),
+        ]),
+        Window(
+            PaneContainer(pymux, arrangement_pane),
+            get_vertical_scroll=
+                lambda window: process.screen.line_offset,
+            allow_scroll_beyond_bottom=True,
+        )
+    ])
 

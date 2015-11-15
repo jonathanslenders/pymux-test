@@ -9,6 +9,7 @@ from .style import PymuxStyle
 from .layout import LayoutManager
 from .process import Process
 from .key_bindings import create_key_bindings
+from .arrangement import Arrangement, Pane
 
 __all__ = (
     'Pymux',
@@ -20,6 +21,7 @@ class Pymux(object):
     The main Pymux application class.
     """
     def __init__(self):
+        self.arrangement = Arrangement()
         self.pymux_layout = LayoutManager(self)
 
         registry = create_key_bindings(self)
@@ -53,45 +55,38 @@ class Pymux(object):
             style=PymuxStyle(),
             get_title=get_title)
 
-        self.cli = CommandLineInterface(application=application,
-                                        )#eventloop=create_asyncio_eventloop())
+        self.cli = CommandLineInterface(application=application)
 
-        self.processes = []
-        self.focussed_process = None
+    @property
+    def focussed_process(self):
+        return self.arrangement.active_process
 
-    def add_process(self):
-        process = Process(self.cli)
-        self.focussed_process = process
+    def _create_pane(self):
+        def done_callback():
+            # Remove pane from layout.
+            self.arrangement.remove_pane(pane)
+#            self.arrangement.remove_dead_panes()
+            self.pymux_layout.update()
 
-        self.processes.append(process)
-        self.pymux_layout.update()
-
-        def wait_for_finished():
-            " Wait for PID in executor. "
-            process.waitpid()
-            self.cli.eventloop.call_from_executor(done)
-
-        def done():
-            " PID received. Back in the main thread. "
-            self.processes.remove(process)
-
-            if self.processes:
-                # Processes left.
-                if self.focussed_process == process:
-                    self.focussed_process = self.processes[-1]
-
-                self.pymux_layout.update()
-
-            else:
-                # When no processes are left -> exit.
+            # No panes left? -> Quit.
+            if not self.arrangement.has_panes:
                 self.cli.set_return_value(None)
 
-        self.cli.eventloop.run_in_executor(wait_for_finished)
+        process = Process(self.cli, done_callback)
+        pane = Pane(process)
+
+        return pane
+
+    def create_window(self):
+        pane = self._create_pane()
+
+        self.arrangement.create_window(pane)
+        self.pymux_layout.update()
+
+    def add_process(self, vsplit=False):
+        pane = self._create_pane()
+        self.arrangement.active_window.add_pane(pane, vsplit=vsplit)
+        self.pymux_layout.update()
 
     def run(self):
         self.cli.run()
-
-        #import asyncio
-        #loop=asyncio.get_event_loop()
-        #loop.run_until_complete(self.cli.run_async())
-

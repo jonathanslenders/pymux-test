@@ -18,7 +18,7 @@ def run():
     a = docopt.docopt(__doc__)
 
     mux = Pymux()
-    mux.add_process()
+    mux.create_window()
     mux.run()
 
 
