@@ -264,7 +264,7 @@ class Arrangement(object):
 
             # No panes left in this window?
             if not w.has_panes:
-                self.focus_next_window()
+                self.focus_previous_window()
                 self.windows.remove(w)
 
     def focus_previous_window(self):

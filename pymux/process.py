@@ -176,7 +176,7 @@ def get_cwd_for_pid(pid):
             pass
 
 def get_name_for_fd(fd):
-    if sys.platform == 'linux':
+    if sys.platform in ('linux', 'linux2'):
         pgrp = os.tcgetpgrp(fd)
 
         try:

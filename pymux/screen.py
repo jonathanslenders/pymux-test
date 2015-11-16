@@ -8,18 +8,20 @@ Changes compared to the original `Screen` class:
 """
 from __future__ import unicode_literals
 from collections import defaultdict
+
+from pygments.formatters.terminal256 import Terminal256Formatter
 from pyte import charsets as cs
 from pyte import modes as mo
 from pyte.screens import Margins, Savepoint
-import pyte
-import pyte.graphics
-import copy
+from wcwidth import wcwidth
 
 from prompt_toolkit.layout.screen import Screen, Char
 from prompt_toolkit.styles import Attrs
+from prompt_toolkit.terminal.vt100_output import FG_ANSI_COLORS, BG_ANSI_COLORS
 
-from pygments.formatters.terminal256 import Terminal256Formatter
-from wcwidth import wcwidth
+import copy
+import pyte
+import pyte.graphics
 
 __all__ = (
     'BetterScreen',
@@ -746,49 +748,11 @@ class BetterScreen(object):
             for x in range(0, self.columns):
                 line[x] = Char('E')
 
-    _fg_colors = {
-        30: '000000', # Black
-        31: 'aa0000', # Red
-        32: '00aa00', # green
-        33: 'aaaa00', # Brown
-        34: '0000aa', # Blue
-        35: 'aa00aa', # Magenta
-        36: '00aaaa', # Cyan
-        37: 'ffffff', # White
-        39: '',       # Default
+    # Mapping of the ANSI color codes to their names.
+    _fg_colors = {v: k for k, v in FG_ANSI_COLORS.items()}
+    _bg_colors = {v: k for k, v in BG_ANSI_COLORS.items()}
 
-        # High intensity.
-        91: 'ff4444', # Red
-        92: '44ff44', # Green
-        93: 'ffff00', # Yellow
-        94: '4444ff', # Blue
-        95: 'ff44ff', # Magenta
-        96: '44ffff', # Cyan
-        97: 'ffffff', # White
-    }
-
-    _bg_colors = {
-        40: '000000', # Black
-        41: 'aa0000', # Red
-        42: '00aa00', # green
-        43: 'aaaa00', # Brown
-        44: '0000aa', # Blue
-        45: 'aa00aa', # Magenta
-        46: '00aaaa', # Cyan
-        47: 'eeeeee', # White
-        49: '',       # Default
-
-        # High intensity.
-        100: '#444444', # Dark gray
-        101: 'ff4444',  # Light red
-        102: '44ff44',  # Light green
-        103: 'ffff00',  # Light yellow
-        104: '4444ff',  # Light blue
-        105: 'ff00ff',  # Light magenta
-        106: '00ffff',  # Light cyan
-        107: 'ffffff',  # White
-    }
-
+    # Mapping of the escape codes for 256colors to their 'ffffff' value.
     _256_colors = {}
 
     for i, (r,g,b) in enumerate(Terminal256Formatter().xterm_colors):
