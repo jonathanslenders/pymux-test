@@ -49,6 +49,7 @@ class BetterScreen(object):
             ]
 
     def __init__(self, lines, columns, write_process_input):
+        self.savepoints = []
         self.lines = lines
         self.columns = columns
         self.write_process_input = write_process_input
