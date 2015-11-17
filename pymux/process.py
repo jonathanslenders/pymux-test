@@ -25,8 +25,9 @@ __all__ = (
 
 
 class Process(object):
-    def __init__(self, cli, done_callback=None):
+    def __init__(self, cli, exec_callable, done_callback=None):
         self.cli = cli
+        self.exec_callable = exec_callable
         self.done_callback = done_callback
         self.pid = None
         self.is_terminated = False
@@ -46,6 +47,22 @@ class Process(object):
         self._start()
         self._process_pty_output()
         self._waitpid()
+
+    @classmethod
+    def from_command(cls, cli, command, done_callback):
+        """
+        Create Process from command,
+        e.g. command=['python', '-c', 'print("test")']
+        """
+        assert isinstance(command, list)
+
+        def execv():
+            for p in os.environ['PATH'].split(':'):
+                path = os.path.join(p, command[0])
+                if os.path.exists(path) and os.access(path, os.X_OK):
+                    os.execv(path, command)
+
+        return cls(cli, execv, done_callback)
 
     def _start(self):
         os.environ['TERM'] = 'screen'
@@ -110,9 +127,7 @@ class Process(object):
         # Execute in child.
         try:
             self._close_file_descriptors()
-            username = getpass.getuser()
-            shell = pwd.getpwnam(username).pw_shell
-            os.execv(shell, [shell])
+            self.exec_callable()
         except Exception:
             traceback.print_exc()
             time.sleep(5)
@@ -166,6 +181,13 @@ class Process(object):
     def get_name(self):
         # TODO: Cache for short time.
         return get_name_for_fd(self.master)
+
+    def send_signal(self, signal):
+        " Send signal to running process. "
+        assert isinstance(signal, int), type(signal)
+
+        if self.pid and not self.is_terminated:
+            os.kill(self.pid, signal)
 
 
 def get_cwd_for_pid(pid):

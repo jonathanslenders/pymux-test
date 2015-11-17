@@ -15,6 +15,8 @@ from .process import Process
 from .style import PymuxStyle
 
 import os
+import getpass
+import pwd
 
 __all__ = (
     'Pymux',
@@ -75,7 +77,7 @@ class Pymux(object):
     def active_process(self):
         return self.arrangement.active_process
 
-    def _create_pane(self):
+    def _create_pane(self, command=None):
         def done_callback():
             # Remove pane from layout.
             self.arrangement.remove_pane(pane)
@@ -92,19 +94,30 @@ class Pymux(object):
             if path:
                 os.chdir(path)
 
-        process = Process(self.cli, done_callback)
+        if command:
+            command = command.split()
+        else:
+            command = [self._get_default_shell()]
+
+        process = Process.from_command(
+            self.cli, command, done_callback)
         pane = Pane(process)
 
         return pane
 
-    def create_window(self):
-        pane = self._create_pane()
+    def _get_default_shell(self):
+        username = getpass.getuser()
+        shell = pwd.getpwnam(username).pw_shell
+        return shell
+
+    def create_window(self, command=None):
+        pane = self._create_pane(command)
 
         self.arrangement.create_window(pane)
         self.layout_manager.update()
 
-    def add_process(self, vsplit=False):
-        pane = self._create_pane()
+    def add_process(self, command=None, vsplit=False):
+        pane = self._create_pane(command)
         self.arrangement.active_window.add_pane(pane, vsplit=vsplit)
         self.layout_manager.update()
 

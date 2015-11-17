@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import signal
 
 __all__ = (
     'has_command_handler',
@@ -40,19 +41,22 @@ def cmd(name):
 # The actual commands.
 #
 
-@cmd('split')
-def split(pymux):
-    pymux.add_process()
+@_cmd('split')
+def split(pymux, variables):
+    executable = variables.get('executable')
+    pymux.add_process(executable)
 
 
-@cmd('vsplit')
-def vsplit(pymux):
-    pymux.add_process(vsplit=True)
+@_cmd('vsplit')
+def vsplit(pymux, variables):
+    executable = variables.get('executable')
+    pymux.add_process(executable, vsplit=True)
 
 
-@cmd('new-window')
-def new_window(pymux):
-    pymux.create_window()
+@_cmd('new-window')
+def new_window(pymux, variables):
+    executable = variables.get('executable')
+    pymux.create_window(executable)
 
 
 @cmd('break-pane')
@@ -71,3 +75,27 @@ def rename_window(pymux, variables):
 def rename_pane(pymux, variables):
     text = variables.get('text', '')
     pymux.arrangement.active_pane.name = text
+
+
+@_cmd('send-signal')
+def send_signal(pymux, variables):
+    try:
+        signal = variables.get('signal', '')
+    except ValueError:
+        pass  # Invalid integer.
+    else:
+        value = SIGNALS.get(signal)
+        if value:
+            pymux.arrangement.active_pane.process.send_signal(value)
+        else:
+            raise ''
+
+
+SIGNALS = {
+    'kill': signal.SIGKILL,
+    'term': signal.SIGTERM,
+    'usr1': signal.SIGUSR1,
+    'usr2': signal.SIGUSR2,
+    'hup': signal.SIGHUP,
+}
+

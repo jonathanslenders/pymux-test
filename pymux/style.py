@@ -22,8 +22,8 @@ ui_style = {
     Token.TitleBar.Zoom:           'bg:#884400 #ffffff',
 
     Token.CommandLine:             'bg:#884444 #ffffff',
-    Token.CommandLine.Executable:  '',
     Token.CommandLine.Command:     'bold',
+    Token.CommandLine.Executable:  'bg:#ffbbbb #000000',
     Token.CommandLine.Text:        'bg:#bbffbb #000000',
     Token.StatusBar:               'bg:#444444 #ffffff',
     Token.StatusBar.Window:        'bg:#888888',
