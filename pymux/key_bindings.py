@@ -136,6 +136,20 @@ def create_key_bindings(pymux):
         pymux.cli.buffers['COMMAND'].document = Document(
             'rename-window %s' % pymux.arrangement.active_window.name)
 
+    @registry.add_binding(Keys.ControlB, "'")
+    def _(event):
+        " Rename pane. "
+        pymux.cli.focus_stack.replace('COMMAND')
+        pymux.cli.buffers['COMMAND'].document = Document(
+            'rename-pane %s' % (pymux.arrangement.active_pane.name or ''))
+
+    @registry.add_binding(Keys.ControlB, '!')
+    def _(event):
+        " Break pane. "
+        pymux.arrangement.break_pane()
+        pymux.layout_manager.update()
+
+
     def create_focus_window_number_func(i):
         @registry.add_binding(Keys.ControlB, '%s' % i)
         def _(event):

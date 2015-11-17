@@ -60,7 +60,7 @@ def new_window(pymux, variables):
 
 
 @cmd('break-pane')
-def new_window(pymux):
+def break_pane(pymux):
     pymux.arrangement.break_pane()
     pymux.layout_manager.update()
 
