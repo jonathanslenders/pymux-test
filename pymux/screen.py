@@ -80,6 +80,10 @@ class BetterScreen(object):
         " Xterm Sgr mouse support. "
         return (1006 << 5) in self.mode
 
+    @property
+    def bracketed_paste_enabled(self):
+        return (2004 << 5) in self.mode
+
     def reset(self):
         """Resets the terminal to its initial state.
 

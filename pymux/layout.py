@@ -4,24 +4,20 @@
 """
 from __future__ import unicode_literals
 
-from prompt_toolkit.filters import HasFocus
+from prompt_toolkit.filters import HasFocus, Condition
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
+from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.layout.dimension import LayoutDimension as D
-from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
-from prompt_toolkit.layout.margins import ScrollbarMargin
 from prompt_toolkit.layout.screen import Char
-from prompt_toolkit.filters import Condition
 from prompt_toolkit.mouse_events import MouseEventTypes
 
 from pygments.token import Token
 import datetime
 import six
-import os
 
-from .process import Process
 from .commands.lexer import create_command_lexer
 import pymux.arrangement as arrangement
 
@@ -99,6 +95,22 @@ class PaneContainer(UIControl):
                         six.unichr(y + 33)))
 
 
+class MessageToolbarBar(TokenListToolbar):
+    """
+    Pop-up (at the bottom) for showing error/status messages.
+    """
+    def __init__(self, pymux):
+        def get_tokens(cli):
+            if pymux.message:
+                return [(Token.Message, pymux.message)]
+            else:
+                return []
+
+        super(MessageToolbarBar, self).__init__(
+                get_tokens,
+                filter=Condition(lambda cli: pymux.message is not None))
+
+
 class LayoutManager(object):
     def __init__(self, pymux):
         self.pymux = pymux
@@ -169,6 +181,8 @@ class LayoutManager(object):
                 )
             ]),
             floats=[
+                Float(bottom=1, left=0,
+                      content=MessageToolbarBar(self.pymux)),
                 Float(xcursor=True,
                       ycursor=True,
                       content=CompletionsMenu(max_height=12))
@@ -200,7 +214,6 @@ def _create_split(pymux, split):
     assert isinstance(split, (arrangement.HSplit, arrangement.VSplit))
 
     is_vsplit = isinstance(split, arrangement.VSplit)
-    is_hsplit = not is_vsplit
 
     content = []
 
@@ -274,8 +287,6 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
             allow_scroll_beyond_bottom=True,
         )
     ]))
-
-    return VSplit(result)
 
 
 class _ContainerProxy(Container):

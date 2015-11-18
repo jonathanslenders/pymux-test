@@ -31,6 +31,12 @@ class Pymux(object):
         self.arrangement = Arrangement()
         self.layout_manager = LayoutManager(self)
 
+        #: True when the prefix key (Ctrl-B) has been pressed.
+        self.has_prefix = False
+
+        #: Error/info message
+        self.message = None
+
         registry = create_key_bindings(self)
 
         def get_title():
@@ -72,6 +78,11 @@ class Pymux(object):
             get_title=get_title)
 
         self.cli = CommandLineInterface(application=application)
+
+        # Hide message when a key has been pressed.
+        def key_pressed():
+            self.message = None
+        self.cli.input_processor.beforeKeyPress += key_pressed
 
     @property
     def active_process(self):
@@ -127,6 +138,13 @@ class Pymux(object):
 
     def handle_command(self, command):
         handle_command(self, command)
+
+    def show_message(self, message):
+        """
+        Set a warning message. This will be shown at the bottom until a key has
+        been pressed.
+        """
+        self.message = message
 
     def run(self):
         self.cli.run()

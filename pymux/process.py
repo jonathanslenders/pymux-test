@@ -4,15 +4,12 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.eventloop.posix_utils import PosixStdinReader
 
+from .pexpect_utils import pty_make_controlling_tty
 from .screen import BetterScreen
 from .stream import BetterStream
-from .pexpect_utils import pty_make_controlling_tty
 from .utils import set_size
 
-import getpass
 import os
-import os
-import pwd
 import resource
 import signal
 import sys
@@ -191,7 +188,7 @@ class Process(object):
 
 
 def get_cwd_for_pid(pid):
-    if sys.platform == 'linux':
+    if sys.platform in ('linux', 'linux2'):
         try:
             return os.readlink('/proc/%s/cwd' % pid)
         except OSError:
