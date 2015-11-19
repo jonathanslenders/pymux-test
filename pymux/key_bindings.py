@@ -141,7 +141,7 @@ def create_key_bindings(pymux):
     @prefix_binding(':')
     def _(event):
         " Enter command mode. "
-        pymux.cli.focus_stack.replace('COMMAND')
+        event.cli.focus_stack.replace('COMMAND')
 
     @prefix_binding(';')
     def _(event):
@@ -164,28 +164,33 @@ def create_key_bindings(pymux):
     @prefix_binding(',')
     def _(event):
         " Rename window. "
-        pymux.cli.focus_stack.replace('COMMAND')
-        pymux.cli.buffers['COMMAND'].document = Document(
+        event.cli.focus_stack.replace('COMMAND')
+        event.cli.buffers['COMMAND'].document = Document(
             'rename-window %s' % pymux.arrangement.active_window.name)
 
     @prefix_binding("'")
     def _(event):
         " Rename pane. "
-        pymux.cli.focus_stack.replace('COMMAND')
-        pymux.cli.buffers['COMMAND'].document = Document(
+        event.cli.focus_stack.replace('COMMAND')
+        event.cli.buffers['COMMAND'].document = Document(
             'rename-pane %s' % (pymux.arrangement.active_pane.name or ''))
 
     @prefix_binding("x")
     def _(event):
         " Kill pane. "
-        pymux.cli.focus_stack.replace('COMMAND')
-        pymux.cli.buffers['COMMAND'].document = Document('send-signal kill')
+        event.cli.focus_stack.replace('COMMAND')
+        event.cli.buffers['COMMAND'].document = Document('send-signal kill')
 
     @prefix_binding('!')
     def _(event):
         " Break pane. "
         pymux.arrangement.break_pane()
         pymux.layout_manager.update()
+
+    @prefix_binding('d')
+    def _(event):
+        " Detach client. "
+        pymux.detach_client(event.cli)
 
     def create_focus_window_number_func(i):
         @prefix_binding('%s' % i)
@@ -204,7 +209,7 @@ def create_key_bindings(pymux):
     @registry.add_binding(Keys.ControlG, filter=HasFocus('COMMAND'))
     def _(event):
         " Leave command mode. "
-        pymux.leave_command_mode(append_to_history=False)
+        pymux.leave_command_mode(event.cli, append_to_history=False)
 
     @prefix_binding(Keys.Any)
     def _(event):

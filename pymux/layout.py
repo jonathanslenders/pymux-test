@@ -42,7 +42,8 @@ class PaneContainer(UIControl):
         return process.screen.pt_screen
 
     def has_focus(self, cli):
-        return self.pymux.arrangement.active_pane == self.pane
+        return (cli.current_buffer_name != 'COMMAND' and 
+            self.pymux.arrangement.active_pane == self.pane)
 
     def mouse_handler(self, cli, mouse_event):
         process = self.process
@@ -150,7 +151,8 @@ class LayoutManager(object):
 
         return HighlightBorders(self, self.pymux, FloatContainer(
             content=HSplit([
-                self.body,
+                Window(content=FillControl('.', token=Token.Background)),
+
                 ConditionalContainer(
                     content=Window(
                         height=D.exact(1),
@@ -181,11 +183,14 @@ class LayoutManager(object):
                 )
             ]),
             floats=[
+                Float(get_width=lambda: self.pymux.get_window_size().columns,
+                      get_height=lambda: self.pymux.get_window_size().rows,
+                      content=self.body),
                 Float(bottom=1, left=0,
                       content=MessageToolbarBar(self.pymux)),
                 Float(xcursor=True,
                       ycursor=True,
-                      content=CompletionsMenu(max_height=12))
+                      content=CompletionsMenu(max_height=12)),
             ]
         ))
 
@@ -204,7 +209,7 @@ class LayoutManager(object):
 
         self.body.children = [content]
 
-        self.pymux.cli.invalidate()
+        self.pymux.invalidate()
 
 
 def _create_split(pymux, split):
@@ -378,7 +383,6 @@ class TracePaneWritePosition(_ContainerProxy):
         _ContainerProxy.write_to_screen(self, cli, screen, mouse_handlers, write_position)
 
         self.pymux.layout_manager.pane_write_positions[self.arrangement_pane] = write_position
-
 
 
 def focus_left(pymux):

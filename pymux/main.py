@@ -4,7 +4,11 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.enums import DEFAULT_BUFFER
+from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
+from prompt_toolkit.eventloop.posix import PosixEventLoop
 from prompt_toolkit.interface import CommandLineInterface
+from prompt_toolkit.layout.screen import Size
+from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
 
 from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
@@ -12,11 +16,14 @@ from .commands.handler import handle_command
 from .key_bindings import create_key_bindings
 from .layout import LayoutManager
 from .process import Process
+from .server import ServerConnection, bind_socket
 from .style import PymuxStyle
 
 import os
 import getpass
 import pwd
+import sys
+from prompt_toolkit.input import PipeInput
 
 __all__ = (
     'Pymux',
@@ -38,61 +45,49 @@ class Pymux(object):
         self.message = None
 
         #: List of clients.
+        self._runs_standalone = False
         self.connections = []
+        self.clis = {}  # Mapping from Connection to CommandLineInterface.
+
+        # Socket information.
+        self.socket = None
+        self.socket_name = None
 
         # Create eventloop.
         self.eventloop = PosixEventLoop()
 
-        registry = create_key_bindings(self)
+        self.registry = create_key_bindings(self)
 
-        def get_title():
-            if self.active_process:
-                title = self.active_process.screen.title
-            else:
-                title = ''
-
-            if title:
-                return '{} - Pymux'.format(title)
-            else:
-                return 'Pymux'
-
-        def _handle_command(cli, buffer):
-            " When text is accepted in the command line. "
-            text = buffer.text
-
-            # First leave command mode. We want to make sure that the working
-            # pane is focussed again before executing the command handers.
-            self.leave_command_mode(append_to_history=True)
-
-            # Execute command.
-            self.handle_command(text)
-
-        self.application = Application(
-            layout=self.layout_manager.layout,
-            key_bindings_registry=registry,
-            buffers={
-                'COMMAND': Buffer(
-                    complete_while_typing=True,
-                    completer=create_command_completer(self),
-                    accept_action=AcceptAction(handler=_handle_command),
-                    auto_suggest=AutoSuggestFromHistory(),
-                )
-            },
-            mouse_support=True,
-            use_alternate_screen=True,
-            style=PymuxStyle(),
-            get_title=get_title)
-
-        self.cli = CommandLineInterface(application=self.application)
-
-        # Hide message when a key has been pressed.
-        def key_pressed():
-            self.message = None
-        self.cli.input_processor.beforeKeyPress += key_pressed
+        self.style = PymuxStyle()
 
     @property
     def active_process(self):
         return self.arrangement.active_process
+
+    def get_title(self):
+        if self.active_process:
+            title = self.active_process.screen.title
+        else:
+            title = ''
+
+        if title:
+            return '{} - Pymux'.format(title)
+        else:
+            return 'Pymux'
+
+    def get_window_size(self):
+        rows = [c.size.rows for c in self.connections if c.cli]
+        columns = [c.size.columns for c in self.connections if c.cli]
+
+        if self._runs_standalone:
+            r, c = _get_size(sys.stdout.fileno())
+            rows.append(r)
+            columns.append(c)
+
+        if rows and columns:
+            return Size(rows=min(rows) - 1, columns=min(columns))
+        else:
+            return Size(rows=20, columns=80)
 
     def _create_pane(self, command=None):
         def done_callback():
@@ -102,7 +97,7 @@ class Pymux(object):
 
             # No panes left? -> Quit.
             if not self.arrangement.has_panes:
-                self.cli.set_return_value(None)
+                self.eventloop.stop()
 
         # When the path of the active process is known,
         # start the new process at the same location.
@@ -110,6 +105,10 @@ class Pymux(object):
             path = self.active_process.get_cwd()
             if path:
                 os.chdir(path)
+
+        # Make sure to set the PYMUX environment variable.
+        if self.socket_name:
+            os.environ['PYMUX'] = self.socket_name
 
         if command:
             command = command.split()
@@ -123,7 +122,7 @@ class Pymux(object):
         return pane
 
     def invalidate(self):
-        for c in self.connections:
+        for c in self.clis.values():
             c.invalidate()
 
     def _get_default_shell(self):
@@ -142,9 +141,10 @@ class Pymux(object):
         self.arrangement.active_window.add_pane(pane, vsplit=vsplit)
         self.layout_manager.update()
 
-    def leave_command_mode(self, append_to_history=False):
-        self.cli.buffers['COMMAND'].reset(append_to_history=append_to_history)
-        self.cli.focus_stack.replace(DEFAULT_BUFFER)
+    @classmethod
+    def leave_command_mode(cls, cli, append_to_history=False):
+        cli.buffers['COMMAND'].reset(append_to_history=append_to_history)
+        cli.focus_stack.replace(DEFAULT_BUFFER)
 
     def handle_command(self, command):
         handle_command(self, command)
@@ -156,35 +156,39 @@ class Pymux(object):
         """
         self.message = message
 
-    def run(self):
-        self.cli.run()
-
-    # ---
-
-    def run(self):
-        # Add socket interface to eventloop.
-        self._socket_name, self._socket = bind_socket('/tmp/test8.sock')
-        self._socket.listen(5)  # Listen for incoming connections.
-        self._socket.setblocking(0)
-        self.eventloop.add_reader(self._socket.fileno(), self._socket_accept)
-
-        # Run eventloop.
-        self.eventloop.run(StdinInput(sys.stdin), DummyCallbacks())  # XXX: don't pass stdin here.
-
-    def _socket_accept(self):
-        connection, client_address = self._socket.accept()
-        connection.setblocking(0)
-
-        connection = ServerConnection(self, connection, client_address)
-        self.connections.append(connection)
-
-    def create_cli(self, output):
+    def create_cli(self, connection, output):
         """
-        Run front-end. (There can be several CommandLineInterface instances
-        active. -- One for each client.)
+        Create `CommandLineInterface` instance for this connection.
         """
+        def _handle_command(cli, buffer):
+            " When text is accepted in the command line. "
+            text = buffer.text
+
+            # First leave command mode. We want to make sure that the working
+            # pane is focussed again before executing the command handers.
+            self.leave_command_mode(cli, append_to_history=True)
+
+            # Execute command.
+            self.handle_command(text)
+
+        application = Application(
+            layout=self.layout_manager.layout,
+            key_bindings_registry=self.registry,
+            buffers={
+                'COMMAND': Buffer(
+                    complete_while_typing=True,
+                    completer=create_command_completer(self),
+                    accept_action=AcceptAction(handler=_handle_command),
+                    auto_suggest=AutoSuggestFromHistory(),
+                )
+            },
+            mouse_support=True,
+            use_alternate_screen=True,
+            style=self.style,
+            get_title=self.get_title)
+
         cli = CommandLineInterface(
-            application=self.application,
+            application=application,
             output=output,
             eventloop=self.eventloop)
 
@@ -194,129 +198,81 @@ class Pymux(object):
         cli.input_processor.beforeKeyPress += key_pressed
 
         cli._is_running = True
-        cli.invalidate()
+
+        self.clis[connection] = cli
+
+        # Redraw all CLIs. (Adding a new client could mean that the others
+        # change size, so everything has to be redrawn.)
+        self.invalidate()
 
         return cli
 
+    def get_connection_for_cli(self, cli):
+        """
+        Return the `CommandLineInterface` instance for this connection, if any.
+        `None` otherwise.
+        """
+        for connection, c in self.clis.items():
+            if c == cli:
+                return connection
 
+    def detach_client(self, cli):
+        """
+        Detach the client that belongs to this CLI.
+        """
+        connection = self.get_connection_for_cli(cli)
 
-import socket
-import json
-import sys
-from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
-from prompt_toolkit.eventloop.posix import PosixEventLoop
-from prompt_toolkit.input import StdinInput
-from prompt_toolkit.layout.screen import Size
-from prompt_toolkit.terminal.vt100_input import InputStream
-from prompt_toolkit.terminal.vt100_output import Vt100_Output
+        if connection is not None:
+            connection.detach_and_close()
+
+        # Redraw all clients -> Maybe their size has to change.
+        self.invalidate()
+
+    def listen_on_socket(self, socket_name=None):
+        """
+        Listen for clients on a unix socket.
+        Returns the socket name.
+        """
+        if self.socket is None:
+            self.socket_name, self.socket = bind_socket(socket_name)
+            self.socket.listen(0)
+            self.socket.setblocking(0)
+            self.eventloop.add_reader(self.socket.fileno(), self._socket_accept)
+
+        return self.socket_name
+
+    def _socket_accept(self):
+        """
+        Accept connection from client.
+        """
+        connection, client_address = self.socket.accept()
+        connection.setblocking(0)
+
+        connection = ServerConnection(self, connection, client_address)
+        self.connections.append(connection)
+
+    def run_server(self):
+        # Run eventloop.
+
+        # XXX: Both the PipeInput and DummyCallbacks are not used.
+        #      This is a workaround to run the PosixEventLoop continiously
+        #      without having a CommandLineInterface instance.
+        #      A better API in prompt_toolkit is desired.
+        self.eventloop.run(
+            PipeInput(), DummyCallbacks())
+
+        # Clean up socket.
+        os.remove(self.socket_name)
+
+    def run_standalone(self):
+        self._runs_standalone = True
+        cli = self.create_cli(connection=None, output=Vt100_Output.from_pty(sys.stdout))
+        cli._is_running = False
+        cli.run()
 
 
 class DummyCallbacks(EventLoopCallbacks):
-    " Required in order to call eventloop.run() without CLI instance. "
+    " Required in order to call eventloop.run() without having a CLI instance. "
     def terminal_size_changed(self): pass
     def input_timeout(self): pass
     def feed_key(self, key): pass
-
-
-class ServerConnection(object):
-    def __init__(self, pymux, connection, client_address):
-        self.pymux = pymux
-        self.connection = connection
-        self.client_address = client_address
-        self.size = Size(rows=20, columns=80)
-
-        self._recv_buffer = b''
-        self.cli = None
-        self._inputstream = InputStream(
-            lambda key: self.cli.input_processor.feed_key(key))
-
-        pymux.eventloop.add_reader(
-            connection.fileno(), self._recv)
-
-    def _recv(self):
-        # Read next chunk.
-        data = self.connection.recv(1024)
-
-        if data == b'':
-            # End of file. Close connection.
-            self.pymux.cli.eventloop.remove_reader(self.connection.fileno())
-            self.connection.close()
-        else:
-            # Receive and process packets.
-            self._recv_buffer += data
-
-            while b'\0' in self._recv_buffer:
-                pos = self._recv_buffer.index(b'\0')
-                self._process(self._recv_buffer[:pos])
-                self._recv_buffer = self._recv_buffer[pos + 1:]
-
-    def invalidate(self):
-        " Invalidate client. "
-        if self.cli:
-            self.cli.invalidate()
-
-    def _process(self, data):
-        """
-        Process packet received from client.
-        """
-        packet = json.loads(data.decode('utf-8'))
-
-        # Handle commands.
-        if packet['cmd'] == 'run-command':
-            self.pymux.handle_command(packet['data'])
-
-        # Handle stdin.
-        elif packet['cmd'] == 'in':
-            self._inputstream.feed(packet['data'])
-
-        # Set size
-        elif packet['cmd'] == 'size':
-            data = packet['data']
-            self.size = Size(rows=data[0], columns=data[1])
-            self.cli.invalidate()
-
-        # Start GUI. (Create CommandLineInterface front-end for pymux.)
-        elif packet['cmd'] == 'start-gui':
-            output = Vt100_Output(SocketStdout(self.connection),
-                                  lambda: self.size)
-            self.cli = self.pymux.create_cli(output)
-
-
-def bind_socket(socket_name=None):
-    """
-    Find a socket to listen on.
-    Returns the socket.
-    """
-    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-    if socket_name:
-        s.bind(socket_name)
-        return socket_name, s
-    else:
-        i = 0
-        while True:
-            try:
-                socket_name = '/tmp/pymux.sock.%s.%i' % (getpass.getuser(), i)
-                s.bind(socket_name)
-                return socket_name, s
-            except OSError:
-                i += 1
-
-                # When 100 times failed, cancel server
-                if i == 100:
-                    logging.warning('100 times failed to listen on posix socket. Please clean up old sockets.') # XXXX
-                    raise
-
-
-class SocketStdout(object):
-    def __init__(self, socket):
-        self.socket = socket
-        self._buffer = []
-
-    def write(self, data):
-        self._buffer.append(data)
-
-    def flush(self):
-        data = {'cmd': 'out', 'data': ''.join(self._buffer)}
-        self.socket.send(json.dumps(data).encode('utf-8') + b'\0')
-        self._buffer = []

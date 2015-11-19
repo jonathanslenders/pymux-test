@@ -4,10 +4,9 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.eventloop.posix_utils import PosixStdinReader
 
-from .pexpect_utils import pty_make_controlling_tty
 from .screen import BetterScreen
 from .stream import BetterStream
-from .utils import set_size
+from .utils import set_terminal_size, pty_make_controlling_tty
 
 import os
 import resource
@@ -98,7 +97,7 @@ class Process(object):
         self.eventloop.run_in_executor(wait_for_finished)
 
     def set_size(self, width, height):
-        set_size(self.master, height, width)
+        set_terminal_size(self.master, height, width)
         self.screen.resize(lines=height, columns=width)
 
         self.screen.lines = height
@@ -167,8 +166,12 @@ class Process(object):
 
         def read():
             d = reader.read()
-            self.stream.feed(d)
-            self.invalidate()
+            if d:
+                self.stream.feed(d)
+                self.invalidate()
+            else:
+                # End of stream. Remove child.
+                self.remove_reader(self.master)
 
         # Connect read pipe.
         self.eventloop.add_reader(self.master, read)

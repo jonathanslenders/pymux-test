@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 from collections import defaultdict
 
 from pygments.formatters.terminal256 import Terminal256Formatter
+from pygments.token import Token
 from pyte import charsets as cs
 from pyte import modes as mo
 from pyte.screens import Margins, Savepoint
@@ -129,7 +130,7 @@ class BetterScreen(object):
     def _reset_screen(self):
         """ Reset the Screen content. (also called when switching from/to
         alternate buffer. """
-        self.pt_screen = Screen()
+        self.pt_screen = Screen(default_char=Char(' ', Token))
         self.pt_screen.cursor_position = CursorPosition(0, 0)
         self.pt_screen.show_cursor = True
 

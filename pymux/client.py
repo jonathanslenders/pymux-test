@@ -2,65 +2,95 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.terminal.vt100_input import raw_mode
 from prompt_toolkit.eventloop.posix import _select, call_on_sigwinch
-from prompt_toolkit.terminal.vt100_output import _get_size
+from prompt_toolkit.terminal.vt100_output import _get_size, Vt100_Output
 
-import socket
-import select
-import json
-import sys
-import os
 import fcntl
-import signal
+import getpass
+import glob
+import json
+import os
+import socket
+import sys
 
 
-stdin = os.fdopen(0, 'rb', 0)
+__all__ = (
+    'Client',
+    'list_clients',
+)
+
 
 class Client(object):
-    def __init__(self):
+    def __init__(self, socket_name):
+        self.socket_name = socket_name
+
+        # Connect to socket.
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.connect('/tmp/test8.sock')
+        s.connect(socket_name)
         s.setblocking(0)
 
-        s.send(json.dumps({
-            #'cmd': 'run-command',
-            #'data': 'vsplit',
-            #'cmd': 'c',
-            #'data': 'vsplit',
-            'cmd': 'start-gui',
-            'data': '',
-        }).encode('utf-8'))
-        s.send(b'\0')
+#        s.send(json.dumps({
+#            #'cmd': 'run-command',
+#            #'data': 'vsplit',
+#            #'cmd': 'c',
+#            #'data': 'vsplit',
+#            'cmd': 'start-gui',
+#            'data': '',
+#        }).encode('utf-8'))
+#        s.send(b'\0')
 
         self.socket = s
 
-    def run(self):
-        data_buffer = b''
-        print('running')
+    def run_command(self, command):
+        self._send_packet({
+            'cmd': 'run-command',
+            'data': command,
+        })
 
-        stdin_fd = stdin.fileno()
-        socket_fd = self.socket.fileno()
-        self.sigwinch()
+    def attach(self):
+        """
+        Attach client user interface.
+        """
+        self._send_packet({
+            'cmd': 'start-gui',
+            'data': ''
+        })
 
-        with call_on_sigwinch(self.sigwinch):
-            while True:
-                r, w, x = _select([stdin_fd, socket_fd], [], [])
+        sys.stdin = os.fdopen(0, 'rb', 0)
 
-                if socket_fd in r:
-                    data = self.socket.recv(1024)
+        with raw_mode(sys.stdin.fileno()):
+            with nonblocking(sys.stdin.fileno()):
+                data_buffer = b''
 
-                    if data == b'':
-                        # End of file. Connection closed.
-                        return
-                    else:
-                        data_buffer += data
+                stdin_fd = sys.stdin.fileno()
+                socket_fd = self.socket.fileno()
+                self.sigwinch()
 
-                        while b'\0' in data_buffer:
-                            pos = data_buffer.index(b'\0')
-                            self._process(data_buffer[:pos])
-                            data_buffer = data_buffer[pos + 1:]
+                with call_on_sigwinch(self.sigwinch):
+                    while True:
+                        r, w, x = _select([stdin_fd, socket_fd], [], [])
 
-                elif stdin_fd in r:
-                    self._process_stdin()
+                        if socket_fd in r:
+                            data = self.socket.recv(1024)
+
+                            if data == b'':
+                                # End of file. Connection closed.
+                                # Reset terminal
+                                o = Vt100_Output.from_pty(sys.stdout)
+                                o.quit_alternate_screen()
+                                o.disable_mouse_support()
+                                o.reset_attributes()
+                                o.flush()
+                                return
+                            else:
+                                data_buffer += data
+
+                                while b'\0' in data_buffer:
+                                    pos = data_buffer.index(b'\0')
+                                    self._process(data_buffer[:pos])
+                                    data_buffer = data_buffer[pos + 1:]
+
+                        elif stdin_fd in r:
+                            self._process_stdin()
 
     def _process(self, data_buffer):
         packet = json.loads(data_buffer.decode('utf-8'))
@@ -69,7 +99,7 @@ class Client(object):
             sys.stdout.flush()
 
     def _process_stdin(self):
-        data = stdin.read()
+        data = sys.stdin.read()
         self._send_packet({
             'cmd': 'in',
             'data': data.decode('utf-8')
@@ -78,7 +108,6 @@ class Client(object):
     def _send_packet(self, data):
         " Send to server. "
         data = json.dumps(data).encode('utf-8')
-        assert b'\0' not in data
 
         self.socket.send(data)
         self.socket.send(b'\0')
@@ -90,20 +119,28 @@ class Client(object):
             'data': [rows, cols]
         })
 
+
 class nonblocking(object):
-    def __init__(self, stream):
-        self.stream = stream
-        self.fd = self.stream.fileno()
+    """
+    Make fd non blocking.
+    """
+    def __init__(self, fd):
+        self.fd = fd
+
     def __enter__(self):
         self.orig_fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
         fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl | os.O_NONBLOCK)
+
     def __exit__(self, *args):
         fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl)
 
-import os
 
-
-
-with raw_mode(sys.stdin.fileno()):
-        with nonblocking(sys.stdin):
-            Client().run()
+def list_clients():
+    """
+    List all the servers that are running.
+    """
+    for path in glob.glob('/tmp/pymux.sock.%s.*' % getpass.getuser()):
+        try:
+            yield Client(path)
+        except socket.error:
+            pass
