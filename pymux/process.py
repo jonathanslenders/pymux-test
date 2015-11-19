@@ -22,8 +22,9 @@ __all__ = (
 
 
 class Process(object):
-    def __init__(self, cli, exec_callable, done_callback=None):
-        self.cli = cli
+    def __init__(self, eventloop, invalidate, exec_callable, done_callback=None):
+        self.eventloop = eventloop
+        self.invalidate = invalidate
         self.exec_callable = exec_callable
         self.done_callback = done_callback
         self.pid = None
@@ -46,7 +47,7 @@ class Process(object):
         self._waitpid()
 
     @classmethod
-    def from_command(cls, cli, command, done_callback):
+    def from_command(cls, eventloop, invalidate, command, done_callback):
         """
         Create Process from command,
         e.g. command=['python', '-c', 'print("test")']
@@ -59,7 +60,7 @@ class Process(object):
                 if os.path.exists(path) and os.access(path, os.X_OK):
                     os.execv(path, command)
 
-        return cls(cli, execv, done_callback)
+        return cls(eventloop, invalidate, execv, done_callback)
 
     def _start(self):
         os.environ['TERM'] = 'screen'
@@ -85,16 +86,16 @@ class Process(object):
         def wait_for_finished():
             " Wait for PID in executor. "
             os.waitpid(self.pid, 0)
-            self.cli.eventloop.remove_reader(self.master)
+            self.eventloop.remove_reader(self.master)
 
-            self.cli.eventloop.call_from_executor(done)
+            self.eventloop.call_from_executor(done)
 
         def done():
             " PID received. Back in the main thread. "
             self.is_terminated = True
             self.done_callback()
 
-        self.cli.eventloop.run_in_executor(wait_for_finished)
+        self.eventloop.run_in_executor(wait_for_finished)
 
     def set_size(self, width, height):
         set_size(self.master, height, width)
@@ -167,10 +168,10 @@ class Process(object):
         def read():
             d = reader.read()
             self.stream.feed(d)
-            self.cli.invalidate()
+            self.invalidate()
 
         # Connect read pipe.
-        self.cli.eventloop.add_reader(self.master, read)
+        self.eventloop.add_reader(self.master, read)
 
     def get_cwd(self):
         return get_cwd_for_pid(self.pid)
