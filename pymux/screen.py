@@ -238,7 +238,7 @@ class BetterScreen(object):
                     if token:
                         token[-1] = True # Reverse.
                     line[pos] = Char(char=char.char, token=tuple(token))
-            self.select_graphic_rendition(pyte.grapics._SGR["+reverse"])  # XXX
+            self.select_graphic_rendition(pyte.graphics._SGR["+reverse"])  # XXX
 
         # Make the cursor visible.
         if mo.DECTCEM in modes:
@@ -338,7 +338,7 @@ class BetterScreen(object):
         row[self.pt_screen.cursor_position.x] = Char(char, token)
 
         if char_width > 1:
-            del row[self.pt_screen.cursor_position.x + 1]
+            row[self.pt_screen.cursor_position.x + 1] = Char(' ', token)
 
         # .. note:: We can't use :meth:`cursor_forward()`, because that
         #           way, we'll never know when to linefeed.
@@ -503,7 +503,7 @@ class BetterScreen(object):
         if line:
             max_columns = max(line.keys())
 
-            for i in range(max_columns, self.pt_screen.cursor_position.x, -1):
+            for i in range(max_columns, self.pt_screen.cursor_position.x - 1, -1):
                 line[i + count] = line[i]
                 del line[i]
 
@@ -760,8 +760,8 @@ class BetterScreen(object):
     # Mapping of the escape codes for 256colors to their 'ffffff' value.
     _256_colors = {}
 
-    for i, (r,g,b) in enumerate(Terminal256Formatter().xterm_colors):
-         _256_colors[1024 + i] = '%02x%02x%02x' % (r,g,b)
+    for i, (r, g, b) in enumerate(Terminal256Formatter().xterm_colors):
+         _256_colors[1024 + i] = '%02x%02x%02x' % (r, g, b)
 
     def select_graphic_rendition(self, *attrs):
         """ Support 256 colours """

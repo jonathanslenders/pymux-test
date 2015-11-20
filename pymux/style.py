@@ -11,7 +11,7 @@ ui_style = {
     Token.Line:                    '#888888',
     Token.Line.Focussed:           '#448844',
 
-    Token.TitleBar:                'bg:#888888 #dddddd italic',
+    Token.TitleBar:                'bg:#888888 #dddddd ',
     Token.TitleBar.Title:          '',
     Token.TitleBar.Name:           '#ffffff noitalic',
     Token.TitleBar.Name.Focussed:  'bg:#44aa44',

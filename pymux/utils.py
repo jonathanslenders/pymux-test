@@ -86,6 +86,7 @@ def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
     try:
         pid = os.fork()
         if pid > 0:
+            os.waitpid(pid, 0)
             return 0 # Return 0 from first parent.
             #sys.exit(0) # Exit first parent.
     except OSError as e:

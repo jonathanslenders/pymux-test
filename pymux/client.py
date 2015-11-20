@@ -24,21 +24,9 @@ class Client(object):
         self.socket_name = socket_name
 
         # Connect to socket.
-        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.connect(socket_name)
-        s.setblocking(0)
-
-#        s.send(json.dumps({
-#            #'cmd': 'run-command',
-#            #'data': 'vsplit',
-#            #'cmd': 'c',
-#            #'data': 'vsplit',
-#            'cmd': 'start-gui',
-#            'data': '',
-#        }).encode('utf-8'))
-#        s.send(b'\0')
-
-        self.socket = s
+        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket.connect(socket_name)
+        self.socket.setblocking(0)
 
     def run_command(self, command):
         self._send_packet({
@@ -50,6 +38,7 @@ class Client(object):
         """
         Attach client user interface.
         """
+        self._send_size()
         self._send_packet({
             'cmd': 'start-gui',
             'data': ''
@@ -63,9 +52,8 @@ class Client(object):
 
                 stdin_fd = sys.stdin.fileno()
                 socket_fd = self.socket.fileno()
-                self.sigwinch()
 
-                with call_on_sigwinch(self.sigwinch):
+                with call_on_sigwinch(lambda: self._send_size()):
                     while True:
                         r, w, x = _select([stdin_fd, socket_fd], [], [])
 
@@ -112,7 +100,7 @@ class Client(object):
         self.socket.send(data)
         self.socket.send(b'\0')
 
-    def sigwinch(self, *a):
+    def _send_size(self):
         rows, cols = _get_size(sys.stdout.fileno())
         self._send_packet({
             'cmd': 'size',

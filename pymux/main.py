@@ -6,6 +6,7 @@ from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
 from prompt_toolkit.eventloop.posix import PosixEventLoop
+from prompt_toolkit.input import PipeInput
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.layout.screen import Size
 from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
@@ -19,11 +20,11 @@ from .process import Process
 from .server import ServerConnection, bind_socket
 from .style import PymuxStyle
 
-import os
 import getpass
+import os
 import pwd
 import sys
-from prompt_toolkit.input import PipeInput
+import traceback
 
 __all__ = (
     'Pymux',
@@ -39,10 +40,13 @@ class Pymux(object):
         self.layout_manager = LayoutManager(self)
 
         #: True when the prefix key (Ctrl-B) has been pressed.
-        self.has_prefix = False
+        self.has_prefix = False   # XXX: this should be for each client individually!!!!
 
         #: Error/info message
-        self.message = None
+        self.message = None   # XXX: this should be for each client individually.
+
+        # When no panes are available
+        self.original_cwd = os.getcwd()
 
         #: List of clients.
         self._runs_standalone = False
@@ -103,12 +107,19 @@ class Pymux(object):
         # start the new process at the same location.
         if self.active_process:
             path = self.active_process.get_cwd()
+        else:
+            path = None
+
+        def before_exec():
+            " Called in the process fork. "
             if path:
                 os.chdir(path)
+            else:
+                os.chdir(self.original_cwd)
 
-        # Make sure to set the PYMUX environment variable.
-        if self.socket_name:
-            os.environ['PYMUX'] = self.socket_name
+            # Make sure to set the PYMUX environment variable.
+            if self.socket_name:
+                os.environ['PYMUX'] = self.socket_name
 
         if command:
             command = command.split()
@@ -116,7 +127,8 @@ class Pymux(object):
             command = [self._get_default_shell()]
 
         process = Process.from_command(
-                self.eventloop, self.invalidate, command, done_callback)
+                self.eventloop, self.invalidate, command, done_callback,
+                before_exec_func=before_exec)
         pane = Pane(process)
 
         return pane
@@ -258,8 +270,16 @@ class Pymux(object):
         #      This is a workaround to run the PosixEventLoop continiously
         #      without having a CommandLineInterface instance.
         #      A better API in prompt_toolkit is desired.
-        self.eventloop.run(
-            PipeInput(), DummyCallbacks())
+        try:
+            self.eventloop.run(
+                PipeInput(), DummyCallbacks())
+        except:
+            # When something bad happens, always dump the traceback.
+            # (Otherwise, when running as a daemon, and stdout/stderr are not
+            # available, it's hard to see what went wrong.)
+            with open('/tmp/pymux.crash', 'wb') as f:
+                f.write(traceback.format_exc().encode('utf-8'))
+            raise
 
         # Clean up socket.
         os.remove(self.socket_name)

@@ -64,7 +64,7 @@ class ServerConnection(object):
         elif packet['cmd'] == 'size':
             data = packet['data']
             self.size = Size(rows=data[0], columns=data[1])
-            self.cli.invalidate()
+            self.pymux.invalidate()
 
         # Start GUI. (Create CommandLineInterface front-end for pymux.)
         elif packet['cmd'] == 'start-gui':
@@ -108,7 +108,7 @@ def bind_socket(socket_name=None):
                 socket_name = '/tmp/pymux.sock.%s.%i' % (getpass.getuser(), i)
                 s.bind(socket_name)
                 return socket_name, s
-            except OSError:
+            except (OSError, socket.error):
                 i += 1
 
                 # When 100 times failed, cancel server
@@ -119,7 +119,8 @@ def bind_socket(socket_name=None):
 
 class _SocketStdout(object):
     """
-    Stdout-like object that writes everything through the unix socket to the client.
+    Stdout-like object that writes everything through the unix socket to the
+    client.
     """
     def __init__(self, send_packet):
         self.send_packet = send_packet

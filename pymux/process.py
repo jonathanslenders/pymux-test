@@ -21,10 +21,10 @@ __all__ = (
 
 
 class Process(object):
-    def __init__(self, eventloop, invalidate, exec_callable, done_callback=None):
+    def __init__(self, eventloop, invalidate, exec_func, done_callback=None):
         self.eventloop = eventloop
         self.invalidate = invalidate
-        self.exec_callable = exec_callable
+        self.exec_func = exec_func
         self.done_callback = done_callback
         self.pid = None
         self.is_terminated = False
@@ -46,14 +46,19 @@ class Process(object):
         self._waitpid()
 
     @classmethod
-    def from_command(cls, eventloop, invalidate, command, done_callback):
+    def from_command(cls, eventloop, invalidate, command, done_callback, before_exec_func=None):
         """
         Create Process from command,
         e.g. command=['python', '-c', 'print("test")']
+
+        :param before_exec_func: Function that is called before `exec` in the process fork.
         """
         assert isinstance(command, list)
 
         def execv():
+            if before_exec_func:
+                before_exec_func()
+
             for p in os.environ['PATH'].split(':'):
                 path = os.path.join(p, command[0])
                 if os.path.exists(path) and os.access(path, os.X_OK):
@@ -124,7 +129,7 @@ class Process(object):
         # Execute in child.
         try:
             self._close_file_descriptors()
-            self.exec_callable()
+            self.exec_func()
         except Exception:
             traceback.print_exc()
             time.sleep(5)
@@ -171,7 +176,7 @@ class Process(object):
                 self.invalidate()
             else:
                 # End of stream. Remove child.
-                self.remove_reader(self.master)
+                self.eventloop.remove_reader(self.master)
 
         # Connect read pipe.
         self.eventloop.add_reader(self.master, read)

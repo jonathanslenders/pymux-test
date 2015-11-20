@@ -2,10 +2,10 @@
 """
 pymux: Pure Python terminal multiplexer.
 Usage:
-    pymux
+    pymux [(-s <socket>)]
     pymux standalone
-    pymux server [-s <socket>]
-    pymux attach [-s <socket>]
+    pymux server [(-s <socket>)]
+    pymux attach [(-s <socket>)]
     pymux list-sessions
     pymux -h | --help
     pymux <command>
@@ -21,6 +21,7 @@ from pymux.client import Client, list_clients
 from pymux.utils import daemonize
 import docopt
 import os
+import sys
 
 __all__ = (
     'run',
@@ -30,8 +31,7 @@ __all__ = (
 def run():
     a = docopt.docopt(__doc__)
     socket_name = a['<socket>'] or os.environ.get('PYMUX')
-
-    setup_debugger()
+    socket_name_from_env = not a['<socket>'] and os.environ.get('PYMUX')
 
     mux = Pymux()
 
@@ -42,10 +42,16 @@ def run():
     elif a['list-sessions']:
         for c in list_clients():
             print(c.socket_name)
+
     elif a['server']:
+        if socket_name_from_env:
+            _socket_from_env_warning()
+            sys.exit(1)
+
         socket_name = mux.listen_on_socket()
         mux.create_window()
         mux.run_server()
+
     elif a['attach']:
         if socket_name:
             Client(socket_name).attach()
@@ -54,13 +60,18 @@ def run():
             for c in list_clients():
                 c.attach()
                 break
-    elif a['<command>']:
+
+    elif a['<command>'] and socket_name:
         Client(socket_name).run_command(a['<command>'])
-    else:
+
+    elif not a['<command>']:
+        if socket_name_from_env:
+            _socket_from_env_warning()
+            sys.exit(1)
+
         # Run client/server combination.
         socket_name = mux.listen_on_socket(socket_name)
         pid = daemonize()
-
 
         if pid > 0:
             # Create window. It is important that this happens in the daemon,
@@ -71,24 +82,15 @@ def run():
         else:
             Client(socket_name).attach()
 
+    else:
+        print('Invalid command.')
+        sys.exit(1)
 
-def setup_debugger():
-    # http://stackoverflow.com/questions/132058/showing-the-stack-trace-from-a-running-python-application
-    import code, traceback, signal
 
-    def debug(sig, frame):
-        """Interrupt running process, and provide a python prompt for
-        interactive debugging."""
-        d={'_frame':frame}         # Allow access to frame object.
-        d.update(frame.f_globals)  # Unless shadowed by global
-        d.update(frame.f_locals)
+def _socket_from_env_warning():
+    print('Please be careful nesting pymux sessions.')
+    print('Unset PYMUX environment variable first.')
 
-        i = code.InteractiveConsole(d)
-        message  = "Signal received : entering python shell.\nTraceback:\n"
-        message += ''.join(traceback.format_stack(frame))
-        i.interact(message)
-
-    signal.signal(signal.SIGUSR1, debug)  # Register handler
 
 if __name__ == '__main__':
     run()
