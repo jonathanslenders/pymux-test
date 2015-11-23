@@ -250,7 +250,6 @@ class Pymux(object):
         if self.socket is None:
             self.socket_name, self.socket = bind_socket(socket_name)
             self.socket.listen(0)
-            self.socket.setblocking(0)
             self.eventloop.add_reader(self.socket.fileno(), self._socket_accept)
 
         logger.info('Listening on %r.' % self.socket_name)
@@ -263,7 +262,8 @@ class Pymux(object):
         logger.info('Client attached.')
 
         connection, client_address = self.socket.accept()
-        connection.setblocking(0)
+        # Note: We don't have to put this socket in non blocking mode.
+        #       This can cause crashes when sending big packets on OS X.
 
         connection = ServerConnection(self, connection, client_address)
         self.connections.append(connection)
