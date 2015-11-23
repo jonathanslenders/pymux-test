@@ -41,8 +41,8 @@ class PymuxStyle(Style):
 
     def get_attrs_for_token(self, token):
         if token and token[0] == 'C':
-            c, fg, bg, bold, underline, italic, reverse = token
-            return Attrs(fg, bg, bold, underline, italic, reverse)
+            c, fg, bg, bold, underline, italic, blink, reverse = token
+            return Attrs(fg, bg, bold, underline, italic, blink, reverse)
         else:
             return self.pygments_style.get_attrs_for_token(token)
 

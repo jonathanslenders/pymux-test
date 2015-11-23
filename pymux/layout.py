@@ -11,7 +11,7 @@ from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
-from prompt_toolkit.layout.screen import Char
+from prompt_toolkit.layout.screen import Char, Screen
 from prompt_toolkit.mouse_events import MouseEventTypes
 
 from pygments.token import Token
@@ -19,11 +19,39 @@ import datetime
 import six
 
 from .commands.lexer import create_command_lexer
+from .screen import DEFAULT_TOKEN
 import pymux.arrangement as arrangement
 
 __all__ = (
     'LayoutManager',
 )
+
+
+class Background(UIControl):  # XXX: maybe turn into Container object for performance.
+    """
+    The background, as displayed when a session has been attached several
+    times, and the window of the client is bigger than the current pymux
+    window.
+    """
+    def reset(self):
+        pass
+
+    def has_focus(self, cli):
+        return False
+
+    def create_screen(self, cli, width, height):
+        default_char = Char(' ', Token.Background)
+        dot = Char('.', Token.Background)
+
+        screen = Screen(default_char, initial_width=width)
+
+        for y in range(height):
+            row = screen.data_buffer[y]
+
+            for x in range(width):
+                if (x + y) % 2 == 0:
+                    row[x] = dot
+        return screen
 
 
 class PaneContainer(UIControl):
@@ -96,7 +124,36 @@ class PaneContainer(UIControl):
                         six.unichr(y + 33)))
 
 
-class MessageToolbarBar(TokenListToolbar):
+class PaneWindow(Window):
+    def __init__(self, pymux, arrangement_pane, process):
+        self._process = process
+        super(PaneWindow, self).__init__(
+            content=PaneContainer(pymux, arrangement_pane),
+            get_vertical_scroll=lambda window: process.screen.line_offset,
+            allow_scroll_beyond_bottom=True,
+        )
+
+    def write_to_screen(self, cli, screen, mouse_handlers, write_position):
+        super(PaneWindow, self).write_to_screen(cli, screen, mouse_handlers, write_position)
+
+        # If reverse video is enabled for the whole screen.
+        if self._process.screen.has_reverse_video:
+            data_buffer = screen.data_buffer
+
+            for y in range(write_position.ypos, write_position.ypos + write_position.height):
+                row = data_buffer[y]
+
+                for x in range(write_position.xpos, write_position.xpos + write_position.width):
+                    char = row[x]
+                    token = list(char.token or DEFAULT_TOKEN)
+
+                    # The token looks like ('C', *attrs). Replace the value of the reverse flag.
+                    if token and token[0] == 'C':
+                        token[-1] = not token[-1] # Invert reverse value.
+                        row[x] = Char(char.char, tuple(token))
+
+
+class MessageToolbar(TokenListToolbar):
     """
     Pop-up (at the bottom) for showing error/status messages.
     """
@@ -107,7 +164,7 @@ class MessageToolbarBar(TokenListToolbar):
             else:
                 return []
 
-        super(MessageToolbarBar, self).__init__(
+        super(MessageToolbar, self).__init__(
                 get_tokens,
                 filter=Condition(lambda cli: pymux.message is not None))
 
@@ -151,7 +208,7 @@ class LayoutManager(object):
 
         return HighlightBorders(self, self.pymux, FloatContainer(
             content=HSplit([
-                Window(content=FillControl('.', token=Token.Background)),
+                Window(content=Background()),
 
                 ConditionalContainer(
                     content=Window(
@@ -187,7 +244,7 @@ class LayoutManager(object):
                       get_height=lambda: self.pymux.get_window_size().rows,
                       content=self.body),
                 Float(bottom=1, left=0,
-                      content=MessageToolbarBar(self.pymux)),
+                      content=MessageToolbar(self.pymux)),
                 Float(xcursor=True,
                       ycursor=True,
                       content=CompletionsMenu(max_height=12)),
@@ -222,6 +279,17 @@ def _create_split(pymux, split):
 
     content = []
 
+    def vertical_line():
+        " Draw a vertical line between windows. (In case of a vsplit) "
+        char = '│'
+        content.append(HSplit([
+                Window(
+                   width=D.exact(1), height=D.exact(1),
+                   content=FillControl(char, token=Token.TitleBar.Line)),
+                Window(width=D.exact(1),
+                       content=FillControl(char, token=Token.Line))
+            ]))
+
     for i, item in enumerate(split):
         if isinstance(item, (arrangement.VSplit, arrangement.HSplit)):
             content.append(_create_split(pymux, item))
@@ -230,16 +298,8 @@ def _create_split(pymux, split):
         else:
             raise TypeError('Got %r' % (item,))
 
-        # Draw a vertical line between windows. (In case of a vsplit)
         if is_vsplit and i != len(split) - 1:
-            char = '│'
-            content.append(HSplit([
-                    Window(
-                       width=D.exact(1), height=D.exact(1),
-                       content=FillControl(char, token=Token.TitleBar.Line)),
-                    Window(width=D.exact(1),
-                           content=FillControl(char, token=Token.Line))
-                ]))
+            vertical_line()
 
     # Create prompt_toolkit Container.
     return_cls = VSplit if is_vsplit else HSplit
@@ -286,11 +346,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                 get_title_tokens,
                 get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
         ),
-        Window(
-            PaneContainer(pymux, arrangement_pane),
-            get_vertical_scroll=lambda window: process.screen.line_offset,
-            allow_scroll_beyond_bottom=True,
-        )
+        PaneWindow(pymux, arrangement_pane, process),
     ]))
 
 
@@ -315,7 +371,19 @@ class _ContainerProxy(Container):
 
 
 _focussed_border_char = Char('┃', Token.Line.Focussed)
-_focussed_border_char_titlebar = Char('┃', Token.TitleBar.Line.Focussed)
+_focussed_border_char_titlebar_0 = Char('┏', Token.TitleBar.Line.Focussed)
+_focussed_border_char_titlebar_1 = Char('┓', Token.TitleBar.Line.Focussed)
+_focussed_border_bottom = Char('━', Token.Line.Focussed)
+_focussed_left_bottom_char = Char('┗', Token.Line.Focussed)
+_focussed_right_bottom_char = Char('┛', Token.Line.Focussed)
+
+_border_char = Char('│', Token.Line)
+_border_char_titlebar_0 = Char('│', Token.TitleBar.Line)
+_border_char_titlebar_1 = Char('│', Token.TitleBar.Line)
+_border_bottom = Char('─', Token.Line)
+_left_bottom_char = Char('└', Token.Line)
+_right_bottom_char = Char('┘', Token.Line)
+
 
 
 class HighlightBorders(_ContainerProxy):
@@ -338,35 +406,71 @@ class HighlightBorders(_ContainerProxy):
         # Render everything.
         _ContainerProxy.write_to_screen(self, cli, screen, mouse_handlers, write_position)
 
+        self._highlight_borders(screen)
+
+    def _highlight_borders(self, screen):
+        active_pane = self.pymux.arrangement.active_pane
+
         # When rendering is done. Highlight the borders of the active pane.
-        data_buffer = screen.data_buffer
+        # Highlight non-active panes first.
+        for pane, wp in self.layout_manager.pane_write_positions.items():
+            if pane != active_pane:
+                self._highlight_pane(screen, wp, False)
 
         try:
             wp = self.layout_manager.pane_write_positions[self.pymux.arrangement.active_pane]
         except KeyError:
             pass
         else:
-            xpos, ypos, width, height = wp.xpos, wp.ypos, wp.width, wp.height
+            self._highlight_pane(screen, wp, focussed=True)
 
-            xleft = xpos - 1
-            xright = xpos + width
+    def _highlight_pane(self, screen, wp, focussed):
+        data_buffer = screen.data_buffer
+        xpos, ypos, width, height = wp.xpos, wp.ypos, wp.width, wp.height
 
-            # First line.
-            if xleft in data_buffer[ypos]:
-                data_buffer[ypos][xleft] = _focussed_border_char_titlebar
+        xleft = xpos - 1
+        xright = xpos + width
 
-            if xright in data_buffer[ypos]:
-                data_buffer[ypos][xright] = _focussed_border_char_titlebar
+        if focussed:
+            char = _focussed_border_char
+            char_titlebar_0 = _focussed_border_char_titlebar_0
+            char_titlebar_1 = _focussed_border_char_titlebar_1
+            char_bottom = _focussed_border_bottom
+            char_left_bottom = _focussed_left_bottom_char
+            char_right_bottom = _focussed_right_bottom_char
+        else:
+            char = _border_char
+            char_titlebar_0 = _border_char_titlebar_0
+            char_titlebar_1 = _border_char_titlebar_1
+            char_bottom = _border_bottom
+            char_left_bottom = _left_bottom_char
+            char_right_bottom = _right_bottom_char
 
-            # Every following line.
-            for y in range(ypos + 1, ypos + height):
-                row = data_buffer[y]
+        # First line.
+        if xleft in data_buffer[ypos]:
+            data_buffer[ypos][xleft] = char_titlebar_0
 
-                if xleft in row:
-                    row[xleft] = _focussed_border_char
+        if xright in data_buffer[ypos]:
+            data_buffer[ypos][xright] = char_titlebar_1
 
-                if xright in data_buffer[y]:
-                    row[xright] = _focussed_border_char
+        # Every following line.
+        for y in range(ypos + 1, ypos + height):
+            row = data_buffer[y]
+            row[xleft] = row[xright] = char
+
+        # Draw the bottom line. (Only if we currently display the background.)
+        row = data_buffer[ypos + height]
+
+        for x in range(xpos, xpos + width):
+            if row[x].token == Token.Background:
+                row[x] = char_bottom
+
+        if row[x - 1].token == Token.Background:
+            row[xpos - 1] = char_left_bottom
+        if row[x + width].token == Token.Background:
+            row[xpos + width] = char_right_bottom
+
+
 
 
 class TracePaneWritePosition(_ContainerProxy):

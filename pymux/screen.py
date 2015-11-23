@@ -10,32 +10,46 @@ from __future__ import unicode_literals
 from collections import defaultdict
 
 from pygments.formatters.terminal256 import Terminal256Formatter
-from pygments.token import Token
 from pyte import charsets as cs
 from pyte import modes as mo
-from pyte.screens import Margins, Savepoint
+from pyte.screens import Margins
 from wcwidth import wcwidth
 
 from prompt_toolkit.layout.screen import Screen, Char
 from prompt_toolkit.styles import Attrs
 from prompt_toolkit.terminal.vt100_output import FG_ANSI_COLORS, BG_ANSI_COLORS
+from collections import namedtuple
 
 import copy
-import pyte
-import pyte.graphics
 
 __all__ = (
     'BetterScreen',
+    'DEFAULT_TOKEN',
 )
 
+DEFAULT_TOKEN = ('C', ) + Attrs(color=None, bgcolor=None, bold=False, underline=False,
+                                italic=False, blink=False, reverse=False)
 
 class CursorPosition(object):
+    " Mutable CursorPosition. "
     def __init__(self, x=0, y=0):
         self.x = x
         self.y = y
 
     def __repr__(self):
         return 'pymux.CursorPosition(x=%r, y=%r)' % (self.x, self.y)
+
+
+# Custom Savepoint that also stores the Attrs.
+_Savepoint = namedtuple("_Savepoint", [
+    'cursor',
+    'g0_charset',
+    'g1_charset',
+    'charset',
+    'origin',
+    'wrap',
+    'attrs',
+])
 
 
 class BetterScreen(object):
@@ -85,6 +99,11 @@ class BetterScreen(object):
     def bracketed_paste_enabled(self):
         return (2004 << 5) in self.mode
 
+    @property
+    def has_reverse_video(self):
+        " The whole screen is set to reverse video. "
+        return mo.DECSCNM in self.mode
+
     def reset(self):
         """Resets the terminal to its initial state.
 
@@ -130,14 +149,16 @@ class BetterScreen(object):
     def _reset_screen(self):
         """ Reset the Screen content. (also called when switching from/to
         alternate buffer. """
-        self.pt_screen = Screen(default_char=Char(' ', Token))
+        self.pt_screen = Screen(default_char=Char(' ', DEFAULT_TOKEN))
+
+
         self.pt_screen.cursor_position = CursorPosition(0, 0)
         self.pt_screen.show_cursor = True
 
         self.data_buffer = self.pt_screen.data_buffer
 
         self._attrs = Attrs(color=None, bgcolor=None, bold=False,
-                            underline=False, italic=False, reverse=False)
+                            underline=False, italic=False, blink=False, reverse=False)
 
         self.margins = Margins(0, self.lines - 1)
 
@@ -230,16 +251,6 @@ class BetterScreen(object):
         if mo.DECOM in modes:
             self.cursor_position()
 
-        # Mark all displayed characters as reverse. # TODO !!
-        if mo.DECSCNM in modes:
-            for line in self.data_buffer.values():
-                for pos, char in line.items():
-                    token = list(line[pos].token)
-                    if token:
-                        token[-1] = True # Reverse.
-                    line[pos] = Char(char=char.char, token=tuple(token))
-            self.select_graphic_rendition(pyte.graphics._SGR["+reverse"])  # XXX
-
         # Make the cursor visible.
         if mo.DECTCEM in modes:
             self.pt_screen.show_cursor = True
@@ -274,15 +285,6 @@ class BetterScreen(object):
         if mo.DECOM in modes:
             self.cursor_position()
 
-        if mo.DECSCNM in modes:  # TODO
-            for line in self.data_buffer.values():
-                for pos, char in line.items():
-                    token = list(line[pos].token)
-                    if token:
-                        token[-1] = False  # Not reverse.
-                    line[pos] = Char(char=char.char, token=tuple(token))
-            self.select_graphic_rendition(pyte.graphics._SGR["-reverse"])
-
         # Hide the cursor.
         if mo.DECTCEM in modes:
             self.pt_screen.show_cursor = False
@@ -310,6 +312,8 @@ class BetterScreen(object):
         self.charset = 1
 
     def draw(self, char):
+        pt_screen = self.pt_screen
+
         # Translating a given character.
         char = char.translate([self.g0_charset,
                                self.g1_charset][self.charset])
@@ -320,12 +324,12 @@ class BetterScreen(object):
         # enabled, move the cursor to the beginning of the next line,
         # otherwise replace characters already displayed with newly
         # entered.
-        if self.pt_screen.cursor_position.x >= self.columns:
+        if pt_screen.cursor_position.x >= self.columns:
             if mo.DECAWM in self.mode:
                 self.carriage_return()
                 self.linefeed()
             else:
-                self.pt_screen.cursor_position.x -= char_width
+                pt_screen.cursor_position.x -= char_width
 
         # If Insert mode is set, new characters move old characters to
         # the right, otherwise terminal is in Replace mode and new
@@ -334,17 +338,17 @@ class BetterScreen(object):
             self.insert_characters(char_width)
 
         token = ('C', ) + self._attrs
-        row = self.pt_screen.data_buffer[self.pt_screen.cursor_position.y]
-        row[self.pt_screen.cursor_position.x] = Char(char, token)
+        row = pt_screen.data_buffer[pt_screen.cursor_position.y]
+        row[pt_screen.cursor_position.x] = Char(char, token)
 
         if char_width > 1:
-            row[self.pt_screen.cursor_position.x + 1] = Char(' ', token)
+            row[pt_screen.cursor_position.x + 1] = Char(' ', token)
 
         # .. note:: We can't use :meth:`cursor_forward()`, because that
         #           way, we'll never know when to linefeed.
-        self.pt_screen.cursor_position.x += char_width
+        pt_screen.cursor_position.x += char_width
 
-        self.max_y = max(self.max_y, self.pt_screen.cursor_position.y)
+        self.max_y = max(self.max_y, pt_screen.cursor_position.y)
 
     def carriage_return(self):
         " Move the cursor to the beginning of the current line. "
@@ -415,13 +419,14 @@ class BetterScreen(object):
 
     def save_cursor(self):
         """Push the current cursor position onto the stack."""
-        self.savepoints.append(Savepoint(
+        self.savepoints.append(_Savepoint(
             copy.copy(self.pt_screen.cursor_position),
             self.g0_charset,
             self.g1_charset,
             self.charset,
             mo.DECOM in self.mode,
-            mo.DECAWM in self.mode))
+            mo.DECAWM in self.mode,
+            self._attrs))
 
     def restore_cursor(self):
         """Set the current cursor position to whatever cursor is on top
@@ -433,6 +438,7 @@ class BetterScreen(object):
             self.g0_charset = savepoint.g0_charset
             self.g1_charset = savepoint.g1_charset
             self.charset = savepoint.charset
+            self._attrs = savepoint.attrs
 
             if savepoint.origin:
                 self.set_mode(mo.DECOM)
@@ -785,6 +791,10 @@ class BetterScreen(object):
                 replace["italic"] = True
             elif attr == 4:
                 replace["underline"] = True
+            elif attr == 5:
+                replace["blink"] = True
+            elif attr == 6:
+                replace["blink"] = True  # Fast blink.
             elif attr == 7:
                 replace["reverse"] = True
             elif attr == 22:
@@ -793,14 +803,17 @@ class BetterScreen(object):
                 replace["italic"] = False
             elif attr == 24:
                 replace["underline"] = False
+            elif attr == 25:
+                replace["blink"] = False
             elif attr == 27:
                 replace["reverse"] = False
             elif not attr:
                 replace = {}
                 self._attrs = Attrs(color=None, bgcolor=None, bold=False,
-                                    underline=False, italic=False, reverse=False)
+                                    underline=False, italic=False, blink=False, reverse=False)
 
             elif attr in (38, 48):
+                # 256 colors.
                 n = attrs.pop()
                 if n != 5:
                     return

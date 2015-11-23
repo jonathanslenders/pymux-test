@@ -2,10 +2,7 @@
 """
 pymux: Pure Python terminal multiplexer.
 Usage:
-    pymux [(-s <socket>)]
-    pymux standalone
-    pymux server [(-s <socket>)]
-    pymux attach [(-s <socket>)]
+    pymux [(standalone|server|attach)] [-d] [(-s <socket>)] [(--log <logfile>)]
     pymux list-sessions
     pymux -h | --help
     pymux <command>
@@ -13,15 +10,23 @@ Usage:
 Options:
     standalone   : Run as a standalone process. (for debugging, detaching is
                    not possible.
+    server       : Run a server daemon that can be attached later on.
+    attach       : Attach to a running session.
+
+    -s           : Unix socket path.
+    -d           : Detach all other clients, when attaching.
+    --log        : Logfile.
 """
 from __future__ import unicode_literals, absolute_import
 
 from pymux.main import Pymux
 from pymux.client import Client, list_clients
 from pymux.utils import daemonize
+
 import docopt
 import os
 import sys
+import logging
 
 __all__ = (
     'run',
@@ -35,9 +40,13 @@ def run():
 
     mux = Pymux()
 
+    # Setup logging
+    if a['<logfile>']:
+        logging.basicConfig(filename=a['<logfile>'], level=logging.DEBUG)
+
     if a['standalone']:
-        mux.run_standalone()
         mux.create_window()
+        mux.run_standalone()
 
     elif a['list-sessions']:
         for c in list_clients():
@@ -48,11 +57,19 @@ def run():
             _socket_from_env_warning()
             sys.exit(1)
 
+        # Log to stdout.
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
+        # Run server.
         socket_name = mux.listen_on_socket()
         mux.create_window()
         mux.run_server()
 
     elif a['attach']:
+        if socket_name_from_env:
+            _socket_from_env_warning()
+            sys.exit(1)
+
         if socket_name:
             Client(socket_name).attach()
         else:

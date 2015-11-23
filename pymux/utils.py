@@ -112,8 +112,8 @@ def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
     # Redirect standard file descriptors.
 
         # NOTE: For debugging, you meight want to take these instead of /dev/null.
-    #so = file('/tmp/log', 'a+')
-    #se = file('/tmp/log', 'a+', 0)
+    #so = open('/tmp/log2', 'ab+')
+    #se = open('/tmp/log2', 'ab+', 0)
 
     si = open(stdin, 'rb')
     so = open(stdout, 'ab+')

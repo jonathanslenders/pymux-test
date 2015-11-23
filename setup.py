@@ -28,7 +28,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'pymux = pymux.entry_points.pymux:run',
+            'pymux = pymux.entry_points.run_pymux:run',
         ]
     },
 )

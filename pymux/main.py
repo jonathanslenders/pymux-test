@@ -19,6 +19,7 @@ from .layout import LayoutManager
 from .process import Process
 from .server import ServerConnection, bind_socket
 from .style import PymuxStyle
+from .log import logger
 
 import getpass
 import os
@@ -131,6 +132,7 @@ class Pymux(object):
                 before_exec_func=before_exec)
         pane = Pane(process)
 
+        logger.info('Created process %r.', command)
         return pane
 
     def invalidate(self):
@@ -251,12 +253,15 @@ class Pymux(object):
             self.socket.setblocking(0)
             self.eventloop.add_reader(self.socket.fileno(), self._socket_accept)
 
+        logger.info('Listening on %r.' % self.socket_name)
         return self.socket_name
 
     def _socket_accept(self):
         """
         Accept connection from client.
         """
+        logger.info('Client attached.')
+
         connection, client_address = self.socket.accept()
         connection.setblocking(0)
 
