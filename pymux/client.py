@@ -44,41 +44,38 @@ class Client(object):
             'data': ''
         })
 
-        sys.stdin = os.fdopen(0, 'rb', 0)
-
         with raw_mode(sys.stdin.fileno()):
-            with nonblocking(sys.stdin.fileno()):
-                data_buffer = b''
+            data_buffer = b''
 
-                stdin_fd = sys.stdin.fileno()
-                socket_fd = self.socket.fileno()
+            stdin_fd = sys.stdin.fileno()
+            socket_fd = self.socket.fileno()
 
-                with call_on_sigwinch(lambda: self._send_size()):
-                    while True:
-                        r, w, x = _select([stdin_fd, socket_fd], [], [])
+            with call_on_sigwinch(lambda: self._send_size()):
+                while True:
+                    r, w, x = _select([stdin_fd, socket_fd], [], [])
 
-                        if socket_fd in r:
-                            data = self.socket.recv(1024)
+                    if socket_fd in r:
+                        data = self.socket.recv(1024)
 
-                            if data == b'':
-                                # End of file. Connection closed.
-                                # Reset terminal
-                                o = Vt100_Output.from_pty(sys.stdout)
-                                o.quit_alternate_screen()
-                                o.disable_mouse_support()
-                                o.reset_attributes()
-                                o.flush()
-                                return
-                            else:
-                                data_buffer += data
+                        if data == b'':
+                            # End of file. Connection closed.
+                            # Reset terminal
+                            o = Vt100_Output.from_pty(sys.stdout)
+                            o.quit_alternate_screen()
+                            o.disable_mouse_support()
+                            o.reset_attributes()
+                            o.flush()
+                            return
+                        else:
+                            data_buffer += data
 
-                                while b'\0' in data_buffer:
-                                    pos = data_buffer.index(b'\0')
-                                    self._process(data_buffer[:pos])
-                                    data_buffer = data_buffer[pos + 1:]
+                            while b'\0' in data_buffer:
+                                pos = data_buffer.index(b'\0')
+                                self._process(data_buffer[:pos])
+                                data_buffer = data_buffer[pos + 1:]
 
-                        elif stdin_fd in r:
-                            self._process_stdin()
+                    elif stdin_fd in r:
+                        self._process_stdin()
 
     def _process(self, data_buffer):
         packet = json.loads(data_buffer.decode('utf-8'))
@@ -87,10 +84,12 @@ class Client(object):
             sys.stdout.flush()
 
     def _process_stdin(self):
-        data = sys.stdin.read()
+        with nonblocking(sys.stdin.fileno()):
+            data = sys.stdin.read()
+
         self._send_packet({
             'cmd': 'in',
-            'data': data.decode('utf-8')
+            'data': data,
         })
 
     def _send_packet(self, data):
