@@ -96,8 +96,7 @@ class Client(object):
         " Send to server. "
         data = json.dumps(data).encode('utf-8')
 
-        self.socket.send(data)
-        self.socket.send(b'\0')
+        self.socket.send(data + b'\0')
 
     def _send_size(self):
         rows, cols = _get_size(sys.stdout.fileno())

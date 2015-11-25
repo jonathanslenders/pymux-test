@@ -81,6 +81,7 @@ class PaneContainer(UIControl):
         if not self.has_focus(cli):
             # Focus this process when the mouse has been clicked.
             self.pymux.arrangement.active_window.active_pane = self.pane
+            self.pymux.invalidate()
         else:
             # Already focussed, send event to application when it requested
             # mouse support.
