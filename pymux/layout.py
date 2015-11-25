@@ -7,20 +7,20 @@ from __future__ import unicode_literals
 from prompt_toolkit.filters import HasFocus, Condition
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
-from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
 from prompt_toolkit.layout.screen import Char
+from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.mouse_events import MouseEventTypes
 
 from pygments.token import Token
+
+import pymux.arrangement as arrangement
 import datetime
-import six
 
 from .commands.lexer import create_command_lexer
 from .screen import DEFAULT_TOKEN
-import pymux.arrangement as arrangement
 
 __all__ = (
     'LayoutManager',
@@ -188,21 +188,32 @@ class LayoutManager(object):
         self.body_write_position = None
 
     def _create_layout(self):
+        def create_select_window_handler(window):
+            " Return a mouse handler that selects the given window when clicking. "
+            def handler(cli, mouse_event):
+                if mouse_event.event_type == MouseEventTypes.MOUSE_DOWN:
+                    self.pymux.arrangement.active_window = window
+                    self.pymux.layout_manager.update()
+                else:
+                    return NotImplemented  # Event not handled here.
+            return handler
+
         def get_status_tokens(cli):
             result = []
             previous_window = self.pymux.arrangement.previous_active_window
 
             for i, w in enumerate(self.pymux.arrangement.windows):
                 result.append((Token.StatusBar, ' '))
+                handler = create_select_window_handler(w)
 
                 if w == self.pymux.arrangement.active_window:
-                    result.append((Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name)))
+                    result.append((Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name), handler))
 
                 elif w == previous_window:
-                    result.append((Token.StatusBar.Window, '%i:%s-' % (i, w.name)))
+                    result.append((Token.StatusBar.Window, '%i:%s-' % (i, w.name), handler))
 
                 else:
-                    result.append((Token.StatusBar.Window, '%i:%s ' % (i, w.name)))
+                    result.append((Token.StatusBar.Window, '%i:%s ' % (i, w.name), handler))
 
             return result
 
