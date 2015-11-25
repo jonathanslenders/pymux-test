@@ -30,7 +30,7 @@ ui_style = {
     Token.StatusBar.Window.Active: '#88ff88 bold',
     Token.AutoSuggestion:          'bg:#884444 #ff8888',
     Token.Message:                 'bg:#bbee88 #222222',
-    Token.Background:              '#aaaaaa',
+    Token.Background:              '#888888',
 }
 
 

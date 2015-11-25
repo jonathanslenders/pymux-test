@@ -11,7 +11,7 @@ from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
-from prompt_toolkit.layout.screen import Char, Screen
+from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.mouse_events import MouseEventTypes
 
 from pygments.token import Token
@@ -27,31 +27,36 @@ __all__ = (
 )
 
 
-class Background(UIControl):  # XXX: maybe turn into Container object for performance.
+class Background(Container):
     """
-    The background, as displayed when a session has been attached several
-    times, and the window of the client is bigger than the current pymux
-    window.
+    Generate the background of dots, which becomes visible when several clients
+    are attached and not all of them have the same size.
     """
     def reset(self):
         pass
 
-    def has_focus(self, cli):
-        return False
+    def preferred_width(self, cli, max_available_width):
+        return D()
 
-    def create_screen(self, cli, width, height):
+    def preferred_height(self, cli, width):
+        return D()
+
+    def write_to_screen(self, cli, screen, mouse_handlers, write_position):
+        " Fill the whole area of write_position with dots. "
         default_char = Char(' ', Token.Background)
         dot = Char('.', Token.Background)
 
-        screen = Screen(default_char, initial_width=width)
+        ypos = write_position.ypos
+        xpos = write_position.xpos
 
-        for y in range(height):
+        for y in range(ypos, ypos + write_position.height):
             row = screen.data_buffer[y]
 
-            for x in range(width):
-                if (x + y) % 2 == 0:
-                    row[x] = dot
-        return screen
+            for x in range(xpos, xpos + write_position.width):
+                row[x] = dot if (x + y) % 3 == 0 else default_char
+
+    def walk(self):
+        return []
 
 
 class PaneContainer(UIControl):
@@ -212,7 +217,7 @@ class LayoutManager(object):
             content=HSplit([
                 # The main window.
                 HighlightBorders(self, self.pymux, FloatContainer(
-                    Window(content=Background()),
+                    Background(),
                     floats=[
                         Float(get_width=lambda: self.pymux.get_window_size().columns,
                               get_height=lambda: self.pymux.get_window_size().rows,
