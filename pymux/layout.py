@@ -417,7 +417,6 @@ class HighlightBorders(_ContainerProxy):
         # active pane.
         self._draw_borders(screen, write_position)
 
-        active_pane = self.pymux.arrangement.active_pane
         try:
             pane_wp = self.layout_manager.pane_write_positions[self.pymux.arrangement.active_pane]
         except KeyError:

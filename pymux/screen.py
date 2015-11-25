@@ -70,7 +70,6 @@ class BetterScreen(object):
         self.lines = lines
         self.columns = columns
         self.write_process_input = write_process_input
-        self._original_screen = None  # The original Screen instance, when going to the alternate screen.
         self.reset()
 
     def __after__(self, ev):
@@ -146,6 +145,9 @@ class BetterScreen(object):
         # we aim to support VT102 / VT220 and linux -- we use n = 8.
         self.tabstops = set(range(7, self.columns, 8))
 
+        # The original Screen instance, when going to the alternate screen.
+        self._original_screen = None
+
     def _reset_screen(self):
         """ Reset the Screen content. (also called when switching from/to
         alternate buffer. """
@@ -165,13 +167,16 @@ class BetterScreen(object):
         self.line_offset = 0 # Index of the line that's currently displayed on top.
         self.max_y = 0  # Max 'y' position to which is written.
 
-
     def resize(self, lines=None, columns=None):
         # don't do anything except saving the dimensions
         lines = lines if lines is not None else self.lines
         columns = columns if columns is not None else self.columns
 
         if self.lines != lines or self.columns != columns:
+            # When the window gets bigger, make sure to make more content visible.
+            if lines > self.lines:
+                self.line_offset = max(0, self.line_offset - lines + self.lines)
+
             self.lines =  lines
             self.columns = columns
 
@@ -185,14 +190,17 @@ class BetterScreen(object):
         :param int top: the smallest line number that is scrolled.
         :param int bottom: the biggest line number that is scrolled.
         """
-        if top is None or bottom is None:
+        if top is None and bottom is None:
             return
+
+        top = self.margins.top if top is None else top - 1
+        bottom = self.margins.bottom if bottom is None else bottom - 1
 
         # Arguments are 1-based, while :attr:`margins` are zero based --
         # so we have to decrement them by one. We also make sure that
         # both of them is bounded by [0, lines - 1].
-        top = max(0, min(top - 1, self.lines - 1))
-        bottom = max(0, min(bottom - 1, self.lines - 1))
+        top = max(0, min(top, self.lines - 1))
+        bottom = max(0, min(bottom, self.lines - 1))
 
         # Even though VT102 and VT220 require DECSTBM to ignore regions
         # of width less than 2, some programs (like aptitude for example)
@@ -361,12 +369,11 @@ class BetterScreen(object):
         top, bottom = self.margins
 
         # When scrolling over the full screen height -> keep history.
-        if True:
-        #if top == 0 and bottom >= self.lines:# - 1:
-        #    if self.pt_screen.cursor_position.y >= self.line_offset + self.lines - 1:
-        #        self.line_offset += 1
-        #    self.cursor_down()
-        #else:
+        if top == 0 and bottom >= self.lines - 1:
+            if self.pt_screen.cursor_position.y >= self.line_offset + self.lines - 1:
+                self.line_offset += 1
+            self.cursor_down()
+        else:
             if self.pt_screen.cursor_position.y - self.line_offset == bottom:
                 for line in range(top, bottom):
                     self.data_buffer[line + self.line_offset] = \
@@ -465,9 +472,12 @@ class BetterScreen(object):
 
         # If cursor is outside scrolling margins it -- do nothing.
         if top <= self.pt_screen.cursor_position.y - self.line_offset <= bottom:
-            for line in range(bottom, self.pt_screen.cursor_position.y + count - 1, -1):
-                self.data_buffer[line + self.line_offset] = self.data_buffer[line + self.line_offset - count]
-                del self.data_buffer[line + self.line_offset - count]
+            for line in range(bottom, self.pt_screen.cursor_position.y - self.line_offset, -1):
+                if line - count < top:
+                    del self.data_buffer[line + self.line_offset]
+                else:
+                    self.data_buffer[line + self.line_offset] = self.data_buffer[line + self.line_offset - count]
+                    del self.data_buffer[line + self.line_offset - count]
 
             self.carriage_return()
 
@@ -485,14 +495,14 @@ class BetterScreen(object):
         # If cursor is outside scrolling margins it -- do nothin'.
         if top <= self.pt_screen.cursor_position.y - self.line_offset <= bottom:
             # Iterate from the cursor Y position until the end of the visible input.
-            for line in range(self.pt_screen.cursor_position.y, self.line_offset + bottom + 1):
+            for line in range(self.pt_screen.cursor_position.y - self.line_offset, bottom + 1):
 
                 # When 'x' lines further are out of the margins, replace by an empty line,
                 # Otherwise copy the line from there.
-                if line + count > self.line_offset + bottom:
-                    del self.data_buffer[line]
+                if line + count > bottom:
+                    del self.data_buffer[line + self.line_offset]
                 else:
-                    self.data_buffer[line] = self.data_buffer[line + count]
+                    self.data_buffer[line + self.line_offset] = self.data_buffer[line + count + self.line_offset]
 
     def insert_characters(self, count=None): # XXX: used by pressing space in bash vi mode
         """Inserts the indicated # of blank characters at the cursor
@@ -520,7 +530,7 @@ class BetterScreen(object):
         if line:
             max_columns = max(line.keys())
 
-            for i in range(self.pt_screen.cursor_position.x, max_columns):
+            for i in range(self.pt_screen.cursor_position.x, max_columns + 1):
                 line[i] = line[i + count]
                 del line[i + count]
 
@@ -543,7 +553,7 @@ class BetterScreen(object):
             line += self.margins.top
 
             # Cursor is not allowed to move out of the scrolling region.
-            if not self.margins.top <= line <= self.margins.bottom:
+            if not (self.margins.top <= line <= self.margins.bottom):
                 return
 
         self.pt_screen.cursor_position.x = column
