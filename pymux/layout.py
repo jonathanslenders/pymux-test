@@ -18,6 +18,7 @@ from pygments.token import Token
 
 import pymux.arrangement as arrangement
 import datetime
+import six
 
 from .commands.lexer import create_command_lexer
 from .screen import DEFAULT_TOKEN
@@ -82,6 +83,11 @@ class PaneContainer(UIControl):
         process = self.process
         x = mouse_event.position.x
         y = mouse_event.position.y
+
+        # The containing Window translates coordinates to the absolute position
+        # of the whole screen, but in this case, we need the relative
+        # coordinates of the visible area.
+        y -= self.process.screen.line_offset
 
         if not self.has_focus(cli):
             # Focus this process when the mouse has been clicked.

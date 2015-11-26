@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 from pyte.streams import Stream
+from pyte.escape import NEL
 
 __all__ = (
     'BetterStream',
@@ -16,6 +17,14 @@ class BetterStream(Stream):
         'c': 'send_device_attributes',  # csi > Ps c
     }
     csi.update(Stream.csi)
+
+    escape = Stream.escape.copy()
+    escape.update({
+        # Call next_line instead of line_feed. We always want to go to the left
+        # margin if we receive this, unlike \n, which goes one row down.
+        # (Except when LNM has been set.)
+        NEL: "next_line",
+    })
 
     def __init__(self):
         super(BetterStream, self).__init__()

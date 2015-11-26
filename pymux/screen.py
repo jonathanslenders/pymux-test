@@ -405,6 +405,13 @@ class BetterScreen(object):
 
         self.ensure_bounds()
 
+    def next_line(self):
+        """ When `EscE` has been received. Go to the next line, even when LNM has
+        not been set. """
+        self.index()
+        self.carriage_return()
+        self.ensure_bounds()
+
     def tab(self):
         """Move to the next tab space, or the end of the screen if there
         aren't anymore left.
