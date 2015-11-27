@@ -7,6 +7,8 @@ higher level abstraction.
 from __future__ import unicode_literals
 from .process import Process
 
+from prompt_toolkit.interface import CommandLineInterface
+
 import os
 import weakref
 
@@ -18,11 +20,17 @@ __all__ = (
 
 
 class Pane(object):
+    _pane_counter = 0
+
     def __init__(self, process):
         assert isinstance(process, Process)
 
         self.process = process
         self.name = None
+
+        # Give unique ID.
+        Pane._pane_counter += 1
+        self.pane_id = Pane._pane_counter
 
 
 class HSplit(list):
@@ -44,6 +52,8 @@ class Window(object):
     """
     Pymux window.
     """
+    _window_counter = 0
+
     def __init__(self):
         self.root = HSplit()
         self._active_pane = None
@@ -53,12 +63,39 @@ class Window(object):
         #: When true, the current pane is zoomed in.
         self.zoom = False
 
+        # Give unique ID.
+        Window._window_counter += 1
+        self.window_id = Window._window_counter
+
+    def invalidation_hash(self):
+        """
+        Return a hash (string) that can be used to determine when the layout
+        has to be rebuild.
+        """
+        def _hash_for_split(split):
+            result = []
+            for item in split:
+                if isinstance(item, (VSplit, HSplit)):
+                    result.append(_hash_for_split(item))
+                elif isinstance(item, Pane):
+                    result.append('p%s' % item.pane_id)
+
+            if isinstance(split, HSplit):
+                return 'HSplit(%s)' % (','.join(result))
+            else:
+                return 'VSplit(%s)' % (','.join(result))
+
+        return '<window_id=%s,zoom=%s,children=%s>' % (
+            self.window_id, self.zoom, _hash_for_split(self.root))
+
     @property
     def active_pane(self):
         return self._active_pane
 
     @active_pane.setter
     def active_pane(self, value):
+        assert isinstance(value, Pane)
+
         # Remember previous active pane.
         if self._active_pane:
             self._prev_active_pane = weakref.ref(self._active_pane)
@@ -198,51 +235,64 @@ class Window(object):
 class Arrangement(object):
     def __init__(self):
         self.windows = []
-        self._active_window = None
-        self._prev_active_window = None
 
-    @property
-    def active_window(self):
-        return self._active_window
+        self._active_window_for_cli = weakref.WeakKeyDictionary()
+        self._prev_active_window_for_cli = weakref.WeakKeyDictionary()
 
-    @active_window.setter
-    def active_window(self, value):
-        if self._active_window:
-            self._prev_active_window = weakref.ref(self._active_window)
-        self._active_window = value
+    def invalidation_hash(self, cli):
+        """
+        When this changes, the layout needs to be rebuild.
+        """
+        w = self.get_active_window(cli)
+        return w.invalidation_hash()
 
-    @property
-    def previous_active_window(self):
+    def get_active_window(self, cli):
+        assert isinstance(cli, CommandLineInterface)
+
+        try:
+            return self._active_window_for_cli[cli]
+        except KeyError:
+            self._active_window_for_cli[cli] = self.windows[0]
+            return self.windows[0]
+
+    def set_active_window(self, cli, window):
+        assert isinstance(cli, CommandLineInterface)
+        assert isinstance(window, Window)
+
+        previous = self.get_active_window(cli)
+        self._prev_active_window = weakref.ref(previous)
+        self._active_window_for_cli[cli] = window
+
+    def get_previous_active_window(self, cli):
         " The previous active Window or None if unknown. "
-        w = self._prev_active_window and self._prev_active_window()
+        assert isinstance(cli, CommandLineInterface)
 
-        if w and w in self.windows:
-            return w
+        try:
+            return self._prev_active_window_for_cli[cli]
+        except KeyError:
+            return None
 
-    def create_window(self, pane):
+    def create_window(self, cli, pane):
         " Create a new window that contains just this pane. "
         assert isinstance(pane, Pane)
+        assert cli is None or isinstance(cli, CommandLineInterface)
 
         w = Window()
         w.add_pane(pane)
         self.windows.append(w)
-        self.active_window = w
+
+        if cli is not None:
+            self.set_active_window(cli, w)
 
         assert w.active_pane == pane
         assert w._get_parent(pane)
 
-    @property
-    def active_pane(self):
-        " Return the active :class:`.Pane` or `None`."
-        if self.active_window is not None:
-            return self.active_window.active_pane
+    def get_active_pane(self, cli):
+        assert isinstance(cli, CommandLineInterface)
 
-    @property
-    def active_process(self):
-        " Return `Process` that should receive user input. "
-        p = self.active_pane
-        if p is not None:
-            return p.process
+        w = self.get_active_window(cli)
+        if w is not None:
+            return w.active_pane
 
     def remove_pane(self, pane):
         assert isinstance(pane, Pane)
@@ -252,7 +302,11 @@ class Arrangement(object):
 
             # No panes left in this window?
             if not w.has_panes:
-                self.focus_next_window()
+                # Focus next.
+                for cli, active_w in self._active_window_for_cli.items():
+                    if w == active_w:
+                        self.focus_next_window(cli)
+
                 self.windows.remove(w)
 
 
@@ -267,21 +321,27 @@ class Arrangement(object):
                 self.focus_previous_window()
                 self.windows.remove(w)
 
-    def focus_previous_window(self):
-        self.active_window = self.windows[
-            (self.windows.index(self.active_window) - 1) % len(self.windows)]
+    def focus_previous_window(self, cli):
+        w = self.get_active_window(cli)
 
-    def focus_next_window(self):
-        self.active_window = self.windows[
-            (self.windows.index(self.active_window) + 1) % len(self.windows)]
+        self.set_active_window(cli, self.windows[
+            (self.windows.index(w) - 1) % len(self.windows)])
 
-    def break_pane(self):
+    def focus_next_window(self, cli):
+        w = self.get_active_window(cli)
+
+        self.set_active_window(cli, self.windows[
+            (self.windows.index(w) + 1) % len(self.windows)])
+
+    def break_pane(self, cli):
         """ When the current window has multiple panes, remove the pane from
         this window and put it in a new window. """
-        if len(self.active_window.panes) > 1:
-            pane = self.active_window.active_pane
-            self.active_window.remove_pane(pane)
-            self.create_window(pane)
+        w = self.get_active_window(cli)
+
+        if len(w.panes) > 1:
+            pane = w.active_pane
+            self.get_active_window(cli).remove_pane(pane)
+            self.create_window(cli, pane)
 
     @property
     def has_panes(self):

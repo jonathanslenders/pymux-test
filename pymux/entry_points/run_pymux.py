@@ -45,7 +45,6 @@ def run():
         logging.basicConfig(filename=a['<logfile>'], level=logging.DEBUG)
 
     if a['standalone']:
-        mux.create_window()
         mux.run_standalone()
 
     elif a['list-sessions']:
@@ -62,7 +61,6 @@ def run():
 
         # Run server.
         socket_name = mux.listen_on_socket()
-        mux.create_window()
         mux.run_server()
 
     elif a['attach']:
@@ -94,7 +92,6 @@ def run():
             # Create window. It is important that this happens in the daemon,
             # because the parent of the process running inside should be this
             # daemon. (Otherwise the `waitpid` call won't work.)
-            mux.create_window()
             mux.run_server()
         else:
             Client(socket_name).attach()

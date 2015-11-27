@@ -6,7 +6,7 @@ from .commands import has_command_handler, call_command_handler
 __all__ = ('handle_command', )
 
 
-def handle_command(pymux, input_string):
+def handle_command(pymux, cli, input_string):
     " Handle command. "
 
     m = COMMAND_GRAMMAR.match(input_string)
@@ -17,6 +17,6 @@ def handle_command(pymux, input_string):
     command = variables.get('command')
 
     if has_command_handler(command):
-        call_command_handler(command, pymux, variables)
+        call_command_handler(command, pymux, cli, variables)
     else:
         pymux.show_message('Invalid command: %s' % input_string)

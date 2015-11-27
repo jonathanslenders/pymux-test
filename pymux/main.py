@@ -43,10 +43,10 @@ class Pymux(object):
         #: True when the prefix key (Ctrl-B) has been pressed.
         self.has_prefix = False   # XXX: this should be for each client individually!!!!
 
-        #: Error/info message
+        #: Error/info message.
         self.message = None   # XXX: this should be for each client individually.
 
-        # When no panes are available
+        # When no panes are available.
         self.original_cwd = os.getcwd()
 
         #: List of clients.
@@ -65,13 +65,15 @@ class Pymux(object):
 
         self.style = PymuxStyle()
 
-    @property
-    def active_process(self):
-        return self.arrangement.active_process
+    def active_process_for_cli(self, cli):
+        w = self.arrangement.get_active_window(cli)
+        if w:
+            return w.active_process
 
-    def get_title(self):
-        if self.active_process:
-            title = self.active_process.screen.title
+    def get_title(self, cli):
+        p = self.active_process_for_cli(cli)
+        if p:
+            title = p.screen.title
         else:
             title = ''
 
@@ -80,9 +82,20 @@ class Pymux(object):
         else:
             return 'Pymux'
 
-    def get_window_size(self):
-        rows = [c.size.rows for c in self.connections if c.cli]
-        columns = [c.size.columns for c in self.connections if c.cli]
+    def get_window_size(self, cli):
+        """
+        Get the size to be used for the DynamicBody.
+        This will be the smallest size of all clients.
+        """
+        get_active_window = self.arrangement.get_active_window
+        active_window = get_active_window(cli)
+
+        # Get connections watching the same window.
+        connections= [c for c in self.connections if
+                      c.cli and get_active_window(c.cli) == active_window]
+
+        rows = [c.size.rows for c in connections]
+        columns = [c.size.columns for c in connections]
 
         if self._runs_standalone:
             r, c = _get_size(sys.stdout.fileno())
@@ -94,11 +107,11 @@ class Pymux(object):
         else:
             return Size(rows=20, columns=80)
 
-    def _create_pane(self, command=None):
+    def _create_pane(self, window=None, command=None):
         def done_callback():
             # Remove pane from layout.
             self.arrangement.remove_pane(pane)
-            self.layout_manager.update()
+            self.invalidate()
 
             # No panes left? -> Quit.
             if not self.arrangement.has_panes:
@@ -106,8 +119,8 @@ class Pymux(object):
 
         # When the path of the active process is known,
         # start the new process at the same location.
-        if self.active_process:
-            path = self.active_process.get_cwd()
+        if window and window.active_process:
+            path = window.active_process.get_cwd()
         else:
             path = None
 
@@ -144,24 +157,26 @@ class Pymux(object):
         shell = pwd.getpwnam(username).pw_shell
         return shell
 
-    def create_window(self, command=None):
-        pane = self._create_pane(command)
+    def create_window(self, cli=None, command=None):
+        pane = self._create_pane(None, command)
 
-        self.arrangement.create_window(pane)
-        self.layout_manager.update()
+        self.arrangement.create_window(cli, pane)
+        self.invalidate()
 
-    def add_process(self, command=None, vsplit=False):
-        pane = self._create_pane(command)
-        self.arrangement.active_window.add_pane(pane, vsplit=vsplit)
-        self.layout_manager.update()
+    def add_process(self, cli, command=None, vsplit=False):
+        window = self.arrangement.get_active_window(cli)
+
+        pane = self._create_pane(window, command)
+        window.add_pane(pane, vsplit=vsplit)
+        self.invalidate()
 
     @classmethod
     def leave_command_mode(cls, cli, append_to_history=False):
         cli.buffers['COMMAND'].reset(append_to_history=append_to_history)
         cli.focus_stack.replace(DEFAULT_BUFFER)
 
-    def handle_command(self, command):
-        handle_command(self, command)
+    def handle_command(self, cli, command):
+        handle_command(self, cli, command)
 
     def show_message(self, message):
         """
@@ -183,7 +198,10 @@ class Pymux(object):
             self.leave_command_mode(cli, append_to_history=True)
 
             # Execute command.
-            self.handle_command(text)
+            self.handle_command(cli, text)
+
+        def get_title():
+            return self.get_title(cli)
 
         application = Application(
             layout=self.layout_manager.layout,
@@ -199,7 +217,7 @@ class Pymux(object):
             mouse_support=True,
             use_alternate_screen=True,
             style=self.style,
-            get_title=self.get_title)
+            get_title=get_title)
 
         cli = CommandLineInterface(
             application=application,
@@ -269,6 +287,9 @@ class Pymux(object):
         self.connections.append(connection)
 
     def run_server(self):
+        # Make sure that there is one window created.
+        self.create_window()
+
         # Run eventloop.
 
         # XXX: Both the PipeInput and DummyCallbacks are not used.
@@ -293,6 +314,7 @@ class Pymux(object):
         self._runs_standalone = True
         cli = self.create_cli(connection=None, output=Vt100_Output.from_pty(sys.stdout))
         cli._is_running = False
+        self.create_window(cli)
         cli.run()
 
 

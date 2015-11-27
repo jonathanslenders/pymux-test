@@ -19,9 +19,11 @@ from pygments.token import Token
 import pymux.arrangement as arrangement
 import datetime
 import six
+import weakref
 
 from .commands.lexer import create_command_lexer
 from .screen import DEFAULT_TOKEN
+from .log import logger
 
 __all__ = (
     'LayoutManager',
@@ -77,7 +79,7 @@ class PaneContainer(UIControl):
 
     def has_focus(self, cli):
         return (cli.current_buffer_name != 'COMMAND' and
-            self.pymux.arrangement.active_pane == self.pane)
+            self.pymux.arrangement.get_active_pane(cli) == self.pane)
 
     def mouse_handler(self, cli, mouse_event):
         process = self.process
@@ -91,7 +93,7 @@ class PaneContainer(UIControl):
 
         if not self.has_focus(cli):
             # Focus this process when the mouse has been clicked.
-            self.pymux.arrangement.active_window.active_pane = self.pane
+            self.pymux.arrangement.get_active_window(cli).active_pane = self.pane
             self.pymux.invalidate()
         else:
             # Already focussed, send event to application when it requested
@@ -184,9 +186,6 @@ class MessageToolbar(TokenListToolbar):
 class LayoutManager(object):
     def __init__(self, pymux):
         self.pymux = pymux
-        self.body = VSplit([
-            Window(TokenListControl(lambda cli: []))
-        ])
         self.layout = self._create_layout()
 
         # Keep track of render information.
@@ -198,21 +197,21 @@ class LayoutManager(object):
             " Return a mouse handler that selects the given window when clicking. "
             def handler(cli, mouse_event):
                 if mouse_event.event_type == MouseEventTypes.MOUSE_DOWN:
-                    self.pymux.arrangement.active_window = window
-                    self.pymux.layout_manager.update()
+                    self.pymux.arrangement.set_active_window(cli, window)
+                    self.pymux.invalidate()
                 else:
                     return NotImplemented  # Event not handled here.
             return handler
 
         def get_status_tokens(cli):
             result = []
-            previous_window = self.pymux.arrangement.previous_active_window
+            previous_window = self.pymux.arrangement.get_previous_active_window(cli)
 
             for i, w in enumerate(self.pymux.arrangement.windows):
                 result.append((Token.StatusBar, ' '))
                 handler = create_select_window_handler(w)
 
-                if w == self.pymux.arrangement.active_window:
+                if w == self.pymux.arrangement.get_active_window(cli):
                     result.append((Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name), handler))
 
                 elif w == previous_window:
@@ -236,9 +235,9 @@ class LayoutManager(object):
                 HighlightBorders(self, self.pymux, FloatContainer(
                     Background(),
                     floats=[
-                        Float(get_width=lambda: self.pymux.get_window_size().columns,
-                              get_height=lambda: self.pymux.get_window_size().rows,
-                              content=TraceBodyWritePosition(self.pymux, self.body)),
+                        Float(get_width=lambda cli: self.pymux.get_window_size(cli).columns,
+                              get_height=lambda cli: self.pymux.get_window_size(cli).rows,
+                              content=TraceBodyWritePosition(self.pymux, DynamicBody(self.pymux)))
                     ])),
 
                 # Bottom toolbars.
@@ -271,31 +270,63 @@ class LayoutManager(object):
                     filter=~HasFocus('COMMAND'),
                 )
             ]),
-            floats=[
-                Float(bottom=1, left=0,
-                      content=MessageToolbar(self.pymux)),
-                Float(xcursor=True,
-                      ycursor=True,
-                      content=CompletionsMenu(max_height=12)),
+            floats=[Float(bottom=1, left=0, content=MessageToolbar(self.pymux)), Float(xcursor=True,
+                     ycursor=True,
+                     content=CompletionsMenu(max_height=12)),
             ]
         )
 
-    def update(self):
-        """
-        Synchronise the prompt_toolkit layout with the layout defined by the
-        pymux Arrangement.
-        """
-        active_window = self.pymux.arrangement.active_window
+
+class DynamicBody(Container):
+    """
+    The dynamic part, which depends on which window/pane is active.
+    """
+    def __init__(self, pymux):
+        self.pymux = pymux
+        self._bodies_for_clis = weakref.WeakKeyDictionary()  # Maps CLI to (hash, Container)
+
+    def _get_body(self, cli):
+        new_hash = self.pymux.arrangement.invalidation_hash(cli)
+
+        # Return existing layout if nothing has changed to the arrangement.
+        if cli in self._bodies_for_clis:
+            existing_hash, container = self._bodies_for_clis[cli]
+            if existing_hash == new_hash:
+                return container
+
+        # Build a new layout when the arrangement changed.
+        new_layout = self._build_layout(cli)
+        self._bodies_for_clis[cli] = (new_hash, new_layout)
+        return new_layout
+
+    def _build_layout(self, cli):
+        logger.info('Rebuilding layout.')
+        active_window = self.pymux.arrangement.get_active_window(cli)
 
         # When zoomed, only show the current pane, otherwise show all of them.
         if active_window.zoom:
-            content = _create_container_for_process(self.pymux, active_window.active_pane, zoom=True)
+            return _create_container_for_process(self.pymux, active_window.active_pane, zoom=True)
         else:
-            content = _create_split(self.pymux, self.pymux.arrangement.active_window.root)
+            return _create_split(self.pymux, self.pymux.arrangement.get_active_window(cli).root)
 
-        self.body.children = [content]
+    def reset(self):
+        for invalidation_hash, body in self._bodies_for_clis.values():
+            body.reset()
 
-        self.pymux.invalidate()
+    def preferred_width(self, cli, max_available_width):
+        body = self._get_body(cli)
+        return body.preferred_width(cli, max_available_width)
+
+    def preferred_height(self, cli, width):
+        body = self._get_body(cli)
+        return body.preferred_height(cli, width)
+
+    def write_to_screen(self, cli, screen, mouse_handlers, write_position):
+        body = self._get_body(cli)
+        body.write_to_screen(cli, screen, mouse_handlers, write_position)
+
+    def walk(self):
+        return []  # We don't need this.
 
 
 def _create_split(pymux, split):
@@ -342,14 +373,14 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
     assert isinstance(arrangement_pane, arrangement.Pane)
     process = arrangement_pane.process
 
-    def has_focus():
-        return pymux.arrangement.active_pane == arrangement_pane
+    def has_focus(cli):
+        return pymux.arrangement.get_active_pane(cli) == arrangement_pane
 
     def get_titlebar_token(cli):
-        return Token.TitleBar.Focussed if has_focus() else Token.TitleBar
+        return Token.TitleBar.Focussed if has_focus(cli) else Token.TitleBar
 
     def get_titlebar_name_token(cli):
-        return Token.TitleBar.Name.Focussed if has_focus() else Token.TitleBar.Name
+        return Token.TitleBar.Name.Focussed if has_focus(cli) else Token.TitleBar.Name
 
     def get_title_tokens(cli):
         token = get_titlebar_token(cli)
@@ -366,7 +397,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
         return result + [
             (token.Title, '%s' % process.screen.title),
-        ]
+        ]### + [(Token, repr(process.screen.mode))]
 
     return TracePaneWritePosition(pymux, arrangement_pane, HSplit([
         Window(
@@ -430,7 +461,7 @@ class HighlightBorders(_ContainerProxy):
 
     def write_to_screen(self, cli, screen, mouse_handlers, write_position):
         # Clear previous list of pane coordinates.
-        self.layout_manager.pane_write_positions = {}
+        self.layout_manager.pane_write_positions = {}   # XXX: Should be for each CLI individually!
         self.layout_manager.body_write_position = None
 
         # Render everything.
@@ -441,7 +472,8 @@ class HighlightBorders(_ContainerProxy):
         self._draw_borders(screen, write_position)
 
         try:
-            pane_wp = self.layout_manager.pane_write_positions[self.pymux.arrangement.active_pane]
+            pane_wp = self.layout_manager.pane_write_positions[
+                self.pymux.arrangement.get_active_pane(cli)]
         except KeyError:
             pass
         else:
@@ -541,45 +573,49 @@ class TraceBodyWritePosition(_ContainerProxy):
         self.pymux.layout_manager.body_write_position = write_position
 
 
-def focus_left(pymux):
+def focus_left(pymux, cli):
     " Move focus to the left. "
-    _move_focus(pymux,
+    _move_focus(pymux, cli,
                 lambda wp: wp.xpos - 2,  # 2 in order to skip over the border.
                 lambda wp: wp.ypos)
 
 
-def focus_right(pymux):
+def focus_right(pymux, cli):
     " Move focus to the right. "
-    _move_focus(pymux,
+    _move_focus(pymux, cli,
                 lambda wp: wp.xpos + wp.width + 1,
                 lambda wp: wp.ypos)
 
 
-def focus_down(pymux):
+def focus_down(pymux, cli):
     " Move focus down. "
-    _move_focus(pymux,
+    _move_focus(pymux, cli,
                 lambda wp: wp.xpos,
                 lambda wp: wp.ypos + wp.height + 1)
 
 
-def focus_up(pymux):
+def focus_up(pymux, cli):
     " Move focus up. "
-    _move_focus(pymux,
+    _move_focus(pymux, cli,
                 lambda wp: wp.xpos,
                 lambda wp: wp.ypos - 1)
 
 
-def _move_focus(pymux, get_x, get_y):
+def _move_focus(pymux, cli, get_x, get_y):
     " Move focus of the active window. "
-    window = pymux.arrangement.active_window
+    window = pymux.arrangement.get_active_window(cli)
 
-    write_pos = pymux.layout_manager.pane_write_positions[window.active_pane]
-    x = get_x(write_pos)
-    y = get_y(write_pos)
+    try:
+        write_pos = pymux.layout_manager.pane_write_positions[window.active_pane]
+    except KeyError:
+        pass
+    else:
+        x = get_x(write_pos)
+        y = get_y(write_pos)
 
-    # Look for the pane at this position.
-    for pane, wp in pymux.layout_manager.pane_write_positions.items():
-        if (wp.xpos <= x < wp.xpos + wp.width and
-                wp.ypos <= y < wp.ypos + wp.height):
-            window.active_pane = pane
-            return
+        # Look for the pane at this position.
+        for pane, wp in pymux.layout_manager.pane_write_positions.items():
+            if (wp.xpos <= x < wp.xpos + wp.width and
+                    wp.ypos <= y < wp.ypos + wp.height):
+                window.active_pane = pane
+                return

@@ -35,7 +35,7 @@ def create_key_bindings(pymux):
 
         # Applications like htop with run in application mode require the
         # following input.
-        if pymux.active_process.screen.in_application_mode:
+        if pymux.active_process_for_cli(event.cli).screen.in_application_mode:
             data = {
                     Keys.Up: '\x1bOA',
                     Keys.Left: '\x1bOD',
@@ -45,16 +45,18 @@ def create_key_bindings(pymux):
 
         data = data.replace('\n', '\r')
 
-        pymux.active_process.write_input(data)
+        pymux.active_process_for_cli(event.cli).write_input(data)
 
     @registry.add_binding(Keys.BracketedPaste, filter=~HasFocus('COMMAND') & ~has_prefix, invalidate_ui=False)
     def _(event):
         " Pasting to active pane. "
-        if pymux.active_process.screen.bracketed_paste_enabled:
+        p = pymux.active_process_for_cli(event.cli)
+
+        if p.screen.bracketed_paste_enabled:
             # When the process running in this pane understands bracketing paste.
-            pymux.active_process.write_input('\x1b[200~' + event.data + '\x1b[201~')
+            p.write_input('\x1b[200~' + event.data + '\x1b[201~')
         else:
-            pymux.active_process.write_input(event.data)
+            p.write_input(event.data)
 
     @registry.add_binding(Keys.ControlB, filter=~has_prefix)
     def _(event):
@@ -66,6 +68,7 @@ def create_key_bindings(pymux):
             @registry.add_binding(*a, filter=has_prefix)
             def _(event):
                 func(event)
+                pymux.invalidate()  # Invalidate all clients, not just the current CLI.
                 pymux.has_prefix = False
             return func
         return decorator
@@ -73,70 +76,67 @@ def create_key_bindings(pymux):
     @prefix_binding(Keys.ControlB)
     def _(event):
         " Send Ctrl-B to active process. "
-        pymux.active_process.write_input(event.data)
+        pymux.active_process_for_cli(event.cli).write_input(event.data)
 
     @prefix_binding('"')
     def _(event):
         " Split horizontally. "
-        pymux.add_process()
+        pymux.add_process(event.cli)
 
     @prefix_binding('%')
     def _(event):
         " Split vertically. "
-        pymux.add_process(vsplit=True)
+        pymux.add_process(event.cli, vsplit=True)
 
     @prefix_binding('c')
     def _(event):
         " Create window. "
-        pymux.create_window()
+        pymux.create_window(event.cli)
 
     @prefix_binding('n')
     def _(event):
         " Focus next window. "
-        pymux.arrangement.focus_next_window()
-        pymux.layout_manager.update()
+        pymux.arrangement.focus_next_window(event.cli)
 
     @prefix_binding('p')
     def _(event):
         " Focus previous window. "
-        pymux.arrangement.focus_previous_window()
-        pymux.layout_manager.update()
+        pymux.arrangement.focus_previous_window(event.cli)
 
     @prefix_binding('o')
     def _(event):
         " Focus next pane. "
-        pymux.arrangement.active_window.focus_next()
+        pymux.arrangement.get_active_window(event.cli).focus_next()
 
     @prefix_binding('z')
     def _(event):
         " Zoom pane. "
-        w = pymux.arrangement.active_window
+        w = pymux.arrangement.get_active_window(event.cli)
         w.zoom = not w.zoom
-        pymux.layout_manager.update()
 
     @prefix_binding(Keys.ControlL)
     @prefix_binding(Keys.Right)
     def _(event):
         " Focus right pane. "
-        focus_right(pymux)
+        focus_right(pymux, event.cli)
 
     @prefix_binding(Keys.ControlH)
     @prefix_binding(Keys.Left)
     def _(event):
         " Focus left pane. "
-        focus_left(pymux)
+        focus_left(pymux, event.cli)
 
     @prefix_binding(Keys.ControlJ)
     @prefix_binding(Keys.Down)
     def _(event):
         " Focus down. "
-        focus_down(pymux)
+        focus_down(pymux, event.cli)
 
     @prefix_binding(Keys.ControlK)
     @prefix_binding(Keys.Up)
     def _(event):
         " Focus up. "
-        focus_up(pymux)
+        focus_up(pymux, event.cli)
 
     @prefix_binding(':')
     def _(event):
@@ -146,7 +146,7 @@ def create_key_bindings(pymux):
     @prefix_binding(';')
     def _(event):
         " Go to previous active pane. "
-        w = pymux.arrangement.active_window
+        w = pymux.arrangement.get_active_window(event.cli)
         prev_active_pane = w.previous_active_pane
 
         if prev_active_pane:
@@ -155,18 +155,17 @@ def create_key_bindings(pymux):
     @prefix_binding('l')
     def _(event):
         " Go to previous active window. "
-        w = pymux.arrangement.previous_active_window
+        w = pymux.arrangement.get_previous_active_window(event.cli)
 
         if w:
-            pymux.arrangement.active_window = w
-            pymux.layout_manager.update()
+            pymux.arrangement.set_active_window(event.cli, w)
 
     @prefix_binding(',')
     def _(event):
         " Rename window. "
         event.cli.focus_stack.replace('COMMAND')
         event.cli.buffers['COMMAND'].document = Document(
-            'rename-window %s' % pymux.arrangement.active_window.name)
+            'rename-window %s' % pymux.arrangement.get_active_window(event.cli).name)
 
     @prefix_binding("'")
     def _(event):
@@ -184,8 +183,7 @@ def create_key_bindings(pymux):
     @prefix_binding('!')
     def _(event):
         " Break pane. "
-        pymux.arrangement.break_pane()
-        pymux.layout_manager.update()
+        pymux.arrangement.break_pane(event.cli)
 
     @prefix_binding('d')
     def _(event):
@@ -197,8 +195,7 @@ def create_key_bindings(pymux):
         def _(event):
             " Focus window with this number. "
             try:
-                pymux.arrangement.active_window = pymux.arrangement.windows[i]
-                pymux.layout_manager.update()
+                pymux.arrangement.set_active_window(event.cli, pymux.arrangement.windows[i])
             except IndexError:
                 pass
 
@@ -210,6 +207,11 @@ def create_key_bindings(pymux):
     def _(event):
         " Leave command mode. "
         pymux.leave_command_mode(event.cli, append_to_history=False)
+
+    @registry.add_binding(Keys.F6)  # XXX: remove
+    def _(event):
+        p = pymux.active_process_for_cli(event.cli)
+        p.slow_motion = not p.slow_motion
 
     @prefix_binding(Keys.Any)
     def _(event):

@@ -54,7 +54,7 @@ class ServerConnection(object):
 
         # Handle commands.
         if packet['cmd'] == 'run-command':
-            self.pymux.handle_command(packet['data'])
+            self.pymux.handle_command(packet['data'])  # XXX: pass "cli"
 
         # Handle stdin.
         elif packet['cmd'] == 'in':

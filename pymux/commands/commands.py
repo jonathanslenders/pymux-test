@@ -13,11 +13,11 @@ def has_command_handler(command):
     return command in COMMANDS_TO_HANDLERS
 
 
-def call_command_handler(command, pymux, variables):
+def call_command_handler(command, pymux, cli, variables):
     """
     Execute command.
     """
-    COMMANDS_TO_HANDLERS[command](pymux, variables)
+    COMMANDS_TO_HANDLERS[command](pymux, cli, variables)
 
 
 def _cmd(name):
@@ -31,8 +31,8 @@ def cmd(name):
     " Decorator for commands that don't take parameters. "
     def decorator(func):
         @_cmd(name)
-        def command_wrapper(pymux, variables):
-            func(pymux)
+        def command_wrapper(pymux, cli, variables):
+            func(pymux, cli)
 
         return func
     return decorator
@@ -42,43 +42,43 @@ def cmd(name):
 #
 
 @_cmd('split')
-def split(pymux, variables):
+def split(pymux, cli, variables):
     executable = variables.get('executable')
-    pymux.add_process(executable)
+    pymux.add_process(cli, executable)
 
 
 @_cmd('vsplit')
-def vsplit(pymux, variables):
+def vsplit(pymux, cli, variables):
     executable = variables.get('executable')
-    pymux.add_process(executable, vsplit=True)
+    pymux.add_process(cli, executable, vsplit=True)
 
 
 @_cmd('new-window')
-def new_window(pymux, variables):
+def new_window(pymux, cli, variables):
     executable = variables.get('executable')
-    pymux.create_window(executable)
+    pymux.create_window(cli, executable)
 
 
 @cmd('break-pane')
-def break_pane(pymux):
-    pymux.arrangement.break_pane()
+def break_pane(pymux, cli):
+    pymux.arrangement.break_pane(cli)
     pymux.layout_manager.update()
 
 
 @_cmd('rename-window')
-def rename_window(pymux, variables):
+def rename_window(pymux, cli, variables):
     text = variables.get('text', '')
-    pymux.arrangement.active_window.chosen_name = text
+    pymux.arrangement.get_active_window(cli).chosen_name = text
 
 
 @_cmd('rename-pane')
-def rename_pane(pymux, variables):
+def rename_pane(pymux, cli, variables):
     text = variables.get('text', '')
-    pymux.arrangement.active_pane.name = text
+    pymux.arrangement.get_active_pane(cli).name = text
 
 
 @_cmd('send-signal')
-def send_signal(pymux, variables):
+def send_signal(pymux, cli, variables):
     try:
         signal = variables.get('signal', '')
     except ValueError:
@@ -86,7 +86,7 @@ def send_signal(pymux, variables):
     else:
         value = SIGNALS.get(signal)
         if value:
-            pymux.arrangement.active_pane.process.send_signal(value)
+            pymux.arrangement.get_active_pane(cli).process.send_signal(value)
         else:
             pymux.show_message('Invalid signal')
 

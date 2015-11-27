@@ -28,6 +28,7 @@ class Process(object):
         self.done_callback = done_callback
         self.pid = None
         self.is_terminated = False
+        self.slow_motion = False  # For debugging
 
         # Create pseudo terminal for this pane.
         self.master, self.slave = os.openpty()
@@ -166,11 +167,19 @@ class Process(object):
             return
 
     def _process_pty_output(self):
+        """
+        Process output from processes.
+        """
         # Master side -> attached to terminal emulator.
         reader = PosixStdinReader(self.master)
 
         def read():
-            d = reader.read()
+            if self.slow_motion:
+                # Read characters one-by-one in slow motion.
+                d = reader.read(1)
+            else:
+                d = reader.read()
+
             if d:
                 self.stream.feed(d)
                 self.invalidate()
@@ -178,8 +187,20 @@ class Process(object):
                 # End of stream. Remove child.
                 self.eventloop.remove_reader(self.master)
 
-        # Connect read pipe.
-        self.eventloop.add_reader(self.master, read)
+            if self.slow_motion:
+                self.eventloop.remove_reader(self.master)
+
+            def connect_with_delay():
+                " For slow motion: reconnect reader after .5 seconds. "
+                import time; time.sleep(.1)
+                self.eventloop.call_from_executor(connect_reader)
+            self.eventloop.run_in_executor(connect_with_delay)
+
+        def connect_reader():
+            # Connect read pipe.
+            self.eventloop.add_reader(self.master, read)
+
+        connect_reader()
 
     def get_cwd(self):
         return get_cwd_for_pid(self.pid)
