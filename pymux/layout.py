@@ -172,15 +172,19 @@ class MessageToolbar(TokenListToolbar):
     Pop-up (at the bottom) for showing error/status messages.
     """
     def __init__(self, pymux):
+        def get_message(cli):
+            return pymux.get_client_state(cli).message
+
         def get_tokens(cli):
-            if pymux.message:
-                return [(Token.Message, pymux.message)]
+            message = get_message(cli)
+            if message:
+                return [(Token.Message, message)]
             else:
                 return []
 
         super(MessageToolbar, self).__init__(
                 get_tokens,
-                filter=Condition(lambda cli: pymux.message is not None))
+                filter=Condition(lambda cli: get_message(cli) is not None))
 
 
 class LayoutManager(object):
@@ -279,13 +283,15 @@ class LayoutManager(object):
 
 class DynamicBody(Container):
     """
-    The dynamic part, which depends on which window/pane is active.
+    The dynamic part, which is different for each CLI (for each client). It
+    depends on which window/pane is active.
     """
     def __init__(self, pymux):
         self.pymux = pymux
         self._bodies_for_clis = weakref.WeakKeyDictionary()  # Maps CLI to (hash, Container)
 
     def _get_body(self, cli):
+        " Return the Container object for the current CLI. "
         new_hash = self.pymux.arrangement.invalidation_hash(cli)
 
         # Return existing layout if nothing has changed to the arrangement.
@@ -294,12 +300,13 @@ class DynamicBody(Container):
             if existing_hash == new_hash:
                 return container
 
-        # Build a new layout when the arrangement changed.
+        # The layout changed. Build a new layout when the arrangement changed.
         new_layout = self._build_layout(cli)
         self._bodies_for_clis[cli] = (new_hash, new_layout)
         return new_layout
 
     def _build_layout(self, cli):
+        " Rebuild a new Container object and return that. "
         logger.info('Rebuilding layout.')
         active_window = self.pymux.arrangement.get_active_window(cli)
 
@@ -397,7 +404,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
         return result + [
             (token.Title, '%s' % process.screen.title),
-        ]### + [(Token, repr(process.screen.mode))]
+        ]
 
     return TracePaneWritePosition(pymux, arrangement_pane, HSplit([
         Window(

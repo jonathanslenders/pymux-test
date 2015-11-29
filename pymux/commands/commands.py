@@ -88,7 +88,7 @@ def send_signal(pymux, cli, variables):
         if value:
             pymux.arrangement.get_active_pane(cli).process.send_signal(value)
         else:
-            pymux.show_message('Invalid signal')
+            pymux.show_message(cli, 'Invalid signal')
 
 
 SIGNALS = {

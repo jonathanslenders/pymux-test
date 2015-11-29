@@ -1,8 +1,8 @@
 """
 Arrangement of panes.
 
-Don't confuse with the prompt_toolkit VSplit/HSplit classes. This is a much
-higher level abstraction.
+Don't confuse with the prompt_toolkit VSplit/HSplit classes. This is a higher
+level abstraction of the Pymux window layout.
 """
 from __future__ import unicode_literals
 from .process import Process
@@ -233,6 +233,12 @@ class Window(object):
 
 
 class Arrangement(object):
+    """
+    Arrangement class for one Pymux session.
+    This contains the list of windows and the layout of the panes for each
+    window. All the clients share the same Arrangement instance, but they can
+    have different windows active.
+    """
     def __init__(self):
         self.windows = []
 
@@ -260,7 +266,7 @@ class Arrangement(object):
         assert isinstance(window, Window)
 
         previous = self.get_active_window(cli)
-        self._prev_active_window = weakref.ref(previous)
+        self._prev_active_window_for_cli[cli] = previous
         self._active_window_for_cli[cli] = window
 
     def get_previous_active_window(self, cli):
@@ -273,7 +279,10 @@ class Arrangement(object):
             return None
 
     def create_window(self, cli, pane):
-        " Create a new window that contains just this pane. "
+        """
+        Create a new window that contains just this pane.
+        If `cli` has been given, this window will be focussed for that client.
+        """
         assert isinstance(pane, Pane)
         assert cli is None or isinstance(cli, CommandLineInterface)
 
@@ -322,12 +331,16 @@ class Arrangement(object):
                 self.windows.remove(w)
 
     def focus_previous_window(self, cli):
+        assert isinstance(cli, CommandLineInterface)
+
         w = self.get_active_window(cli)
 
         self.set_active_window(cli, self.windows[
             (self.windows.index(w) - 1) % len(self.windows)])
 
     def focus_next_window(self, cli):
+        assert isinstance(cli, CommandLineInterface)
+
         w = self.get_active_window(cli)
 
         self.set_active_window(cli, self.windows[
@@ -336,6 +349,8 @@ class Arrangement(object):
     def break_pane(self, cli):
         """ When the current window has multiple panes, remove the pane from
         this window and put it in a new window. """
+        assert isinstance(cli, CommandLineInterface)
+
         w = self.get_active_window(cli)
 
         if len(w.panes) > 1:

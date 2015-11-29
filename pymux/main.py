@@ -26,10 +26,24 @@ import os
 import pwd
 import sys
 import traceback
+import weakref
 
 __all__ = (
     'Pymux',
 )
+
+
+class ClientState(object):
+    """
+    State information that is independent for each client.
+    """
+    def __init__(self):
+        #: True when the prefix key (Ctrl-B) has been pressed.
+        self.has_prefix = False
+
+        #: Error/info message.
+        self.message = None
+
 
 
 class Pymux(object):
@@ -40,11 +54,7 @@ class Pymux(object):
         self.arrangement = Arrangement()
         self.layout_manager = LayoutManager(self)
 
-        #: True when the prefix key (Ctrl-B) has been pressed.
-        self.has_prefix = False   # XXX: this should be for each client individually!!!!
-
-        #: Error/info message.
-        self.message = None   # XXX: this should be for each client individually.
+        self._client_states = weakref.WeakKeyDictionary()  # Mapping from CLI to ClientState.
 
         # When no panes are available.
         self.original_cwd = os.getcwd()
@@ -69,6 +79,17 @@ class Pymux(object):
         w = self.arrangement.get_active_window(cli)
         if w:
             return w.active_process
+
+    def get_client_state(self, cli):
+        """
+        Return the ClientState instance for this CommandLineInterface.
+        """
+        try:
+            return self._client_states[cli]
+        except KeyError:
+            s = ClientState()
+            self._client_states[cli] = s
+            return s
 
     def get_title(self, cli):
         p = self.active_process_for_cli(cli)
@@ -178,12 +199,12 @@ class Pymux(object):
     def handle_command(self, cli, command):
         handle_command(self, cli, command)
 
-    def show_message(self, message):
+    def show_message(self, cli, message):
         """
         Set a warning message. This will be shown at the bottom until a key has
         been pressed.
         """
-        self.message = message
+        self.get_client_state(cli).message = message
 
     def create_cli(self, connection, output):
         """
@@ -226,7 +247,7 @@ class Pymux(object):
 
         # Hide message when a key has been pressed.
         def key_pressed():
-            self.message = None
+            self.get_client_state(cli).message = None
         cli.input_processor.beforeKeyPress += key_pressed
 
         cli._is_running = True

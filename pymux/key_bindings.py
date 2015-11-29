@@ -14,7 +14,7 @@ class HasPrefix(Filter):
         self.pymux = pymux
 
     def __call__(self, cli):
-        return self.pymux.has_prefix
+        return self.pymux.get_client_state(cli).has_prefix
 
 
 def create_key_bindings(pymux):
@@ -61,7 +61,7 @@ def create_key_bindings(pymux):
     @registry.add_binding(Keys.ControlB, filter=~has_prefix)
     def _(event):
         " Enter prefix mode. "
-        pymux.has_prefix = True
+        pymux.get_client_state(event.cli).has_prefix = True
 
     def prefix_binding(*a):
         def decorator(func):
@@ -69,7 +69,7 @@ def create_key_bindings(pymux):
             def _(event):
                 func(event)
                 pymux.invalidate()  # Invalidate all clients, not just the current CLI.
-                pymux.has_prefix = False
+                pymux.get_client_state(event.cli).has_prefix = False
             return func
         return decorator
 
@@ -208,7 +208,7 @@ def create_key_bindings(pymux):
         " Leave command mode. "
         pymux.leave_command_mode(event.cli, append_to_history=False)
 
-    @registry.add_binding(Keys.F6)  # XXX: remove
+    @registry.add_binding(Keys.F6)  # XXX: remove: this is for debugging only.
     def _(event):
         p = pymux.active_process_for_cli(event.cli)
         p.slow_motion = not p.slow_motion

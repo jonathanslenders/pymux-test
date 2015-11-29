@@ -19,4 +19,4 @@ def handle_command(pymux, cli, input_string):
     if has_command_handler(command):
         call_command_handler(command, pymux, cli, variables)
     else:
-        pymux.show_message('Invalid command: %s' % input_string)
+        pymux.show_message(cli, 'Invalid command: %s' % input_string)
