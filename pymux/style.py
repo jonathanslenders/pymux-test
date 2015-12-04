@@ -31,6 +31,7 @@ ui_style = {
     Token.AutoSuggestion:          'bg:#884444 #ff8888',
     Token.Message:                 'bg:#bbee88 #222222',
     Token.Background:              '#888888',
+    Token.Clock:                   'bg:#00aa00',
 }
 
 

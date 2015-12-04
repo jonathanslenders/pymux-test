@@ -1,6 +1,9 @@
 from __future__ import unicode_literals
 import signal
 
+from pymux.layout import focus_right, focus_left, focus_up, focus_down
+from pymux.arrangement import LayoutTypes
+
 __all__ = (
     'has_command_handler',
     'call_command_handler',
@@ -62,7 +65,7 @@ def new_window(pymux, cli, variables):
 @cmd('break-pane')
 def break_pane(pymux, cli):
     pymux.arrangement.break_pane(cli)
-    pymux.layout_manager.update()
+    pymux.invalidate()
 
 
 @_cmd('rename-window')
@@ -77,6 +80,35 @@ def rename_pane(pymux, cli, variables):
     pymux.arrangement.get_active_pane(cli).name = text
 
 
+@_cmd('select-pane')
+def select_pane(pymux, cli, variables):
+    direction = variables.get('direction', '')
+    handlers = {
+        '-L': focus_left,
+        '-R': focus_right,
+        '-U': focus_up,
+        '-D': focus_down
+    }
+    if direction in handlers:
+        handlers[direction](pymux, cli)
+    else:
+        pymux.show_message(cli, 'select-pane requires -R, -L, -U or -D as argument.')
+
+
+@_cmd('rotate-window')
+def rotate_window(pymux, cli, variables):
+    pymux.arrangement.rotate_window(cli)
+
+
+@_cmd('select-layout')
+def select_layout(pymux, cli, variables):
+    layout_type = variables.get('layout_type', '')
+    if layout_type in LayoutTypes._ALL:
+        pymux.arrangement.get_active_window(cli).select_layout(layout_type)
+    else:
+        pymux.show_message(cli, 'Invalid layout type.')
+
+
 @_cmd('send-signal')
 def send_signal(pymux, cli, variables):
     try:
@@ -89,6 +121,20 @@ def send_signal(pymux, cli, variables):
             pymux.arrangement.get_active_pane(cli).process.send_signal(value)
         else:
             pymux.show_message(cli, 'Invalid signal')
+
+
+@_cmd('suspend-client')
+def suspend_client(pymux, cli, variables):
+    connection = pymux.get_connection_for_cli(cli)
+
+    if connection:
+        connection.suspend_client_to_background()
+
+@_cmd('clock-mode')
+def clock_mode(pymux, cli, variables):
+    pane = pymux.arrangement.get_active_pane(cli)
+    if pane:
+        pane.clock_mode = not pane.clock_mode
 
 
 SIGNALS = {

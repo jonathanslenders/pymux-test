@@ -21,6 +21,12 @@ __all__ = (
 
 
 class Process(object):
+    """
+    Usage:
+
+        p = Process(eventloop, ...):
+        p.start()
+    """
     def __init__(self, eventloop, invalidate, exec_func, done_callback=None):
         self.eventloop = eventloop
         self.invalidate = invalidate
@@ -41,6 +47,10 @@ class Process(object):
         self.stream = BetterStream()
         self.stream.attach(self.screen)
 
+    def start(self):
+        """
+        Start the process: fork child.
+        """
         self.set_size(self.sx, self.sy)
         self._start()
         self._process_pty_output()

@@ -7,6 +7,7 @@ import logging
 from prompt_toolkit.layout.screen import Size
 from prompt_toolkit.terminal.vt100_input import InputStream
 from prompt_toolkit.terminal.vt100_output import Vt100_Output
+from prompt_toolkit.input import Input
 
 __all__ = (
     'ServerConnection',
@@ -54,13 +55,13 @@ class ServerConnection(object):
 
         # Handle commands.
         if packet['cmd'] == 'run-command':
-            self.pymux.handle_command(packet['data'])  # XXX: pass "cli"
+            self._run_command(packet)
 
         # Handle stdin.
         elif packet['cmd'] == 'in':
             self._inputstream.feed(packet['data'])
 
-        # Set size
+        # Set size. (The client reports the size.)
         elif packet['cmd'] == 'size':
             data = packet['data']
             self.size = Size(rows=data[0], columns=data[1])
@@ -68,9 +69,13 @@ class ServerConnection(object):
 
         # Start GUI. (Create CommandLineInterface front-end for pymux.)
         elif packet['cmd'] == 'start-gui':
-            output = Vt100_Output(_SocketStdout(self._send_packet),
-                                  lambda: self.size)
-            self.cli = self.pymux.create_cli(self, output)
+            detach_other_clients = bool(packet['detach-others'])
+
+            if detach_other_clients:
+                for c in self.pymux.connections:
+                    c.detach_and_close()
+
+            self._create_cli()
 
     def _send_packet(self, data):
         try:
@@ -79,11 +84,48 @@ class ServerConnection(object):
             if not self._closed:
                 self.detach_and_close()
 
+    def _run_command(self, packet):
+        """
+        Execute a run command from the client.
+        """
+        create_temp_cli = self.cli is None
+
+        if create_temp_cli:
+            # If this client doesn't have a CLI. Create a Fake CLI where the
+            # window containing this pane, is the active one. (The CLI instance
+            # will be removed before the render function is called, so it doesn't
+            # hurt too much and makes the code easier.)
+            pane_id = int(packet['pane_id'])
+            self._create_cli()
+            self.pymux.arrangement.set_active_window_from_pane_id(self.cli, pane_id)
+
+        try:
+            self.pymux.handle_command(self.cli, packet['data'])
+        finally:
+            self._close_cli()
+
+    def _create_cli(self):
+        output = Vt100_Output(_SocketStdout(self._send_packet),
+                              lambda: self.size)
+        input = ClientInput(self._send_packet)
+        self.cli = self.pymux.create_cli(self, output, input)
+
+    def _close_cli(self):
+        if self in self.pymux.clis:
+            del self.pymux.clis[self]
+
+        self.cli = None
+
+    def suspend_client_to_background(self):
+        if self.cli:
+            def suspend():
+                self._send_packet({'cmd': 'suspend'})
+
+            self.cli.run_in_terminal(suspend)
+
     def detach_and_close(self):
         # Remove from Pymux.
         self.pymux.connections.remove(self)
-        if self in self.pymux.clis:
-            del self.pymux.clis[self]
 
         # Remove from eventloop.
         self.pymux.eventloop.remove_reader(self.connection.fileno())
@@ -123,6 +165,7 @@ class _SocketStdout(object):
     client.
     """
     def __init__(self, send_packet):
+        assert callable(send_packet)
         self.send_packet = send_packet
         self._buffer = []
 
@@ -133,3 +176,36 @@ class _SocketStdout(object):
         data = {'cmd': 'out', 'data': ''.join(self._buffer)}
         self.send_packet(data)
         self._buffer = []
+
+
+class ClientInput(Input):
+    """
+    Input class that can be given to the CommandLineInterface.
+    We only need this for turning the client into raw_mode/cooked_mode.
+    """
+    def __init__(self, send_packet):
+        assert callable(send_packet)
+        self.send_packet = send_packet
+
+    def fileno(self):
+        raise NotImplementedError
+
+    def read(self):
+        raise NotImplementedError
+
+    def raw_mode(self):
+        return self._create_context_manager('raw')
+
+    def cooked_mode(self):
+        return self._create_context_manager('cooked')
+
+    def _create_context_manager(self, mode):
+        " Create a context manager that sends 'mode' commands to the client. "
+        class mode_context_manager(object):
+            def __enter__(*a):
+                self.send_packet({'cmd': 'mode', 'data': mode})
+
+            def __exit__(*a):
+                self.send_packet({'cmd': 'mode', 'data': 'restore'})
+
+        return mode_context_manager()

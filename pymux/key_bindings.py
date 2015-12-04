@@ -32,20 +32,27 @@ def create_key_bindings(pymux):
         #       that will probably echo back the typed characters. When we
         #       receive them, they are draw to the UI and it's invalidated.
         data = event.data
+        pane = pymux.arrangement.get_active_pane(event.cli)
 
-        # Applications like htop with run in application mode require the
-        # following input.
-        if pymux.active_process_for_cli(event.cli).screen.in_application_mode:
-            data = {
-                    Keys.Up: '\x1bOA',
-                    Keys.Left: '\x1bOD',
-                    Keys.Right: '\x1bOC',
-                    Keys.Down: '\x1bOB',
-            }.get(event.key_sequence[0].key, data)
+        if pane.clock_mode:
+            # Leave clock mode on key press.
+            pane.clock_mode = False
+            pymux.invalidate()
+        else:
+            process = pane.process
 
-        data = data.replace('\n', '\r')
+            # Applications like htop with run in application mode require the
+            # following input.
+            if process.screen.in_application_mode:
+                data = {
+                        Keys.Up: '\x1bOA',
+                        Keys.Left: '\x1bOD',
+                        Keys.Right: '\x1bOC',
+                        Keys.Down: '\x1bOB',
+                }.get(event.key_sequence[0].key, data)
 
-        pymux.active_process_for_cli(event.cli).write_input(data)
+            data = data.replace('\n', '\r')
+            process.write_input(data)
 
     @registry.add_binding(Keys.BracketedPaste, filter=~HasFocus('COMMAND') & ~has_prefix, invalidate_ui=False)
     def _(event):
@@ -189,6 +196,30 @@ def create_key_bindings(pymux):
     def _(event):
         " Detach client. "
         pymux.detach_client(event.cli)
+
+    @prefix_binding('t')
+    def _(event):
+        " Toggle clock mode. "
+        pane = pymux.arrangement.get_active_pane(event.cli)
+        if pane:
+            pane.clock_mode = not pane.clock_mode
+
+    @prefix_binding(Keys.ControlO)
+    def _(event):
+        " Rotate window. "
+        pymux.arrangement.rotate_window(event.cli)
+
+    @prefix_binding(Keys.Escape, 'o')
+    def _(event):
+        " Rotate window backwards. "
+        pymux.arrangement.rotate_window(event.cli, count=-1)
+
+    @prefix_binding(Keys.ControlZ)
+    def _(event):
+        " Suspend client. "
+        connection = pymux.get_connection_for_cli(event.cli)
+        if connection:
+            connection.suspend_client_to_background()
 
     def create_focus_window_number_func(i):
         @prefix_binding('%s' % i)

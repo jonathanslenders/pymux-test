@@ -2,7 +2,7 @@
 """
 pymux: Pure Python terminal multiplexer.
 Usage:
-    pymux [(standalone|server|attach)] [-d] [(-s <socket>)] [(--log <logfile>)]
+    pymux [(standalone|server|attach)] [-d] [(-S <socket>)] [(--log <logfile>)]
     pymux list-sessions
     pymux -h | --help
     pymux <command>
@@ -13,7 +13,7 @@ Options:
     server       : Run a server daemon that can be attached later on.
     attach       : Attach to a running session.
 
-    -s           : Unix socket path.
+    -S           : Unix socket path.
     -d           : Detach all other clients, when attaching.
     --log        : Logfile.
 """
@@ -38,6 +38,12 @@ def run():
     socket_name = a['<socket>'] or os.environ.get('PYMUX')
     socket_name_from_env = not a['<socket>'] and os.environ.get('PYMUX')
 
+    # Parse pane_id from socket_name. It looks like "socket_name,pane_id"
+    if socket_name and ',' in socket_name:
+        socket_name, pane_id = socket_name.rsplit(',', 1)
+    else:
+        pane_id = None
+
     mux = Pymux()
 
     # Setup logging
@@ -61,23 +67,31 @@ def run():
 
         # Run server.
         socket_name = mux.listen_on_socket()
-        mux.run_server()
+        try:
+            mux.run_server()
+        except KeyboardInterrupt:
+            sys.exit(1)
 
     elif a['attach']:
         if socket_name_from_env:
             _socket_from_env_warning()
             sys.exit(1)
 
+        detach_other_clients = a['-d']
+
         if socket_name:
-            Client(socket_name).attach()
+            Client(socket_name).attach(detach_other_clients=detach_other_clients)
         else:
             # Connect to the first server.
             for c in list_clients():
-                c.attach()
+                c.attach(detach_other_clients=detach_other_clients)
                 break
+            else:  # Nobreak.
+                print('No pymux instance found.')
+                sys.exit(1)
 
     elif a['<command>'] and socket_name:
-        Client(socket_name).run_command(a['<command>'])
+        Client(socket_name).run_command(a['<command>'], pane_id)
 
     elif not a['<command>']:
         if socket_name_from_env:

@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from prompt_toolkit.terminal.vt100_input import raw_mode
+from prompt_toolkit.terminal.vt100_input import raw_mode, cooked_mode
 from prompt_toolkit.eventloop.posix import _select, call_on_sigwinch
 from prompt_toolkit.terminal.vt100_output import _get_size, Vt100_Output
 
@@ -9,6 +9,7 @@ import getpass
 import glob
 import json
 import os
+import signal
 import socket
 import sys
 
@@ -22,25 +23,28 @@ __all__ = (
 class Client(object):
     def __init__(self, socket_name):
         self.socket_name = socket_name
+        self._mode_context_managers = []
 
         # Connect to socket.
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.connect(socket_name)
         self.socket.setblocking(0)
 
-    def run_command(self, command):
+    def run_command(self, command, pane_id=None):
         self._send_packet({
             'cmd': 'run-command',
             'data': command,
+            'pane_id': pane_id
         })
 
-    def attach(self):
+    def attach(self, detach_other_clients=False):
         """
         Attach client user interface.
         """
         self._send_size()
         self._send_packet({
             'cmd': 'start-gui',
+            'detach-others': detach_other_clients,
             'data': ''
         })
 
@@ -78,10 +82,35 @@ class Client(object):
                         self._process_stdin()
 
     def _process(self, data_buffer):
+        " Handle incoming packet. "
         packet = json.loads(data_buffer.decode('utf-8'))
+
         if packet['cmd'] == 'out':
             sys.stdout.write(packet['data'])
             sys.stdout.flush()
+
+        elif packet['cmd'] == 'suspend':
+            # Suspend client process to background.
+            if hasattr(signal, 'SIGTSTP'):
+                os.kill(os.getpid(), signal.SIGTSTP)
+
+        elif packet['cmd'] == 'mode':
+            # Set terminal to raw/cooked.
+            action =  packet['data']
+
+            if action == 'raw':
+                cm = raw_mode(sys.stdin.fileno())
+                cm.__enter__()
+                self._mode_context_managers.append(cm)
+
+            elif action == 'cooked':
+                cm = cooked_mode(sys.stdin.fileno())
+                cm.__enter__()
+                self._mode_context_managers.append(cm)
+
+            elif action == 'restore' and self._mode_context_managers:
+                cm = self._mode_context_managers.pop()
+                cm.__exit__()
 
     def _process_stdin(self):
         with nonblocking(sys.stdin.fileno()):

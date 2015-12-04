@@ -14,6 +14,12 @@ COMMAND_GRAMMAR = compile(r"""
         # Commands accepting a text.
         (?P<command>rename-window|rename-pane) \s+ (?P<text>.+)  |
 
+        # select-pane:  -R/-L/-U/-D.
+        (?P<command>select-pane) \s+ (?P<direction>-[LRUD]+)     |
+
+        # select-layout
+        (?P<command>select-layout) \s+ (?P<layout_type>[^\s]+)   |
+
         # Commands accepting signals.
         (?P<command>send-signal) \s+ (?P<signal>[^\s]+)          |
 

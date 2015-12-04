@@ -9,6 +9,7 @@ from .process import Process
 
 from prompt_toolkit.interface import CommandLineInterface
 
+import math
 import os
 import weakref
 
@@ -17,6 +18,15 @@ __all__ = (
     'Window',
     'Arrangement',
 )
+
+class LayoutTypes:
+    # The values are in lowercase with dashes, because that is what users can
+    # use at the command line.
+    EVEN_HORIZONTAL = 'even-horizontal'
+    EVEN_VERTICAL = 'even-vertical'
+    TILED = 'tiled'
+
+    _ALL = [EVEN_HORIZONTAL, EVEN_VERTICAL, TILED]
 
 
 class Pane(object):
@@ -27,6 +37,9 @@ class Pane(object):
 
         self.process = process
         self.name = None
+
+        # Displayed the clock instead of this pane content.
+        self.clock_mode = False
 
         # Give unique ID.
         Pane._pane_counter += 1
@@ -231,6 +244,49 @@ class Window(object):
         panes = self.panes
         self.active_pane = panes[(panes.index(self.active_pane) + 1) % len(panes)]
 
+    def rotate(self, count=1):
+        " Rotate panes. "
+        # Create (split, index, pane) tuples.
+        items = []
+
+        for s in self.splits:
+            for index, item in enumerate(s):
+                if isinstance(item, Pane):
+                    items.append((s, index, item))
+
+        # Rotate positions.
+        for i, triple in enumerate(items):
+            split, index, pane = triple
+            split[index] = items[(i + count) % len(items)][2]
+
+    def select_layout(self, layout_type):
+        """
+        Select one of the predefined layouts.
+        """
+        if layout_type == LayoutTypes.EVEN_HORIZONTAL:
+            self.root = HSplit(self.panes)
+
+        elif layout_type == LayoutTypes.EVEN_VERTICAL:
+            self.root = VSplit(self.panes)
+
+        elif layout_type == LayoutTypes.TILED:
+            panes = self.panes
+            column_count = math.ceil(len(panes) ** .5)
+
+            rows = HSplit()
+            current_row = VSplit()
+
+            for p in panes:
+                current_row.append(p)
+
+                if len(current_row) >= column_count:
+                    rows.append(current_row)
+                    current_row = VSplit()
+            if current_row:
+                rows.append(current_row)
+
+            self.root = rows
+
 
 class Arrangement(object):
     """
@@ -268,6 +324,18 @@ class Arrangement(object):
         previous = self.get_active_window(cli)
         self._prev_active_window_for_cli[cli] = previous
         self._active_window_for_cli[cli] = window
+
+    def set_active_window_from_pane_id(self, cli, pane_id):
+        """
+        Make the window with this pane ID the active Window.
+        """
+        assert isinstance(cli, CommandLineInterface)
+        assert isinstance(pane_id, int)
+
+        for w in self.windows:
+            for p in w.panes:
+                if p.pane_id == pane_id:
+                    self.set_active_window(cli, w)
 
     def get_previous_active_window(self, cli):
         " The previous active Window or None if unknown. "
@@ -357,6 +425,13 @@ class Arrangement(object):
             pane = w.active_pane
             self.get_active_window(cli).remove_pane(pane)
             self.create_window(cli, pane)
+
+    def rotate_window(self, cli, count=1):
+        " Rotate the panes in the active window. "
+        assert isinstance(cli, CommandLineInterface)
+
+        w = self.get_active_window(cli)
+        w.rotate(count=count)
 
     @property
     def has_panes(self):

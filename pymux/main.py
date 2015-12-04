@@ -24,6 +24,7 @@ from .log import logger
 import getpass
 import os
 import pwd
+import signal
 import sys
 import traceback
 import weakref
@@ -45,10 +46,20 @@ class ClientState(object):
         self.message = None
 
 
-
 class Pymux(object):
     """
     The main Pymux application class.
+
+    Usage:
+
+        p = Pymux()
+        p.listen_on_socket()
+        p.run_server()
+
+    Or:
+
+        p = Pymux()
+        p.run_standalone()
     """
     def __init__(self):
         self.arrangement = Arrangement()
@@ -154,7 +165,8 @@ class Pymux(object):
 
             # Make sure to set the PYMUX environment variable.
             if self.socket_name:
-                os.environ['PYMUX'] = self.socket_name
+                os.environ['PYMUX'] = '%s,%i' % (
+                    self.socket_name, pane.pane_id)
 
         if command:
             command = command.split()
@@ -167,6 +179,8 @@ class Pymux(object):
         pane = Pane(process)
 
         logger.info('Created process %r.', command)
+        process.start()
+
         return pane
 
     def invalidate(self):
@@ -206,7 +220,7 @@ class Pymux(object):
         """
         self.get_client_state(cli).message = message
 
-    def create_cli(self, connection, output):
+    def create_cli(self, connection, output, input=None):
         """
         Create `CommandLineInterface` instance for this connection.
         """
@@ -243,6 +257,7 @@ class Pymux(object):
         cli = CommandLineInterface(
             application=application,
             output=output,
+            input=input,
             eventloop=self.eventloop)
 
         # Hide message when a key has been pressed.
@@ -283,7 +298,7 @@ class Pymux(object):
 
     def listen_on_socket(self, socket_name=None):
         """
-        Listen for clients on a unix socket.
+        Listen for clients on a Unix socket.
         Returns the socket name.
         """
         if self.socket is None:
@@ -311,10 +326,18 @@ class Pymux(object):
         # Make sure that there is one window created.
         self.create_window()
 
+        # Ignore keyboard. (When people run "pymux server" and press Ctrl-C.)
+        # Pymux has to be terminated by termining all the processes running in
+        # its panes.
+        def handle_sigint(*a):
+            print('Ignoring keyboard interrupt.')
+
+        signal.signal(signal.SIGINT, handle_sigint)
+
         # Run eventloop.
 
         # XXX: Both the PipeInput and DummyCallbacks are not used.
-        #      This is a workaround to run the PosixEventLoop continiously
+        #      This is a workaround to run the PosixEventLoop continuously
         #      without having a CommandLineInterface instance.
         #      A better API in prompt_toolkit is desired.
         try:
@@ -332,6 +355,10 @@ class Pymux(object):
         os.remove(self.socket_name)
 
     def run_standalone(self):
+        """
+        Run pymux standalone, rather than using a client/server architecture.
+        This is mainly useful for debugging.
+        """
         self._runs_standalone = True
         cli = self.create_cli(connection=None, output=Vt100_Output.from_pty(sys.stdout))
         cli._is_running = False

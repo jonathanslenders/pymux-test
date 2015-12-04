@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # encoding: utf-8
 """
 """
@@ -10,7 +9,7 @@ from prompt_toolkit.layout.controls import TokenListControl, FillControl, UICont
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
-from prompt_toolkit.layout.screen import Char
+from prompt_toolkit.layout.screen import Char, Screen
 from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.mouse_events import MouseEventTypes
 
@@ -60,6 +59,50 @@ class Background(Container):
 
     def walk(self):
         return []
+
+
+class BigClock(UIControl):
+    """
+    Display a big clock.
+    """
+    _numbers = [
+        ['xxxxx', 'x   x', 'x   x', 'x   x', 'xxxxx'], # 0
+        ['    x', '    x', '    x', '    x', '    x'], # 1
+        ['xxxxx', '    x', 'xxxxx', 'x    ', 'xxxxx'], # 2
+        ['xxxxx', '    x', 'xxxxx', '    x', 'xxxxx'], # 3
+        ['x   x', 'x   x', 'xxxxx', '    x', '    x'], # 4
+        ['xxxxx', 'x    ', 'xxxxx', '    x', 'xxxxx'], # 5
+        ['xxxxx', 'x    ', 'xxxxx', 'x   x', 'xxxxx'], # 6
+        ['xxxxx', '    x', '    x', '    x', '    x'], # 7
+        ['xxxxx', 'x   x', 'xxxxx', 'x   x', 'xxxxx'], # 8
+        ['xxxxx', 'x   x', 'xxxxx', '    x', 'xxxxx'], # 9
+    ]
+
+    def create_screen(self, cli, width, height):
+        screen = Screen(initial_width=width)
+
+        def draw_number(x_offset, number):
+            " Write number at position. "
+            for y, row in enumerate(self._numbers[number]):
+                screen_row = screen.data_buffer[y]
+                for x, n in enumerate(row):
+                    token = Token.Clock if n == 'x' else Token
+                    screen_row[x + x_offset] = Char(' ', token)
+
+        # Display time.
+        now = datetime.datetime.now()
+        draw_number(0, now.hour // 10)
+        draw_number(6, now.hour % 10)
+        draw_number(16, now.minute // 10)
+        draw_number(23, now.minute % 10)
+
+        # Add a colon
+        screen.data_buffer[1][13] = Char(' ', Token.Clock)
+        screen.data_buffer[3][13] = Char(' ', Token.Clock)
+
+        screen.width = 28
+        screen.height = 5
+        return screen
 
 
 class PaneContainer(UIControl):
@@ -406,15 +449,36 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
             (token.Title, '%s' % process.screen.title),
         ]
 
-    return TracePaneWritePosition(pymux, arrangement_pane, HSplit([
-        Window(
-            height=D.exact(1),
-            content=TokenListControl(
-                get_title_tokens,
-                get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
-        ),
-        PaneWindow(pymux, arrangement_pane, process),
-    ]))
+    clock_is_visible = Condition(lambda cli: arrangement_pane.clock_mode)
+
+    return TracePaneWritePosition(pymux, arrangement_pane, FloatContainer(
+        content=HSplit([
+            ConditionalContainer(
+                content=Window(
+                    height=D.exact(1),
+                    content=TokenListControl(
+                        get_title_tokens,
+                        get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+                ),
+                filter=~clock_is_visible,
+            ),
+            ConditionalContainer(
+                content=PaneWindow(pymux, arrangement_pane, process),
+                filter=~clock_is_visible,
+            ),
+            ConditionalContainer(
+                content=Window(FillControl()),
+                filter=clock_is_visible,
+            ),
+        ]),
+        floats=[Float(
+            content=ConditionalContainer(
+                content=Window(BigClock()),
+                filter=clock_is_visible,
+            ),
+            width=28, height=5)
+        ]
+    ))
 
 
 class _ContainerProxy(Container):
