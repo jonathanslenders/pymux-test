@@ -292,14 +292,18 @@ class Window(object):
 
         self.previous_selected_layout = layout_type
 
-    def select_next_layout(self):
+    def select_next_layout(self, count=1):
         """
         Select next layout. (Cycle through predefined layouts.)
         """
         layout = self.previous_selected_layout or LayoutTypes._ALL[-1]
         index = LayoutTypes._ALL.index(layout)
-        new_layout = LayoutTypes._ALL[(index + 1) % len(LayoutTypes._ALL)]
+        new_layout = LayoutTypes._ALL[(index + count) % len(LayoutTypes._ALL)]
         self.select_layout(new_layout)
+
+    def select_previous_layout(self):
+        self.select_next_layout(count=-1)
+
 
 
 class Arrangement(object):

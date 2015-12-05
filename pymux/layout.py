@@ -453,14 +453,11 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
     return TracePaneWritePosition(pymux, arrangement_pane, FloatContainer(
         content=HSplit([
-            ConditionalContainer(
-                content=Window(
-                    height=D.exact(1),
-                    content=TokenListControl(
-                        get_title_tokens,
-                        get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
-                ),
-                filter=~clock_is_visible,
+            Window(
+                height=D.exact(1),
+                content=TokenListControl(
+                    get_title_tokens,
+                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
             ),
             ConditionalContainer(
                 content=PaneWindow(pymux, arrangement_pane, process),

@@ -17,5 +17,6 @@ def create_command_completer(pymux):
         'command': WordCompleter(sorted(COMMANDS_TO_HANDLERS.keys()), WORD=True),
         'signal': WordCompleter(sorted(SIGNALS.keys())),
         'direction': WordCompleter(sorted(['-L', '-R', '-U', '-D']), WORD=True),
+        'horizontal_or_vertical': WordCompleter(sorted(['-h', '-v']), WORD=True),
         'layout_type': WordCompleter(sorted(LayoutTypes._ALL), WORD=True),
     })

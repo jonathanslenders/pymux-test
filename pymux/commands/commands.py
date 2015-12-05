@@ -44,16 +44,17 @@ def cmd(name):
 # The actual commands.
 #
 
-@_cmd('split')
-def split(pymux, cli, variables):
+@_cmd('split-window')
+def split_window(pymux, cli, variables):
+    horizontal_or_vertical = variables.get('horizontal_or_vertical', '-v')
     executable = variables.get('executable')
-    pymux.add_process(cli, executable)
 
-
-@_cmd('vsplit')
-def vsplit(pymux, cli, variables):
-    executable = variables.get('executable')
-    pymux.add_process(cli, executable, vsplit=True)
+    if horizontal_or_vertical in ('-v', '-h'):
+        # The tmux definition of horizontal is the opposite of prompt_toolkit.
+        vsplit = not (horizontal_or_vertical == '-v')
+        pymux.add_process(cli, executable, vsplit=vsplit)
+    else:
+        pymux.show_message(cli, 'split-window expects -h or -v as argument.')
 
 
 @_cmd('new-window')
@@ -124,6 +125,11 @@ def send_signal(pymux, cli, variables):
             pymux.show_message(cli, 'Invalid signal')
 
 
+@_cmd('kill-pane')
+def send_signal(pymux, cli, variables):
+    pymux.arrangement.get_active_pane(cli).process.send_signal(signal.SIGKILL)
+
+
 @_cmd('suspend-client')
 def suspend_client(pymux, cli, variables):
     connection = pymux.get_connection_for_cli(cli)
@@ -143,6 +149,13 @@ def next_layout(pymux, cli, variables):
     pane = pymux.arrangement.get_active_window(cli)
     if pane:
         pane.select_next_layout()
+
+@_cmd('previous-layout')
+def previous_layout(pymux, cli, variables):
+    " Select previous layout. "
+    pane = pymux.arrangement.get_active_window(cli)
+    if pane:
+        pane.select_previous_layout()
 
 
 SIGNALS = {

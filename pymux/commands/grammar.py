@@ -9,10 +9,13 @@ COMMAND_GRAMMAR = compile(r"""
     \s*
     (
         # Commands accepting a location.
-        (?P<command>vsplit|split|new-window) \s+ (?P<executable>.+)     |
+        (?P<command>new-window) \s+ (?P<executable>.+)     |
 
         # Commands accepting a text.
         (?P<command>rename-window|rename-pane) \s+ (?P<text>.+)  |
+
+        # split:  -h/-v
+        (?P<command>split-window) \s+ ((?P<horizontal_or_vertical>-[hv]+) \s+)? (?P<executable>[^-].*)? |
 
         # select-pane:  -R/-L/-U/-D.
         (?P<command>select-pane) \s+ (?P<direction>-[LRUD]+)     |
