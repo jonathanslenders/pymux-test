@@ -103,6 +103,7 @@ def rotate_window(pymux, cli, variables):
 @_cmd('select-layout')
 def select_layout(pymux, cli, variables):
     layout_type = variables.get('layout_type', '')
+
     if layout_type in LayoutTypes._ALL:
         pymux.arrangement.get_active_window(cli).select_layout(layout_type)
     else:
@@ -135,6 +136,13 @@ def clock_mode(pymux, cli, variables):
     pane = pymux.arrangement.get_active_pane(cli)
     if pane:
         pane.clock_mode = not pane.clock_mode
+
+@_cmd('next-layout')
+def next_layout(pymux, cli, variables):
+    " Select next layout. "
+    pane = pymux.arrangement.get_active_window(cli)
+    if pane:
+        pane.select_next_layout()
 
 
 SIGNALS = {

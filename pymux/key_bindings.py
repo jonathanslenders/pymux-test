@@ -204,6 +204,13 @@ def create_key_bindings(pymux):
         if pane:
             pane.clock_mode = not pane.clock_mode
 
+    @prefix_binding(' ')
+    def _(event):
+        " Select next layout. "
+        pane = pymux.arrangement.get_active_window(event.cli)
+        if pane:
+            pane.select_next_layout()
+
     @prefix_binding(Keys.ControlO)
     def _(event):
         " Rotate window. "

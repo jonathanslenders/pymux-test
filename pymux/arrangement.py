@@ -72,6 +72,7 @@ class Window(object):
         self._active_pane = None
         self._prev_active_pane = None
         self.chosen_name = None
+        self.previous_selected_layout = None
 
         #: When true, the current pane is zoomed in.
         self.zoom = False
@@ -263,6 +264,8 @@ class Window(object):
         """
         Select one of the predefined layouts.
         """
+        assert layout_type in LayoutTypes._ALL
+
         if layout_type == LayoutTypes.EVEN_HORIZONTAL:
             self.root = HSplit(self.panes)
 
@@ -286,6 +289,17 @@ class Window(object):
                 rows.append(current_row)
 
             self.root = rows
+
+        self.previous_selected_layout = layout_type
+
+    def select_next_layout(self):
+        """
+        Select next layout. (Cycle through predefined layouts.)
+        """
+        layout = self.previous_selected_layout or LayoutTypes._ALL[-1]
+        index = LayoutTypes._ALL.index(layout)
+        new_layout = LayoutTypes._ALL[(index + 1) % len(LayoutTypes._ALL)]
+        self.select_layout(new_layout)
 
 
 class Arrangement(object):
