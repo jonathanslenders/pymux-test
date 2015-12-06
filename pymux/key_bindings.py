@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 from prompt_toolkit.document import Document
-from prompt_toolkit.filters import HasFocus, Filter
+from prompt_toolkit.filters import HasFocus, Filter, Condition
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.keys import Keys
 from .layout import focus_right, focus_left, focus_up, focus_down
@@ -240,8 +240,10 @@ def create_key_bindings(pymux):
     for i in range(10):
         create_focus_window_number_func(i)
 
-    @registry.add_binding(Keys.ControlC, filter=HasFocus('COMMAND'))
-    @registry.add_binding(Keys.ControlG, filter=HasFocus('COMMAND'))
+    @registry.add_binding(Keys.ControlC, filter=HasFocus('COMMAND') & ~has_prefix)
+    @registry.add_binding(Keys.ControlG, filter=HasFocus('COMMAND') & ~has_prefix)
+    @registry.add_binding(Keys.Backspace, filter=HasFocus('COMMAND') & ~has_prefix &
+                          Condition(lambda cli: cli.buffers['COMMAND'].text == ''))
     def _(event):
         " Leave command mode. "
         pymux.leave_command_mode(event.cli, append_to_history=False)

@@ -149,6 +149,11 @@ class Pymux(object):
             if not self.arrangement.has_panes:
                 self.eventloop.stop()
 
+        def bell():
+            " Sound bell on all clients. "
+            for c in self.clis.values():
+                c.output.bell()
+
         # When the path of the active process is known,
         # start the new process at the same location.
         if window and window.active_process:
@@ -175,6 +180,7 @@ class Pymux(object):
 
         process = Process.from_command(
                 self.eventloop, self.invalidate, command, done_callback,
+                bell_func=bell,
                 before_exec_func=before_exec)
         pane = Pane(process)
 

@@ -27,7 +27,7 @@ class Process(object):
         p = Process(eventloop, ...):
         p.start()
     """
-    def __init__(self, eventloop, invalidate, exec_func, done_callback=None):
+    def __init__(self, eventloop, invalidate, exec_func, bell_func=None, done_callback=None):
         self.eventloop = eventloop
         self.invalidate = invalidate
         self.exec_func = exec_func
@@ -43,7 +43,9 @@ class Process(object):
         self.sx = 120
         self.sy = 24
 
-        self.screen = BetterScreen(self.sx, self.sy, self.write_input)
+        self.screen = BetterScreen(self.sx, self.sy,
+                                   write_process_input=self.write_input,
+                                   bell_func=bell_func)
         self.stream = BetterStream()
         self.stream.attach(self.screen)
 
@@ -57,7 +59,8 @@ class Process(object):
         self._waitpid()
 
     @classmethod
-    def from_command(cls, eventloop, invalidate, command, done_callback, before_exec_func=None):
+    def from_command(cls, eventloop, invalidate, command, done_callback,
+                     bell_func=None, before_exec_func=None):
         """
         Create Process from command,
         e.g. command=['python', '-c', 'print("test")']
@@ -75,7 +78,8 @@ class Process(object):
                 if os.path.exists(path) and os.access(path, os.X_OK):
                     os.execv(path, command)
 
-        return cls(eventloop, invalidate, execv, done_callback)
+        return cls(eventloop, invalidate, execv,
+                   bell_func=bell_func, done_callback=done_callback)
 
     def _start(self):
         os.environ['TERM'] = 'screen'

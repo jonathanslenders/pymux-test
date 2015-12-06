@@ -65,15 +65,22 @@ class BetterScreen(object):
             'max_y',
             ]
 
-    def __init__(self, lines, columns, write_process_input):
+    def __init__(self, lines, columns, write_process_input, bell_func=None):
+        bell_func = bell_func or (lambda: None)
+
+        assert callable(write_process_input)
+        assert callable(bell_func)
+
         self.savepoints = []
         self.lines = lines
         self.columns = columns
         self.write_process_input = write_process_input
+        self.bell_func = bell_func
         self.reset()
 
     def __after__(self, ev):
-        self.pt_screen.height = max(self.pt_screen.height, self.pt_screen.cursor_position.y + 2)
+        self.pt_screen.height = max(
+            self.pt_screen.height, self.pt_screen.cursor_position.y + 2)
 
     @property
     def in_application_mode(self):
@@ -593,9 +600,8 @@ class BetterScreen(object):
         self.ensure_bounds()
 
     def bell(self, *args):
-        """Bell stub -- the actual implementation should probably be
-        provided by the end-user.
-        """
+        " Bell "
+        self.bell_func()
 
     def cursor_down(self, count=None):
         """Moves cursor down the indicated # of lines in same column.
