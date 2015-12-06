@@ -21,8 +21,9 @@ import six
 import weakref
 
 from .commands.lexer import create_command_lexer
-from .screen import DEFAULT_TOKEN
+from .enums import COMMAND
 from .log import logger
+from .screen import DEFAULT_TOKEN
 
 __all__ = (
     'LayoutManager',
@@ -121,7 +122,7 @@ class PaneContainer(UIControl):
         return process.screen.pt_screen
 
     def has_focus(self, cli):
-        return (cli.current_buffer_name != 'COMMAND' and
+        return (cli.current_buffer_name != COMMAND and
             self.pymux.arrangement.get_active_pane(cli) == self.pane)
 
     def mouse_handler(self, cli, mouse_event):
@@ -292,7 +293,7 @@ class LayoutManager(object):
                     content=Window(
                         height=D.exact(1),
                         content=BufferControl(
-                            buffer_name='COMMAND',
+                            buffer_name=COMMAND,
                             default_char=Char(' ', Token.CommandLine),
                             lexer=create_command_lexer(self.pymux),
                             input_processors=[
@@ -300,7 +301,7 @@ class LayoutManager(object):
                                 AppendAutoSuggestion(),
                             ])
                     ),
-                    filter=HasFocus('COMMAND'),
+                    filter=HasFocus(COMMAND),
                 ),
                 ConditionalContainer(
                     content=VSplit([
@@ -314,7 +315,7 @@ class LayoutManager(object):
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),
-                    filter=~HasFocus('COMMAND'),
+                    filter=~HasFocus(COMMAND),
                 )
             ]),
             floats=[Float(bottom=1, left=0, content=MessageToolbar(self.pymux)), Float(xcursor=True,

@@ -3,7 +3,9 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.filters import HasFocus, Filter, Condition
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.keys import Keys
+
 from .layout import focus_right, focus_left, focus_up, focus_down
+from .enums import COMMAND
 
 __all__ = (
     'create_key_bindings',
@@ -21,11 +23,11 @@ def create_key_bindings(pymux):
     has_prefix = HasPrefix(pymux)
 
     manager = KeyBindingManager(
-        enable_all=HasFocus('COMMAND') & ~has_prefix,
+        enable_all=HasFocus(COMMAND) & ~has_prefix,
         enable_auto_suggest_bindings=True)
     registry = manager.registry
 
-    @registry.add_binding(Keys.Any, filter=~HasFocus('COMMAND') & ~has_prefix, invalidate_ui=False)
+    @registry.add_binding(Keys.Any, filter=~HasFocus(COMMAND) & ~has_prefix, invalidate_ui=False)
     def _(event):
         # NOTE: we don't invalidate the UI, because for pymux itself, nothing
         #       in the output changes yet. It's the application in the pane
@@ -54,7 +56,7 @@ def create_key_bindings(pymux):
             data = data.replace('\n', '\r')
             process.write_input(data)
 
-    @registry.add_binding(Keys.BracketedPaste, filter=~HasFocus('COMMAND') & ~has_prefix, invalidate_ui=False)
+    @registry.add_binding(Keys.BracketedPaste, filter=~HasFocus(COMMAND) & ~has_prefix, invalidate_ui=False)
     def _(event):
         " Pasting to active pane. "
         p = pymux.active_process_for_cli(event.cli)
@@ -148,7 +150,7 @@ def create_key_bindings(pymux):
     @prefix_binding(':')
     def _(event):
         " Enter command mode. "
-        event.cli.focus_stack.replace('COMMAND')
+        event.cli.focus_stack.replace(COMMAND)
 
     @prefix_binding(';')
     def _(event):
@@ -170,22 +172,22 @@ def create_key_bindings(pymux):
     @prefix_binding(',')
     def _(event):
         " Rename window. "
-        event.cli.focus_stack.replace('COMMAND')
-        event.cli.buffers['COMMAND'].document = Document(
+        event.cli.focus_stack.replace(COMMAND)
+        event.cli.buffers[COMMAND].document = Document(
             'rename-window %s' % pymux.arrangement.get_active_window(event.cli).name)
 
     @prefix_binding("'")
     def _(event):
         " Rename pane. "
-        event.cli.focus_stack.replace('COMMAND')
-        event.cli.buffers['COMMAND'].document = Document(
+        event.cli.focus_stack.replace(COMMAND)
+        event.cli.buffers[COMMAND].document = Document(
             'rename-pane %s' % (pymux.arrangement.active_pane.name or ''))
 
     @prefix_binding("x")
     def _(event):
         " Kill pane. "
-        event.cli.focus_stack.replace('COMMAND')
-        event.cli.buffers['COMMAND'].document = Document('send-signal kill')
+        event.cli.focus_stack.replace(COMMAND)
+        event.cli.buffers[COMMAND].document = Document('send-signal kill')
 
     @prefix_binding('!')
     def _(event):
@@ -240,10 +242,10 @@ def create_key_bindings(pymux):
     for i in range(10):
         create_focus_window_number_func(i)
 
-    @registry.add_binding(Keys.ControlC, filter=HasFocus('COMMAND') & ~has_prefix)
-    @registry.add_binding(Keys.ControlG, filter=HasFocus('COMMAND') & ~has_prefix)
-    @registry.add_binding(Keys.Backspace, filter=HasFocus('COMMAND') & ~has_prefix &
-                          Condition(lambda cli: cli.buffers['COMMAND'].text == ''))
+    @registry.add_binding(Keys.ControlC, filter=HasFocus(COMMAND) & ~has_prefix)
+    @registry.add_binding(Keys.ControlG, filter=HasFocus(COMMAND) & ~has_prefix)
+    @registry.add_binding(Keys.Backspace, filter=HasFocus(COMMAND) & ~has_prefix &
+                          Condition(lambda cli: cli.buffers[COMMAND].text == ''))
     def _(event):
         " Leave command mode. "
         pymux.leave_command_mode(event.cli, append_to_history=False)

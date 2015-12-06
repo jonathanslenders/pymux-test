@@ -14,12 +14,13 @@ from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
 from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
 from .commands.handler import handle_command
+from .enums import COMMAND
 from .key_bindings import create_key_bindings
 from .layout import LayoutManager
+from .log import logger
 from .process import Process
 from .server import ServerConnection, bind_socket
 from .style import PymuxStyle
-from .log import logger
 
 import getpass
 import os
@@ -248,7 +249,7 @@ class Pymux(object):
             layout=self.layout_manager.layout,
             key_bindings_registry=self.registry,
             buffers={
-                'COMMAND': Buffer(
+                COMMAND: Buffer(
                     complete_while_typing=True,
                     completer=create_command_completer(self),
                     accept_action=AcceptAction(handler=_handle_command),
