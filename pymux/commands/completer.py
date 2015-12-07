@@ -8,6 +8,8 @@ from .grammar import COMMAND_GRAMMAR
 from .commands import COMMANDS_TO_HANDLERS, SIGNALS
 from pymux.arrangement import LayoutTypes
 
+import shlex
+
 __all__ = ( 'create_command_completer', )
 
 

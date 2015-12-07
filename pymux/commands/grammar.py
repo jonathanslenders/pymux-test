@@ -3,7 +3,8 @@ from __future__ import unicode_literals
 from prompt_toolkit.contrib.regular_languages.compiler import compile
 
 
-#: The compiled grammar for the Vim command line.
+# The grammar for the command line.
+# This is only used for autocompletion and syntax highlighting.
 COMMAND_GRAMMAR = compile(r"""
     # Allow leading whitespace.
     \s*
@@ -19,6 +20,7 @@ COMMAND_GRAMMAR = compile(r"""
 
         # select-pane:  -R/-L/-U/-D.
         (?P<command>select-pane) \s+ (?P<direction>-[LRUD]+)     |
+        (?P<command>resize-pane) \s+ (?P<direction>-[LRUD]+)     |
 
         # select-layout
         (?P<command>select-layout) \s+ (?P<layout_type>[^\s]+)   |
@@ -27,7 +29,7 @@ COMMAND_GRAMMAR = compile(r"""
         (?P<command>send-signal) \s+ (?P<signal>[^\s]+)          |
 
         # Any other normal command.
-        (?P<command>[^\s]+) \s+  ([^\s]*)             |
+        (?P<command>[^\s]+) \s+  ([^\s]*)                        |
         (?P<command>[^\s]+)
     )
 

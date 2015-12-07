@@ -67,6 +67,9 @@ class BigClock(UIControl):
     """
     Display a big clock.
     """
+    WIDTH = 28
+    HEIGHT = 5
+
     _numbers = [
         ['xxxxx', 'x   x', 'x   x', 'x   x', 'xxxxx'], # 0
         ['    x', '    x', '    x', '    x', '    x'], # 1
@@ -82,6 +85,10 @@ class BigClock(UIControl):
 
     def create_screen(self, cli, width, height):
         screen = Screen(initial_width=width)
+
+        for y in range(self.HEIGHT):
+            for x in range(self.WIDTH):
+                screen.data_buffer[y][x] = Char(' ', Token)
 
         def draw_number(x_offset, number):
             " Write number at position. "
@@ -102,8 +109,8 @@ class BigClock(UIControl):
         screen.data_buffer[1][13] = Char(' ', Token.Clock)
         screen.data_buffer[3][13] = Char(' ', Token.Clock)
 
-        screen.width = 28
-        screen.height = 5
+        screen.width = self.WIDTH
+        screen.height = self.HEIGHT
         return screen
 
 
@@ -515,31 +522,39 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
     clock_is_visible = Condition(lambda cli: arrangement_pane.clock_mode)
 
-    return TracePaneWritePosition(pymux, arrangement_pane, FloatContainer(
+    return TracePaneWritePosition(pymux, arrangement_pane,
         content=HSplit([
+            # The title bar.
             Window(
                 height=D.exact(1),
                 content=TokenListControl(
                     get_title_tokens,
                     get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
             ),
+            # The pane content.
             ConditionalContainer(
                 content=PaneWindow(pymux, arrangement_pane, process),
                 filter=~clock_is_visible,
             ),
+            # The clock.
             ConditionalContainer(
-                content=Window(FillControl()),
+                # Add a dummy VSplit/HSplit around the BigClock in order to center it.
+                # (Using a FloatContainer to do the centering doesn't work well, because
+                # the boundaries are not clipt when the parent is smaller.)
+                content=VSplit([
+                    Window(FillControl()),
+                    HSplit([
+                        Window(FillControl()),
+                        Window(BigClock(), height=D.exact(BigClock.HEIGHT)),
+                        Window(FillControl()),
+                    ]),
+                    Window(FillControl()),
+                ], get_dimensions=lambda cli: [None, D.exact(BigClock.WIDTH), None]),
+
                 filter=clock_is_visible,
             ),
         ]),
-        floats=[Float(
-            content=ConditionalContainer(
-                content=Window(BigClock()),
-                filter=clock_is_visible,
-            ),
-            width=28, height=5)
-        ]
-    ))
+    )
 
 
 class _ContainerProxy(Container):

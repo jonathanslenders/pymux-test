@@ -10,5 +10,10 @@ __all__ = ('handle_command', )
 
 def handle_command(pymux, cli, input_string):
     " Handle command. "
-    parts = shlex.split(input_string)
-    call_command_handler(parts[0], pymux, cli, parts[1:])
+    try:
+        parts = shlex.split(input_string)
+    except ValueError as e:
+        # E.g. missing closing quote.
+        pymux.show_message(cli, 'Invalid command: %s' % e)
+    else:
+        call_command_handler(parts[0], pymux, cli, parts[1:])

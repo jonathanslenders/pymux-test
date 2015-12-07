@@ -265,18 +265,22 @@ class Window(object):
 
     def rotate(self, count=1):
         " Rotate panes. "
-        # Create (split, index, pane) tuples.
+        # Create (split, index, pane, weight) tuples.
         items = []
 
         for s in self.splits:
             for index, item in enumerate(s):
                 if isinstance(item, Pane):
-                    items.append((s, index, item))
+                    items.append((s, index, item, s.weights[item]))
 
         # Rotate positions.
         for i, triple in enumerate(items):
-            split, index, pane = triple
-            split[index] = items[(i + count) % len(items)][2]
+            split, index, pane, weight = triple
+
+            new_item = items[(i + count) % len(items)][2]
+
+            split[index] = new_item
+            split.weights[new_item] = weight
 
     def select_layout(self, layout_type):
         """
@@ -379,7 +383,7 @@ class Window(object):
                     # Ensure that all weights are at least one.
                     for k, value in split.weights.items():
                         if value < 1:
-                            split.weight[k] = 1
+                            split.weights[k] = 1
 
         handle_side(VSplit, True, left)
         handle_side(VSplit, False, right)
