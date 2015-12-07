@@ -24,9 +24,11 @@ class LayoutTypes:
     # use at the command line.
     EVEN_HORIZONTAL = 'even-horizontal'
     EVEN_VERTICAL = 'even-vertical'
+    MAIN_HORIZONTAL = 'main-horizontal'
+    MAIN_VERTICAL = 'main-vertical'
     TILED = 'tiled'
 
-    _ALL = [EVEN_HORIZONTAL, EVEN_VERTICAL, TILED]
+    _ALL = [EVEN_HORIZONTAL, EVEN_VERTICAL, MAIN_HORIZONTAL, MAIN_VERTICAL, TILED]
 
 
 class Pane(object):
@@ -287,6 +289,18 @@ class Window(object):
 
         elif layout_type == LayoutTypes.EVEN_VERTICAL:
             self.root = VSplit(self.panes)
+
+        elif layout_type == LayoutTypes.MAIN_HORIZONTAL:
+            self.root = HSplit([
+                self.active_pane,
+                VSplit([p for p in self.panes if p != self.active_pane])
+            ])
+
+        elif layout_type == LayoutTypes.MAIN_VERTICAL:
+            self.root = VSplit([
+                self.active_pane,
+                HSplit([p for p in self.panes if p != self.active_pane])
+            ])
 
         elif layout_type == LayoutTypes.TILED:
             panes = self.panes

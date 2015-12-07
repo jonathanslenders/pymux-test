@@ -181,7 +181,7 @@ def create_key_bindings(pymux):
         " Rename pane. "
         event.cli.focus_stack.replace(COMMAND)
         event.cli.buffers[COMMAND].document = Document(
-            'rename-pane %s' % (pymux.arrangement.active_pane.name or ''))
+            'rename-pane %s' % (pymux.arrangement.get_active_pane(event.cli).name or ''))
 
     @prefix_binding("x")
     def _(event):

@@ -20,6 +20,7 @@ import datetime
 import six
 import weakref
 
+from .commands.commands import get_documentation_for_command
 from .commands.lexer import create_command_lexer
 from .enums import COMMAND
 from .log import logger
@@ -217,7 +218,13 @@ class MessageToolbar(TokenListToolbar):
     """
     def __init__(self, pymux):
         def get_message(cli):
-            return pymux.get_client_state(cli).message
+            # If there is a message to be shown for this client, show that.
+            client_state = pymux.get_client_state(cli)
+
+            if client_state.message:
+                return client_state.message
+            else:
+                return ''
 
         def get_tokens(cli):
             message = get_message(cli)
@@ -318,9 +325,9 @@ class LayoutManager(object):
                     filter=~HasFocus(COMMAND),
                 )
             ]),
-            floats=[Float(bottom=1, left=0, content=MessageToolbar(self.pymux)), Float(xcursor=True,
-                     ycursor=True,
-                     content=CompletionsMenu(max_height=12)),
+            floats=[
+                Float(bottom=1, left=0, content=MessageToolbar(self.pymux)),
+                Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=12)),
             ]
         )
 
