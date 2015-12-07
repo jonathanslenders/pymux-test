@@ -209,9 +209,9 @@ def create_key_bindings(pymux):
     @prefix_binding(' ')
     def _(event):
         " Select next layout. "
-        pane = pymux.arrangement.get_active_window(event.cli)
-        if pane:
-            pane.select_next_layout()
+        w = pymux.arrangement.get_active_window(event.cli)
+        if w:
+            w.select_next_layout()
 
     @prefix_binding(Keys.ControlO)
     def _(event):
@@ -250,10 +250,30 @@ def create_key_bindings(pymux):
         " Leave command mode. "
         pymux.leave_command_mode(event.cli, append_to_history=False)
 
-    @registry.add_binding(Keys.F6)  # XXX: remove: this is for debugging only.
+#    @registry.add_binding(Keys.F6)  # XXX: remove: this is for debugging only.
+#    def _(event):
+#        p = pymux.active_process_for_cli(event.cli)
+#        p.slow_motion = not p.slow_motion
+
+    @prefix_binding('k')
     def _(event):
-        p = pymux.active_process_for_cli(event.cli)
-        p.slow_motion = not p.slow_motion
+        w = pymux.arrangement.get_active_window(event.cli)
+        w.change_size_for_active_pane(up=2)
+
+    @prefix_binding('j')
+    def _(event):
+        w = pymux.arrangement.get_active_window(event.cli)
+        w.change_size_for_active_pane(down=2)
+
+    @prefix_binding('h')
+    def _(event):
+        w = pymux.arrangement.get_active_window(event.cli)
+        w.change_size_for_active_pane(left=2)
+
+    @prefix_binding('l')
+    def _(event):
+        w = pymux.arrangement.get_active_window(event.cli)
+        w.change_size_for_active_pane(right=2)
 
     @prefix_binding(Keys.Any)
     def _(event):

@@ -412,9 +412,65 @@ def _create_split(pymux, split):
         if is_vsplit and i != len(split) - 1:
             vertical_line()
 
+    def get_average_weight():
+        """ Calculate average weight of the children. Return 1 if none of
+        the children has a weight specified yet. """
+        weights = 0
+        count = 0
+
+        for i in split:
+            if i in split.weights:
+                weights += split.weights[i]
+                count += 1
+
+        if weights:
+            return max(1, weights // count)
+        else:
+            return 1
+
+    def get_dimensions(cli):
+        """
+        Return a list of LayoutDimension instances for this split.
+        These dimensions will take the weight from the
+        arrangement.VSplit/HSplit instances.
+        """
+        average_weight = get_average_weight()
+
+        # Make sure that weight is distributed
+
+        result = []
+        for i, item in enumerate(split):
+            result.append(D(weight=split.weights.get(item) or average_weight))
+
+            # Add dimension for the vertical border.
+            if is_vsplit and i != len(split) - 1:
+                result.append(D.exact(1))
+
+        return result
+
+    def report_dimensions_callback(cli, dimensions):
+        """
+        When the layout is rendered, store the actial dimensions as
+        weights in the arrangement.VSplit/HSplit classes.
+
+        This is required because when a pane is resized with an increase of +1,
+        we want to be sure that this corresponds exactly with one row or
+        column. So, that updating weights corresponds exactly 1/1 to updating
+        the size of the panes.
+        """
+        sizes = []
+        for i, size in enumerate(dimensions):
+            if not (is_vsplit and i % 2 != 0):
+                sizes.append(size)
+
+        for c, size in zip(split, sizes):
+            split.weights[c] = size
+
     # Create prompt_toolkit Container.
     return_cls = VSplit if is_vsplit else HSplit
-    return return_cls(content)
+
+    return return_cls(content, get_dimensions=get_dimensions,
+                      report_dimensions_callback=report_dimensions_callback)
 
 
 def _create_container_for_process(pymux, arrangement_pane, zoom=False):

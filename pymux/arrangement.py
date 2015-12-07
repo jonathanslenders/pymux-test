@@ -46,19 +46,30 @@ class Pane(object):
         self.pane_id = Pane._pane_counter
 
 
-class HSplit(list):
-    """ Horizontal split. (This is a higher level split than
-    prompt_toolkit.layout.HSplit.) """
+
+class _Split(list):
+    """ Base class for horizontal and vertical splits. (This is a higher level
+    split than prompt_toolkit.layout.HSplit.) """
+    def __init__(self, *a, **kw):
+        list.__init__(self, *a, **kw)
+
+        # Mapping children to its weight.
+        self.weights = weakref.WeakKeyDictionary()
+
+    def __hash__(self):
+        # Required in order to add HSplit/VSplit to the weights dict. "
+        return id(self)
 
     def __repr__(self):
-        return 'HSplit(%s)' % list.__repr__(self)
+        return '%s(%s)' % (self.__class__.__name__, list.__repr__(self))
 
 
-class VSplit(list):
+class HSplit(_Split):
     """ Horizontal split. """
 
-    def __repr__(self):
-        return 'VSplit(%s)' % list.__repr__(self)
+
+class VSplit(_Split):
+    """ Horizontal split. """
 
 
 class Window(object):
@@ -165,6 +176,11 @@ class Window(object):
             else:
                 new_split = split_cls([self.active_pane, pane])
                 parent[index] = new_split
+
+                # Give the newly created split the same weight as the original
+                # pane that was at this position.
+                parent.weights[new_split] = parent.weights[self.active_pane]
+
 
         self.active_pane = pane
         self.zoom = False
@@ -304,6 +320,57 @@ class Window(object):
     def select_previous_layout(self):
         self.select_next_layout(count=-1)
 
+    def change_size_for_active_pane(self, up=0, right=0, down=0, left=0):
+        """
+        Increase the size of the current pane in any of the four directions.
+        """
+        child = self.active_pane
+        self.change_size_for_pane(child, up=up, right=right, down=down, left=left)
+
+    def change_size_for_pane(self, pane, up=0, right=0, down=0, left=0):
+        """
+        Increase the size of the current pane in any of the four directions.
+        Positive values indicate an increase, negative values a decrease.
+        """
+        def find_split_and_child(split_cls, is_before):
+            " Find the split for which we will have to update the weights. "
+            child = pane
+            split = self._get_parent(child)
+
+            def found():
+                return isinstance(split, split_cls) and (
+                    not is_before or split.index(child) > 0) and (
+                    is_before or split.index(child) < len(split) - 1)
+
+            while split and not found():
+                child = split
+                split = self._get_parent(child)
+
+            return split, child # split can be None!
+
+        def handle_side(split_cls, is_before, amount):
+            " Increase weights on one side. (top/left/right/bottom). "
+            if amount:
+                split, child = find_split_and_child(split_cls, is_before)
+
+                if split:
+                    # Find neighbour.
+                    neighbour_index = split.index(child) + (-1 if is_before else 1)
+                    neighbour_child = split[neighbour_index]
+
+                    # Increase/decrease weights.
+                    split.weights[child] += amount
+                    split.weights[neighbour_child] -= amount
+
+                    # Ensure that all weights are at least one.
+                    for k, value in split.weights.items():
+                        if value < 1:
+                            split.weight[k] = 1
+
+        handle_side(VSplit, True, left)
+        handle_side(VSplit, False, right)
+        handle_side(HSplit, True, up)
+        handle_side(HSplit, False, down)
 
 
 class Arrangement(object):
