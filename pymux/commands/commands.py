@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
 import signal
-import shlex
 import docopt
 
 from pymux.arrangement import LayoutTypes
+from pymux.enums import COMMAND
 
 __all__ = (
     'has_command_handler',
@@ -104,13 +104,39 @@ def select_pane(pymux, cli, variables):
     h(pymux, cli)
 
 
+@cmd('select-window', options='(-t <window-id>)')
+def select_window(pymux, cli, variables):
+    """
+    Select a window. E.g:  select-window -t :3
+    """
+    window_id = variables['<window-id>']
+
+    def invalid_window():
+        raise CommandException('Invalid window: %s' % window_id)
+
+    if window_id.startswith(':'):
+        try:
+            number = int(window_id[1:])
+        except ValueError:
+            invalid_window()
+        else:
+            try:
+                w = pymux.arrangement.windows[number]
+            except IndexError:
+                invalid_window()
+            else:
+                pymux.arrangement.set_active_window(cli, w)
+    else:
+        invalid_window()
+
+
 @cmd('rotate-window')
 def rotate_window(pymux, cli, variables):
     pymux.arrangement.rotate_window(cli)
 
 
 @cmd('kill-pane')
-def send_signal(pymux, cli, variables):
+def kill_pane(pymux, cli, variables):
     pymux.arrangement.get_active_pane(cli).process.send_signal(signal.SIGKILL)
 
 
@@ -127,6 +153,15 @@ def clock_mode(pymux, cli, variables):
     pane = pymux.arrangement.get_active_pane(cli)
     if pane:
         pane.clock_mode = not pane.clock_mode
+
+
+@cmd('last-pane')
+def last_pane(pymux, cli, variables):
+    w = pymux.arrangement.get_active_window(cli)
+    prev_active_pane = w.previous_active_pane
+
+    if prev_active_pane:
+        w.active_pane = prev_active_pane
 
 
 @cmd('next-layout')
@@ -149,6 +184,18 @@ def previous_layout(pymux, cli, variables):
 def new_window(pymux, cli, variables):
     executable = variables['<executable>']
     pymux.create_window(cli, executable)
+
+
+@cmd('next-window')
+def next_window(pymux, cli, variables):
+    " Focus the next window. "
+    pymux.arrangement.focus_next_window(cli)
+
+
+@cmd('previous-window')
+def previous_window(pymux, cli, variables):
+    " Focus the previous window. "
+    pymux.arrangement.focus_previous_window(cli)
 
 
 @cmd('select-layout', options='<layout-type>')
@@ -202,10 +249,10 @@ def split_window(pymux, cli, variables):
     pymux.add_process(cli, executable, vsplit=variables['-h'])
 
 
-@cmd('resize-pane', options="[(-L <left>)] [(-U <up>)] [(-D <down>)] [(-R <right>)]")
+@cmd('resize-pane', options="[(-L <left>)] [(-U <up>)] [(-D <down>)] [(-R <right>)] [-Z]")
 def resize_pane(pymux, cli, variables):
     """
-    Resize the active pane.
+    Resize/zoom the active pane.
     """
     try:
         left = int(variables['<left>'] or 0)
@@ -219,6 +266,26 @@ def resize_pane(pymux, cli, variables):
 
     if w:
         w.change_size_for_active_pane(up=up, right=right, down=down, left=left)
+
+        # Zoom in/out.
+        if variables['-Z']:
+            w.zoom = not w.zoom
+
+
+@cmd('command-prompt')
+def command_prompt(pymux, cli, variables):
+    """
+    Enter command prompt.
+    """
+    cli.focus_stack.replace(COMMAND)
+
+
+@cmd('detach-client')
+def detach_client(pymux, cli, variables):
+    """
+    Detach client.
+    """
+    pymux.detach_client(cli)
 
 
 SIGNALS = {

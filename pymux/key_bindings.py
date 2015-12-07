@@ -4,8 +4,8 @@ from prompt_toolkit.filters import HasFocus, Filter, Condition
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.keys import Keys
 
-from .layout import focus_right, focus_left, focus_up, focus_down
 from .enums import COMMAND
+from .commands.handler import handle_command
 
 __all__ = (
     'create_key_bindings',
@@ -87,79 +87,67 @@ def create_key_bindings(pymux):
         " Send Ctrl-B to active process. "
         pymux.active_process_for_cli(event.cli).write_input(event.data)
 
-    @prefix_binding('"')
-    def _(event):
-        " Split horizontally. "
-        pymux.add_process(event.cli)
 
-    @prefix_binding('%')
-    def _(event):
-        " Split vertically. "
-        pymux.add_process(event.cli, vsplit=True)
+    pymux_commands = {
+            '"': 'split-window -v',
+            '%': 'split-window -h',
+            'c': 'new-window',
+            'z': 'resize-pane -Z',
+            Keys.Right: 'select-pane -R',
+            Keys.Left: 'select-pane -L',
+            Keys.Down: 'select-pane -D',
+            Keys.Up: 'select-pane -U',
+            Keys.ControlL: 'select-pane -R',
+            Keys.ControlH: 'select-pane -L',
+            Keys.ControlJ: 'select-pane -D',
+            Keys.ControlK: 'select-pane -U',
+            ';': 'last-pane',
+            '!': 'break-pane',
+            'd': 'detach-client',
+            't': 'clock-mode',
+            ' ': 'next-layout',
+            Keys.ControlZ: 'suspend-client',
+            'k': 'resize-pane -U 5',
+            'j': 'resize-pane -D 5',
+            'h': 'resize-pane -L 5',
+            'l': 'resize-pane -R 5',
+            ':': 'command-prompt',
+            '0': 'select-window -t :0',
+            '1': 'select-window -t :1',
+            '2': 'select-window -t :2',
+            '3': 'select-window -t :3',
+            '4': 'select-window -t :4',
+            '5': 'select-window -t :5',
+            '6': 'select-window -t :6',
+            '7': 'select-window -t :7',
+            '8': 'select-window -t :8',
+            '9': 'select-window -t :9',
+            'n': 'next-window',
+            'p': 'previous-window',
 
-    @prefix_binding('c')
-    def _(event):
-        " Create window. "
-        pymux.create_window(event.cli)
+            (Keys.Escape, '1'): 'select-layout even-horizontal',
+            (Keys.Escape, '2'): 'select-layout even-vertical',
+            (Keys.Escape, '3'): 'select-layout main-horizontal',
+            (Keys.Escape, '4'): 'select-layout main-vertical',
+            (Keys.Escape, '5'): 'select-layout tiled',
+    }
 
-    @prefix_binding('n')
-    def _(event):
-        " Focus next window. "
-        pymux.arrangement.focus_next_window(event.cli)
+    def bind_command(keys, command):
+        @prefix_binding(*keys)
+        def _(event):
+            handle_command(pymux, event.cli, command)
 
-    @prefix_binding('p')
-    def _(event):
-        " Focus previous window. "
-        pymux.arrangement.focus_previous_window(event.cli)
+    for keys, command in pymux_commands.items():
+        if not isinstance(keys, tuple):
+            keys = (keys,)
+        bind_command(keys, command)
+
 
     @prefix_binding('o')
     def _(event):
         " Focus next pane. "
         pymux.arrangement.get_active_window(event.cli).focus_next()
 
-    @prefix_binding('z')
-    def _(event):
-        " Zoom pane. "
-        w = pymux.arrangement.get_active_window(event.cli)
-        w.zoom = not w.zoom
-
-    @prefix_binding(Keys.ControlL)
-    @prefix_binding(Keys.Right)
-    def _(event):
-        " Focus right pane. "
-        focus_right(pymux, event.cli)
-
-    @prefix_binding(Keys.ControlH)
-    @prefix_binding(Keys.Left)
-    def _(event):
-        " Focus left pane. "
-        focus_left(pymux, event.cli)
-
-    @prefix_binding(Keys.ControlJ)
-    @prefix_binding(Keys.Down)
-    def _(event):
-        " Focus down. "
-        focus_down(pymux, event.cli)
-
-    @prefix_binding(Keys.ControlK)
-    @prefix_binding(Keys.Up)
-    def _(event):
-        " Focus up. "
-        focus_up(pymux, event.cli)
-
-    @prefix_binding(':')
-    def _(event):
-        " Enter command mode. "
-        event.cli.focus_stack.replace(COMMAND)
-
-    @prefix_binding(';')
-    def _(event):
-        " Go to previous active pane. "
-        w = pymux.arrangement.get_active_window(event.cli)
-        prev_active_pane = w.previous_active_pane
-
-        if prev_active_pane:
-            w.active_pane = prev_active_pane
 
     @prefix_binding('l')
     def _(event):
@@ -189,30 +177,6 @@ def create_key_bindings(pymux):
         event.cli.focus_stack.replace(COMMAND)
         event.cli.buffers[COMMAND].document = Document('send-signal kill')
 
-    @prefix_binding('!')
-    def _(event):
-        " Break pane. "
-        pymux.arrangement.break_pane(event.cli)
-
-    @prefix_binding('d')
-    def _(event):
-        " Detach client. "
-        pymux.detach_client(event.cli)
-
-    @prefix_binding('t')
-    def _(event):
-        " Toggle clock mode. "
-        pane = pymux.arrangement.get_active_pane(event.cli)
-        if pane:
-            pane.clock_mode = not pane.clock_mode
-
-    @prefix_binding(' ')
-    def _(event):
-        " Select next layout. "
-        w = pymux.arrangement.get_active_window(event.cli)
-        if w:
-            w.select_next_layout()
-
     @prefix_binding(Keys.ControlO)
     def _(event):
         " Rotate window. "
@@ -223,25 +187,6 @@ def create_key_bindings(pymux):
         " Rotate window backwards. "
         pymux.arrangement.rotate_window(event.cli, count=-1)
 
-    @prefix_binding(Keys.ControlZ)
-    def _(event):
-        " Suspend client. "
-        connection = pymux.get_connection_for_cli(event.cli)
-        if connection:
-            connection.suspend_client_to_background()
-
-    def create_focus_window_number_func(i):
-        @prefix_binding('%s' % i)
-        def _(event):
-            " Focus window with this number. "
-            try:
-                pymux.arrangement.set_active_window(event.cli, pymux.arrangement.windows[i])
-            except IndexError:
-                pass
-
-    for i in range(10):
-        create_focus_window_number_func(i)
-
     @registry.add_binding(Keys.ControlC, filter=HasFocus(COMMAND) & ~has_prefix)
     @registry.add_binding(Keys.ControlG, filter=HasFocus(COMMAND) & ~has_prefix)
     @registry.add_binding(Keys.Backspace, filter=HasFocus(COMMAND) & ~has_prefix &
@@ -249,31 +194,6 @@ def create_key_bindings(pymux):
     def _(event):
         " Leave command mode. "
         pymux.leave_command_mode(event.cli, append_to_history=False)
-
-#    @registry.add_binding(Keys.F6)  # XXX: remove: this is for debugging only.
-#    def _(event):
-#        p = pymux.active_process_for_cli(event.cli)
-#        p.slow_motion = not p.slow_motion
-
-    @prefix_binding('k')
-    def _(event):
-        w = pymux.arrangement.get_active_window(event.cli)
-        w.change_size_for_active_pane(up=2)
-
-    @prefix_binding('j')
-    def _(event):
-        w = pymux.arrangement.get_active_window(event.cli)
-        w.change_size_for_active_pane(down=2)
-
-    @prefix_binding('h')
-    def _(event):
-        w = pymux.arrangement.get_active_window(event.cli)
-        w.change_size_for_active_pane(left=2)
-
-    @prefix_binding('l')
-    def _(event):
-        w = pymux.arrangement.get_active_window(event.cli)
-        w.change_size_for_active_pane(right=2)
 
     @prefix_binding(Keys.Any)
     def _(event):
