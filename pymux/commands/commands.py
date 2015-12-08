@@ -92,16 +92,32 @@ def break_pane(pymux, cli, variables):
     pymux.invalidate()
 
 
-@cmd('select-pane', options='(-L|-R|-U|-D)')
+@cmd('select-pane', options='(-L|-R|-U|-D|-t <pane-id>)')
 def select_pane(pymux, cli, variables):
     from pymux.layout import focus_right, focus_left, focus_up, focus_down
 
-    if variables['-L']: h = focus_left
-    if variables['-U']: h = focus_up
-    if variables['-D']: h = focus_down
-    if variables['-R']: h = focus_right
+    if variables['-t']:
+        pane_id = variables['<pane-id>']
+        w = pymux.arrangement.get_active_window(cli)
 
-    h(pymux, cli)
+        if pane_id == ':.+':
+            # Select the next pane.
+            w.focus_next()
+        else:
+            # Select pane by index.
+            try:
+                pane_id = int(pane_id[1:])
+                w.active_pane = w.panes[pane_id]
+            except (IndexError, ValueError):
+                raise CommandException('Invalid pane.')
+
+    else:
+        if variables['-L']: h = focus_left
+        if variables['-U']: h = focus_up
+        if variables['-D']: h = focus_down
+        if variables['-R']: h = focus_right
+
+        h(pymux, cli)
 
 
 @cmd('select-window', options='(-t <window-id>)')
@@ -130,9 +146,20 @@ def select_window(pymux, cli, variables):
         invalid_window()
 
 
-@cmd('rotate-window')
+@cmd('rotate-window', options='[-D|-U]')
 def rotate_window(pymux, cli, variables):
-    pymux.arrangement.rotate_window(cli)
+    if variables['-D']:
+        pymux.arrangement.rotate_window(cli, count=-1)
+    else:
+        pymux.arrangement.rotate_window(cli)
+
+
+@cmd('swap-pane', options='(-U|-D)')
+def swap_pane(pymux, cli, variables):
+    if variables['-U']:
+        pymux.arrangement.get_active_window(cli).rotate(with_pane_after_only=True)
+    else:
+        pymux.arrangement.get_active_window(cli).rotate(with_pane_before_only=True)
 
 
 @cmd('kill-pane')

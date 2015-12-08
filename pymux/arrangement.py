@@ -263,15 +263,29 @@ class Window(object):
         panes = self.panes
         self.active_pane = panes[(panes.index(self.active_pane) + 1) % len(panes)]
 
-    def rotate(self, count=1):
-        " Rotate panes. "
+    def rotate(self, count=1, with_pane_before_only=False, with_pane_after_only=False):
+        """
+        Rotate panes.
+        When `with_pane_before_only` or `with_pane_after_only` is True, only rotate
+        with the pane before/after the active pane.
+        """
         # Create (split, index, pane, weight) tuples.
         items = []
+        current_pane_index = None
 
         for s in self.splits:
             for index, item in enumerate(s):
                 if isinstance(item, Pane):
                     items.append((s, index, item, s.weights[item]))
+                    if item == self.active_pane:
+                        current_pane_index = len(items) - 1
+
+        # Only before after? Reduce list of panes.
+        if with_pane_before_only:
+            items = items[current_pane_index - 1:current_pane_index + 1]
+
+        elif with_pane_after_only:
+            items = items[current_pane_index:current_pane_index + 2]
 
         # Rotate positions.
         for i, triple in enumerate(items):
@@ -389,6 +403,11 @@ class Window(object):
         handle_side(VSplit, False, right)
         handle_side(HSplit, True, up)
         handle_side(HSplit, False, down)
+
+    def get_pane_index(self, pane):
+        " Return the index of the given pane. ValueError if not found. "
+        assert isinstance(pane, Pane)
+        return self.panes.index(pane)
 
 
 class Arrangement(object):

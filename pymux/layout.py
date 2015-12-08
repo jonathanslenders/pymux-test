@@ -506,31 +506,51 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
     def get_title_tokens(cli):
         token = get_titlebar_token(cli)
         name_token = get_titlebar_name_token(cli)
-        result = [(token, ' ')]
+        result = []
 
         if zoom:
             result.append((Token.TitleBar.Zoom, ' Z '))
-            result.append((token, ' '))
 
         if arrangement_pane.name:
             result.append((name_token, ' %s ' % arrangement_pane.name))
             result.append((token, ' '))
 
         return result + [
-            (token.Title, '%s' % process.screen.title),
+            (token.Title, ' %s' % process.screen.title),
         ]
+
+    def get_pane_index(cli):
+        token = get_titlebar_token(cli)
+
+        try:
+            w = pymux.arrangement.get_active_window(cli)
+            index = w.get_pane_index(arrangement_pane)
+        except ValueError:
+            index = '/'
+
+        return [(token.PaneIndex, '%3s ' % index)]
+
 
     clock_is_visible = Condition(lambda cli: arrangement_pane.clock_mode)
 
     return TracePaneWritePosition(pymux, arrangement_pane,
         content=HSplit([
             # The title bar.
-            Window(
-                height=D.exact(1),
-                content=TokenListControl(
-                    get_title_tokens,
-                    get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
-            ),
+            VSplit([
+                Window(
+                    height=D.exact(1),
+                    content=TokenListControl(
+                        get_title_tokens,
+                        get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+                ),
+                Window(
+                    height=D.exact(1),
+                    width=D.exact(4),
+                    content=TokenListControl(
+                        get_pane_index,
+                        )#get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+                )
+            ]),
             # The pane content.
             ConditionalContainer(
                 content=PaneWindow(pymux, arrangement_pane, process),

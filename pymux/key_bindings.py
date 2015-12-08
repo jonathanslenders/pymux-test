@@ -124,6 +124,11 @@ def create_key_bindings(pymux):
             '9': 'select-window -t :9',
             'n': 'next-window',
             'p': 'previous-window',
+            'o': 'select-pane -t :.+',  # Focus next pane.
+            '{': 'swap-pane -U',
+            '}': 'swap-pane -D',
+            Keys.ControlO: 'rotate-window',
+            (Keys.Escape, 'o'): 'rotate-window -D',
 
             (Keys.Escape, '1'): 'select-layout even-horizontal',
             (Keys.Escape, '2'): 'select-layout even-vertical',
@@ -141,13 +146,6 @@ def create_key_bindings(pymux):
         if not isinstance(keys, tuple):
             keys = (keys,)
         bind_command(keys, command)
-
-
-    @prefix_binding('o')
-    def _(event):
-        " Focus next pane. "
-        pymux.arrangement.get_active_window(event.cli).focus_next()
-
 
     @prefix_binding('l')
     def _(event):
@@ -176,16 +174,6 @@ def create_key_bindings(pymux):
         " Kill pane. "
         event.cli.focus_stack.replace(COMMAND)
         event.cli.buffers[COMMAND].document = Document('send-signal kill')
-
-    @prefix_binding(Keys.ControlO)
-    def _(event):
-        " Rotate window. "
-        pymux.arrangement.rotate_window(event.cli)
-
-    @prefix_binding(Keys.Escape, 'o')
-    def _(event):
-        " Rotate window backwards. "
-        pymux.arrangement.rotate_window(event.cli, count=-1)
 
     @registry.add_binding(Keys.ControlC, filter=HasFocus(COMMAND) & ~has_prefix)
     @registry.add_binding(Keys.ControlG, filter=HasFocus(COMMAND) & ~has_prefix)
