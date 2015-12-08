@@ -14,7 +14,7 @@ from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
 from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
 from .commands.handler import handle_command
-from .enums import COMMAND
+from .enums import COMMAND, PROMPT
 from .key_bindings import create_key_bindings
 from .layout import LayoutManager
 from .log import logger
@@ -51,6 +51,9 @@ class ClientState(object):
         # confirm_command.
         self.confirm_text = None
         self.confirm_command = None
+
+        # When a "command-prompt" command is running.
+        self.prompt_command = None
 
 
 class Pymux(object):
@@ -221,6 +224,8 @@ class Pymux(object):
     @classmethod
     def leave_command_mode(cls, cli, append_to_history=False):
         cli.buffers[COMMAND].reset(append_to_history=append_to_history)
+        cli.buffers[PROMPT].reset(append_to_history=True)
+
         cli.focus_stack.replace(DEFAULT_BUFFER)
 
     def handle_command(self, cli, command):
@@ -248,6 +253,15 @@ class Pymux(object):
             # Execute command.
             self.handle_command(cli, text)
 
+        def _handle_prompt_command(cli, buffer):
+            " When a command-prompt command is accepted. "
+            text = buffer.text
+
+            self.leave_command_mode(cli, append_to_history=True)
+
+            client_state = self.get_client_state(cli)
+            self.handle_command(cli, client_state.prompt_command.replace('%%', text))
+
         def get_title():
             return self.get_title(cli)
 
@@ -260,7 +274,11 @@ class Pymux(object):
                     completer=create_command_completer(self),
                     accept_action=AcceptAction(handler=_handle_command),
                     auto_suggest=AutoSuggestFromHistory(),
-                )
+                ),
+                PROMPT: Buffer(
+                    accept_action=AcceptAction(handler=_handle_prompt_command),
+                    auto_suggest=AutoSuggestFromHistory(),
+                ),
             },
             mouse_support=True,
             use_alternate_screen=True,

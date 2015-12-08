@@ -4,7 +4,7 @@ from prompt_toolkit.filters import HasFocus, Filter, Condition
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.keys import Keys
 
-from .enums import COMMAND
+from .enums import COMMAND, PROMPT
 from .commands.handler import handle_command
 from .filters import WaitsForConfirmation, HasPrefix
 
@@ -18,12 +18,11 @@ def create_key_bindings(pymux):
     waits_for_confirmation = WaitsForConfirmation(pymux)
 
     manager = KeyBindingManager(
-        enable_all=HasFocus(COMMAND) & ~has_prefix,
+        enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix,
         enable_auto_suggest_bindings=True)
     registry = manager.registry
 
-
-    @registry.add_binding(Keys.Any, filter=~HasFocus(COMMAND) & ~has_prefix & ~waits_for_confirmation, invalidate_ui=False)
+    @registry.add_binding(Keys.Any, filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~has_prefix & ~waits_for_confirmation, invalidate_ui=False)
     def _(event):
         # NOTE: we don't invalidate the UI, because for pymux itself, nothing
         #       in the output changes yet. It's the application in the pane
@@ -53,7 +52,7 @@ def create_key_bindings(pymux):
             process.write_input(data)
 
     @registry.add_binding(Keys.BracketedPaste,
-        filter=~HasFocus(COMMAND) & ~has_prefix & ~waits_for_confirmation, invalidate_ui=False)
+        filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~has_prefix & ~waits_for_confirmation, invalidate_ui=False)
     def _(event):
         " Pasting to active pane. "
         p = pymux.active_process_for_cli(event.cli)
@@ -128,6 +127,10 @@ def create_key_bindings(pymux):
             (Keys.Escape, '3'): 'select-layout main-horizontal',
             (Keys.Escape, '4'): 'select-layout main-vertical',
             (Keys.Escape, '5'): 'select-layout tiled',
+
+            ',': 'command-prompt -I #W "rename-window \'%%\'"',
+            "'": 'command-prompt -I #W "rename-pane \'%%\'"',
+            #'.': 'command-prompt "move-window -t \'%%\'"',
     }
 
     def bind_command(keys, command):
@@ -140,41 +143,25 @@ def create_key_bindings(pymux):
             keys = (keys,)
         bind_command(keys, command)
 
-    @prefix_binding('l')
-    def _(event):
-        " Go to previous active window. "
-        w = pymux.arrangement.get_previous_active_window(event.cli)
-
-        if w:
-            pymux.arrangement.set_active_window(event.cli, w)
-
-    @prefix_binding(',')
-    def _(event):
-        " Rename window. "
-        event.cli.focus_stack.replace(COMMAND)
-        event.cli.buffers[COMMAND].document = Document(
-            'rename-window %s' % pymux.arrangement.get_active_window(event.cli).name)
-
-    @prefix_binding("'")
-    def _(event):
-        " Rename pane. "
-        event.cli.focus_stack.replace(COMMAND)
-        event.cli.buffers[COMMAND].document = Document(
-            'rename-pane %s' % (pymux.arrangement.get_active_pane(event.cli).name or ''))
+#    @prefix_binding('l')
+#    def _(event):
+#        " Go to previous active window. "
+#        w = pymux.arrangement.get_previous_active_window(event.cli)
+#
+#        if w:
+#            pymux.arrangement.set_active_window(event.cli, w)
 
     @prefix_binding(Keys.Any)
     def _(event):
         " Ignore unknown Ctrl-B prefixed key sequences. "
 
-
-    @registry.add_binding(Keys.ControlC, filter=HasFocus(COMMAND) & ~has_prefix)
-    @registry.add_binding(Keys.ControlG, filter=HasFocus(COMMAND) & ~has_prefix)
+    @registry.add_binding(Keys.ControlC, filter=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix)
+    @registry.add_binding(Keys.ControlG, filter=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix)
     @registry.add_binding(Keys.Backspace, filter=HasFocus(COMMAND) & ~has_prefix &
                           Condition(lambda cli: cli.buffers[COMMAND].text == ''))
     def _(event):
         " Leave command mode. "
         pymux.leave_command_mode(event.cli, append_to_history=False)
-
 
     @registry.add_binding('y', filter=waits_for_confirmation)
     @registry.add_binding('Y', filter=waits_for_confirmation)
@@ -189,7 +176,6 @@ def create_key_bindings(pymux):
         client_state.confirm_text = None
 
         pymux.handle_command(event.cli, command)
-
 
     @registry.add_binding('n', filter=waits_for_confirmation)
     @registry.add_binding('N', filter=waits_for_confirmation)

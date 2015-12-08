@@ -22,8 +22,8 @@ import weakref
 
 from .commands.commands import get_documentation_for_command
 from .commands.lexer import create_command_lexer
-from .enums import COMMAND
-from .filters import WaitsForConfirmation
+from .enums import COMMAND, PROMPT
+from .filters import WaitsForConfirmation, WaitsForPrompt
 from .log import logger
 from .screen import DEFAULT_TOKEN
 
@@ -291,6 +291,15 @@ class LayoutManager(object):
             (Token.StatusBar, ' '),
         ]
 
+    def _before_prompt_command_tokens(self, cli):
+        client_state = self.pymux.get_client_state(cli)
+        if client_state.prompt_command:
+            return [
+                (Token.CommandLine, '(%s) ' % client_state.prompt_command.split()[0])
+            ]
+        else:
+            return []
+
     def _create_layout(self):
         return FloatContainer(
             content=HSplit([
@@ -319,6 +328,19 @@ class LayoutManager(object):
                     filter=HasFocus(COMMAND),
                 ),
                 ConditionalContainer(
+                    content=Window(
+                        height=D.exact(1),
+                        content=BufferControl(
+                            buffer_name=PROMPT,
+                            default_char=Char(' ', Token.CommandLine),
+                            input_processors=[
+                                BeforeInput(self._before_prompt_command_tokens),
+                                AppendAutoSuggestion(),
+                            ])
+                    ),
+                    filter=HasFocus(PROMPT),
+                ),
+                ConditionalContainer(
                     content=VSplit([
                         Window(
                             height=D.exact(1),
@@ -330,7 +352,7 @@ class LayoutManager(object):
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),
-                    filter=~HasFocus(COMMAND),
+                    filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT),
                 )
             ]),
             floats=[

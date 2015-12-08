@@ -2,8 +2,10 @@ from __future__ import unicode_literals
 import signal
 import docopt
 
+from prompt_toolkit.document import Document
+
 from pymux.arrangement import LayoutTypes
-from pymux.enums import COMMAND
+from pymux.enums import COMMAND, PROMPT
 
 __all__ = (
     'has_command_handler',
@@ -321,6 +323,16 @@ def confirm_before(pymux, cli, variables):
 
     client_state.confirm_text = variables['<message>'] or ''
     client_state.confirm_command = variables['<command>']
+
+
+@cmd('command-prompt', options='[(-I <default>)] <command>')
+def confirm_before(pymux, cli, variables):
+    client_state = pymux.get_client_state(cli)
+
+    client_state.prompt_command = variables['<command>']
+
+    cli.focus_stack.replace(PROMPT)
+    cli.buffers[PROMPT].reset(Document(variables['<default>']))
 
 
 @cmd('send-prefix')
