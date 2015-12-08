@@ -23,6 +23,7 @@ import weakref
 from .commands.commands import get_documentation_for_command
 from .commands.lexer import create_command_lexer
 from .enums import COMMAND
+from .filters import WaitsForConfirmation
 from .log import logger
 from .screen import DEFAULT_TOKEN
 
@@ -254,43 +255,43 @@ class LayoutManager(object):
         self.pane_write_positions = {}
         self.body_write_position = None
 
+    def _create_select_window_handler(self, window):
+        " Return a mouse handler that selects the given window when clicking. "
+        def handler(cli, mouse_event):
+            if mouse_event.event_type == MouseEventTypes.MOUSE_DOWN:
+                self.pymux.arrangement.set_active_window(cli, window)
+                self.pymux.invalidate()
+            else:
+                return NotImplemented  # Event not handled here.
+        return handler
+
+    def _get_status_tokens(self, cli):
+        result = []
+        previous_window = self.pymux.arrangement.get_previous_active_window(cli)
+
+        for i, w in enumerate(self.pymux.arrangement.windows):
+            result.append((Token.StatusBar, ' '))
+            handler = self._create_select_window_handler(w)
+
+            if w == self.pymux.arrangement.get_active_window(cli):
+                result.append((Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name), handler))
+
+            elif w == previous_window:
+                result.append((Token.StatusBar.Window, '%i:%s-' % (i, w.name), handler))
+
+            else:
+                result.append((Token.StatusBar.Window, '%i:%s ' % (i, w.name), handler))
+
+        return result
+
+    def _get_time_tokens(self, cli):
+        return [
+            (Token.StatusBar,
+            datetime.datetime.now().strftime('%H:%M %d-%b-%y')),
+            (Token.StatusBar, ' '),
+        ]
+
     def _create_layout(self):
-        def create_select_window_handler(window):
-            " Return a mouse handler that selects the given window when clicking. "
-            def handler(cli, mouse_event):
-                if mouse_event.event_type == MouseEventTypes.MOUSE_DOWN:
-                    self.pymux.arrangement.set_active_window(cli, window)
-                    self.pymux.invalidate()
-                else:
-                    return NotImplemented  # Event not handled here.
-            return handler
-
-        def get_status_tokens(cli):
-            result = []
-            previous_window = self.pymux.arrangement.get_previous_active_window(cli)
-
-            for i, w in enumerate(self.pymux.arrangement.windows):
-                result.append((Token.StatusBar, ' '))
-                handler = create_select_window_handler(w)
-
-                if w == self.pymux.arrangement.get_active_window(cli):
-                    result.append((Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name), handler))
-
-                elif w == previous_window:
-                    result.append((Token.StatusBar.Window, '%i:%s-' % (i, w.name), handler))
-
-                else:
-                    result.append((Token.StatusBar.Window, '%i:%s ' % (i, w.name), handler))
-
-            return result
-
-        def get_time_tokens(cli):
-            return [
-                (Token.StatusBar,
-                datetime.datetime.now().strftime('%H:%M %d-%b-%y')),
-                (Token.StatusBar, ' '),
-            ]
-
         return FloatContainer(
             content=HSplit([
                 # The main window.
@@ -321,11 +322,11 @@ class LayoutManager(object):
                     content=VSplit([
                         Window(
                             height=D.exact(1),
-                            content=TokenListControl(get_status_tokens,
+                            content=TokenListControl(self._get_status_tokens,
                                 default_char=Char(' ', Token.StatusBar))),
                         Window(
                             height=D.exact(1), width=D.exact(20),
-                            content=TokenListControl(get_time_tokens,
+                            content=TokenListControl(self._get_time_tokens,
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),
@@ -335,8 +336,42 @@ class LayoutManager(object):
             floats=[
                 Float(bottom=1, left=0, content=MessageToolbar(self.pymux)),
                 Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=12)),
+                Float(content=ConditionalContainer(
+                    content=ConfirmationWindow(self.pymux),
+                    filter=WaitsForConfirmation(self.pymux),
+                ))
             ]
         )
+
+
+class ConfirmationWindow(HSplit):
+    """
+    Window that displays the yes/no confirmation dialog.
+    """
+    def __init__(self, pymux):
+        token = Token.ConfirmationDialog
+
+        def get_tokens(cli):
+            client_state = pymux.get_client_state(cli)
+            return [(token.Question, ' %s ' % (client_state.confirm_text, ))]
+
+        def get_tokens2(cli):
+            client_state = pymux.get_client_state(cli)
+            return [
+                (token.YesNo, '  y/n'),
+                (Token.SetCursorPosition, ''),
+                (token.YesNo, '  '),
+            ]
+
+        default_char1 = Char(' ', token.Question)
+        default_char2 = Char(' ', token.YesNo)
+
+        super(ConfirmationWindow, self).__init__(
+            [
+                TokenListToolbar(get_tokens, default_char=default_char1),
+                TokenListToolbar(get_tokens2, default_char=default_char2, align_right=True,
+                                 has_focus=WaitsForConfirmation(pymux)),
+            ])
 
 
 class DynamicBody(Container):

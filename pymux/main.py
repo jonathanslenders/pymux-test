@@ -46,6 +46,12 @@ class ClientState(object):
         #: Error/info message.
         self.message = None
 
+        # When a "confirm-before" command is running,
+        # Show this text in the command bar. When confirmed, execute
+        # confirm_command.
+        self.confirm_text = None
+        self.confirm_command = None
+
 
 class Pymux(object):
     """
@@ -214,7 +220,7 @@ class Pymux(object):
 
     @classmethod
     def leave_command_mode(cls, cli, append_to_history=False):
-        cli.buffers['COMMAND'].reset(append_to_history=append_to_history)
+        cli.buffers[COMMAND].reset(append_to_history=append_to_history)
         cli.focus_stack.replace(DEFAULT_BUFFER)
 
     def handle_command(self, cli, command):

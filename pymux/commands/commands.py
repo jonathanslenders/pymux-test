@@ -315,6 +315,24 @@ def detach_client(pymux, cli, variables):
     pymux.detach_client(cli)
 
 
+@cmd('confirm-before', options='[(-p <message>)] <command>')
+def confirm_before(pymux, cli, variables):
+    client_state = pymux.get_client_state(cli)
+
+    client_state.confirm_text = variables['<message>'] or ''
+    client_state.confirm_command = variables['<command>']
+
+
+@cmd('send-prefix')
+def send_prefix(pymux, cli, variables):
+    """
+    Send prefix to active pane.
+    """
+    # XXX: This is still a hard coded Control-B. Fix this when
+    #      the prefix key becomes configurable.
+    pymux.active_process_for_cli(cli).write_input('\x02')
+
+
 SIGNALS = {
     'kill': signal.SIGKILL,
     'term': signal.SIGTERM,

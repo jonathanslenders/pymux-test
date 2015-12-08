@@ -33,7 +33,11 @@ ui_style = {
     Token.AutoSuggestion:          'bg:#884444 #ff8888',
     Token.Message:                 'bg:#bbee88 #222222',
     Token.Background:              '#888888',
-    Token.Clock:                   'bg:#00aa00',
+    Token.Clock:                   'bg:#88aa00',
+
+    Token.ConfirmationDialog:          'bg:#880000 #ffffff',
+    Token.ConfirmationDialog.Question: '',
+    Token.ConfirmationDialog.YesNo:    'bg:#440000',
 }
 
 
