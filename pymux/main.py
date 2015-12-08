@@ -13,9 +13,10 @@ from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
 
 from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
-from .commands.handler import handle_command
+from .commands.commands import handle_command, call_command_handler
 from .enums import COMMAND, PROMPT
 from .key_bindings import create_key_bindings
+from .rc import STARTUP_COMMANDS
 from .layout import LayoutManager
 from .log import logger
 from .process import Process
@@ -71,7 +72,7 @@ class Pymux(object):
         p = Pymux()
         p.run_standalone()
     """
-    def __init__(self):
+    def __init__(self, source_file=None, startup_command=None):
         self.arrangement = Arrangement()
         self.layout_manager = LayoutManager(self)
 
@@ -84,6 +85,10 @@ class Pymux(object):
         self._runs_standalone = False
         self.connections = []
         self.clis = {}  # Mapping from Connection to CommandLineInterface.
+
+        self._startup_done = False
+        self.source_file = source_file
+        self.startup_command = startup_command
 
         # Socket information.
         self.socket = None
@@ -304,6 +309,22 @@ class Pymux(object):
         # change size, so everything has to be redrawn.)
         self.invalidate()
 
+        # Handle start-up comands.
+        # (Does initial key bindings.)
+        if not self._startup_done:
+            self._startup_done = True
+
+            # Make sure that there is one window created.
+            self.create_window(cli, command=self.startup_command)
+
+            # Execute default config.
+            for cmd in STARTUP_COMMANDS.splitlines():
+                self.handle_command(cli, cmd)
+
+            # Source the given file.
+            if self.source_file:
+                call_command_handler('source-file', self, cli, [self.source_file])
+
         return cli
 
     def get_connection_for_cli(self, cli):
@@ -354,9 +375,6 @@ class Pymux(object):
         self.connections.append(connection)
 
     def run_server(self):
-        # Make sure that there is one window created.
-        self.create_window()
-
         # Ignore keyboard. (When people run "pymux server" and press Ctrl-C.)
         # Pymux has to be terminated by termining all the processes running in
         # its panes.
@@ -393,7 +411,6 @@ class Pymux(object):
         self._runs_standalone = True
         cli = self.create_cli(connection=None, output=Vt100_Output.from_pty(sys.stdout))
         cli._is_running = False
-        self.create_window(cli)
         cli.run()
 
 

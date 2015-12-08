@@ -2,10 +2,10 @@
 """
 pymux: Pure Python terminal multiplexer.
 Usage:
-    pymux [(standalone|server|attach)] [-d] [(-S <socket>)] [(--log <logfile>)]
+    pymux [(standalone|server|attach)] [-d] [(-S <socket>)] [(-f <file>)] [(--log <logfile>)] [--] [<command>]
     pymux list-sessions
     pymux -h | --help
-    pymux <command>
+    pymux <pymux-command>
 
 Options:
     standalone   : Run as a standalone process. (for debugging, detaching is
@@ -37,6 +37,8 @@ def run():
     a = docopt.docopt(__doc__)
     socket_name = a['<socket>'] or os.environ.get('PYMUX')
     socket_name_from_env = not a['<socket>'] and os.environ.get('PYMUX')
+    filename = a['<file>']
+    command = a['<command>']
 
     # Parse pane_id from socket_name. It looks like "socket_name,pane_id"
     if socket_name and ',' in socket_name:
@@ -44,7 +46,7 @@ def run():
     else:
         pane_id = None
 
-    mux = Pymux()
+    mux = Pymux(source_file=filename, startup_command=command)
 
     # Setup logging
     if a['<logfile>']:
@@ -90,10 +92,10 @@ def run():
                 print('No pymux instance found.')
                 sys.exit(1)
 
-    elif a['<command>'] and socket_name:
-        Client(socket_name).run_command(a['<command>'], pane_id)
+    elif a['<pymux-command>'] and socket_name:
+        Client(socket_name).run_command(a['<pymux-command>'], pane_id)
 
-    elif not a['<command>']:
+    elif not a['<pymux-command>']:
         if socket_name_from_env:
             _socket_from_env_warning()
             sys.exit(1)

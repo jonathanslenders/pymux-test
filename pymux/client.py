@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.terminal.vt100_input import raw_mode, cooked_mode
 from prompt_toolkit.eventloop.posix import _select, call_on_sigwinch
+from prompt_toolkit.eventloop.base import INPUT_TIMEOUT
 from prompt_toolkit.terminal.vt100_output import _get_size, Vt100_Output
 
 import fcntl
@@ -53,12 +54,14 @@ class Client(object):
 
             stdin_fd = sys.stdin.fileno()
             socket_fd = self.socket.fileno()
+            current_timeout = INPUT_TIMEOUT  # Timeout, used to flush escape sequences.
 
             with call_on_sigwinch(lambda: self._send_size()):
                 while True:
-                    r, w, x = _select([stdin_fd, socket_fd], [], [])
+                    r, w, x = _select([stdin_fd, socket_fd], [], [], current_timeout)
 
                     if socket_fd in r:
+                        # Received packet from server.
                         data = self.socket.recv(1024)
 
                         if data == b'':
@@ -79,7 +82,14 @@ class Client(object):
                                 data_buffer = data_buffer[pos + 1:]
 
                     elif stdin_fd in r:
+                        # Got user input.
                         self._process_stdin()
+                        current_timeout = INPUT_TIMEOUT
+
+                    else:
+                        # Timeout.
+                        self._send_packet({'cmd': 'flush-input'})
+                        current_timeout = None
 
     def _process(self, data_buffer):
         " Handle incoming packet. "

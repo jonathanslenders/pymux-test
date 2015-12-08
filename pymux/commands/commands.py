@@ -1,16 +1,21 @@
 from __future__ import unicode_literals
-import signal
 import docopt
+import shlex
+import signal
+import six
 
 from prompt_toolkit.document import Document
+from prompt_toolkit.keys import Keys
 
 from pymux.arrangement import LayoutTypes
 from pymux.enums import COMMAND, PROMPT
+from pymux.filters import HasPrefix
 
 __all__ = (
-    'has_command_handler',
     'call_command_handler',
     'get_documentation_for_command',
+    'handle_command',
+    'has_command_handler',
 )
 
 COMMANDS_TO_HANDLERS = {}  # Global mapping of pymux commands to their handlers.
@@ -26,6 +31,22 @@ def get_documentation_for_command(command):
     known. """
     if command in COMMANDS_TO_HELP:
         return 'Usage: %s %s' % (command, COMMANDS_TO_HELP.get(command, ''))
+
+
+def handle_command(pymux, cli, input_string):
+    """
+    Handle command.
+    """
+    input_string = input_string.strip()
+
+    if input_string and not input_string.startswith('#'):  # Ignore comments.
+        try:
+            parts = shlex.split(input_string)
+        except ValueError as e:
+            # E.g. missing closing quote.
+            pymux.show_message(cli, 'Invalid command %s: %s' % (input_string, e))
+        else:
+            call_command_handler(parts[0], pymux, cli, parts[1:])
 
 
 def call_command_handler(command, pymux, cli, parameters):
@@ -60,17 +81,35 @@ def cmd(name, options=''):
 
     def decorator(func):
         def command_wrapper(pymux, cli, parameters):
+            # Hack to make the 'bind-key' option work.
+            # (bind-key expects a variable number of arguments.)
+            if name == 'bind-key' and '--' not in parameters:
+                # Insert a double dash after the first non-option.
+                for i, p in enumerate(parameters):
+                    if not p.startswith('-'):
+                        parameters.insert(i + 1, '--')
+                        break
+
             # Parse options.
             try:
                 received_options = docopt.docopt(
                     'Usage:\n    %s %s' % (name, options),
                     parameters,
                     help=False)  # Don't interpret the '-h' option as help.
+
+                # Make sure that all the received options from docopt are
+                # unicode objects. (Docopt returns 'str' for Python2.)
+                for k, v in received_options.items():
+                    if isinstance(v, six.binary_type):
+                        received_options[k] = v.decode('utf-8')
             except SystemExit:
                 raise CommandException('Usage: %s %s' % (name, options))
 
             # Call handler.
             func(pymux, cli, received_options)
+
+            # Invalidate all clients, not just the current CLI.
+            pymux.invalidate()
 
         COMMANDS_TO_HANDLERS[name] = command_wrapper
         COMMANDS_TO_HELP[name] = options
@@ -169,6 +208,13 @@ def kill_pane(pymux, cli, variables):
     pymux.arrangement.get_active_pane(cli).process.send_signal(signal.SIGKILL)
 
 
+@cmd('kill-window')
+def kill_window(pymux, cli, variables):
+    " Kill all panes in the current window. "
+    for pane in pymux.arrangement.get_active_window(cli).panes:
+        pane.process.send_signal(signal.SIGKILL)
+
+
 @cmd('suspend-client')
 def suspend_client(pymux, cli, variables):
     connection = pymux.get_connection_for_cli(cli)
@@ -219,6 +265,15 @@ def new_window(pymux, cli, variables):
 def next_window(pymux, cli, variables):
     " Focus the next window. "
     pymux.arrangement.focus_next_window(cli)
+
+
+@cmd('last-window')
+def _(pymux, cli, variables):
+    " Go to previous active window. "
+    w = pymux.arrangement.get_previous_active_window(cli)
+
+    if w:
+        pymux.arrangement.set_active_window(cli, w)
 
 
 @cmd('previous-window')
@@ -301,14 +356,6 @@ def resize_pane(pymux, cli, variables):
             w.zoom = not w.zoom
 
 
-@cmd('command-prompt')
-def command_prompt(pymux, cli, variables):
-    """
-    Enter command prompt.
-    """
-    cli.focus_stack.replace(COMMAND)
-
-
 @cmd('detach-client')
 def detach_client(pymux, cli, variables):
     """
@@ -325,14 +372,23 @@ def confirm_before(pymux, cli, variables):
     client_state.confirm_command = variables['<command>']
 
 
-@cmd('command-prompt', options='[(-I <default>)] <command>')
-def confirm_before(pymux, cli, variables):
+@cmd('command-prompt', options='[(-I <default>)] [<command>]')
+def command_prompt(pymux, cli, variables):
+    """
+    Enter command prompt.
+    """
     client_state = pymux.get_client_state(cli)
 
-    client_state.prompt_command = variables['<command>']
+    if variables['<command>']:
+        # When a 'command' has been given.
+        client_state.prompt_command = variables['<command>']
 
-    cli.focus_stack.replace(PROMPT)
-    cli.buffers[PROMPT].reset(Document(variables['<default>']))
+        cli.focus_stack.replace(PROMPT)
+        cli.buffers[PROMPT].reset(Document(variables['<default>'] or ''))
+    else:
+        # Show the ':' prompt.
+        client_state.prompt_command = ''
+        cli.focus_stack.replace(COMMAND)
 
 
 @cmd('send-prefix')
@@ -343,6 +399,144 @@ def send_prefix(pymux, cli, variables):
     # XXX: This is still a hard coded Control-B. Fix this when
     #      the prefix key becomes configurable.
     pymux.active_process_for_cli(cli).write_input('\x02')
+
+
+@cmd('bind-key', options='[-n] <key> [--] <command> [<options>...]')
+def bind_key(pymux, cli, variables):
+    """
+    Bind a key sequence.
+    -n: Not necessary to use the prefix.
+    """
+    # Turn pymux key name into prompt_toolkit key.
+    keys_sequence = _pymux_key_to_prompt_toolkit_key_sequence(variables['<key>'])
+
+    if variables['-n']:
+        filter = ~HasPrefix(pymux)
+    else:
+        filter = HasPrefix(pymux)
+
+    @pymux.registry.add_binding(*keys_sequence, filter=filter)
+    def _(event):
+        call_command_handler(variables['<command>'], pymux, event.cli, variables['<options>'])
+        pymux.get_client_state(event.cli).has_prefix = False
+
+
+@cmd('send-keys', options='<keys>...')
+def send_keys(pymux, cli, variables):
+    """
+    Send key strokes to the active process.
+    """
+    process = pymux.arrangement.get_active_pane(cli).process
+
+    for key in variables['<keys>']:
+        process.write_input(key)  # TODO: translate key from pymux key to prompt_toolkit key with the table below.
+                                  #       then translate that to a VT100 key stroke.
+
+
+@cmd('source-file', options='<filename>')
+def source_file(pymux, cli, variables):
+    """
+    Source configuration file.
+    """
+    try:
+        with open(variables['<filename>'], 'rb') as f:
+            for line in f:
+                line = line.decode('utf-8')
+                handle_command(pymux, cli, line)
+    except IOError as e:
+        raise CommandException('IOError: %s' % (e, ))
+
+
+def _pymux_key_to_prompt_toolkit_key_sequence(key):
+    """
+    Turn a pymux description of a key. E.g.  "C-a" or "M-x" into a
+    prompt-toolkit key sequence.
+    """
+    if len(key) == 1 and key.isalnum():
+        return key
+
+    return {
+        'C-a': (Keys.ControlA, ),
+        'C-b': (Keys.ControlB, ),
+        'C-c': (Keys.ControlC, ),
+        'C-d': (Keys.ControlD, ),
+        'C-e': (Keys.ControlE, ),
+        'C-f': (Keys.ControlF, ),
+        'C-g': (Keys.ControlG, ),
+        'C-h': (Keys.ControlH, ),
+        'C-i': (Keys.ControlI, ),
+        'C-j': (Keys.ControlJ, ),
+        'C-k': (Keys.ControlK, ),
+        'C-l': (Keys.ControlL, ),
+        'C-m': (Keys.ControlM, ),
+        'C-n': (Keys.ControlN, ),
+        'C-o': (Keys.ControlO, ),
+        'C-p': (Keys.ControlP, ),
+        'C-q': (Keys.ControlQ, ),
+        'C-r': (Keys.ControlR, ),
+        'C-s': (Keys.ControlS, ),
+        'C-t': (Keys.ControlT, ),
+        'C-u': (Keys.ControlU, ),
+        'C-v': (Keys.ControlV, ),
+        'C-w': (Keys.ControlW, ),
+        'C-x': (Keys.ControlX, ),
+        'C-y': (Keys.ControlY, ),
+        'C-z': (Keys.ControlZ, ),
+
+        'C-Left': (Keys.ControlLeft, ),
+        'C-Right': (Keys.ControlRight, ),
+        'C-Up': (Keys.ControlUp, ),
+        'C-Down': (Keys.ControlDown, ),
+        'Space': (' '),
+
+        'M-a': (Keys.Escape, 'a'),
+        'M-b': (Keys.Escape, 'b'),
+        'M-c': (Keys.Escape, 'c'),
+        'M-d': (Keys.Escape, 'd'),
+        'M-e': (Keys.Escape, 'e'),
+        'M-f': (Keys.Escape, 'f'),
+        'M-g': (Keys.Escape, 'g'),
+        'M-h': (Keys.Escape, 'h'),
+        'M-i': (Keys.Escape, 'i'),
+        'M-j': (Keys.Escape, 'j'),
+        'M-k': (Keys.Escape, 'k'),
+        'M-l': (Keys.Escape, 'l'),
+        'M-m': (Keys.Escape, 'm'),
+        'M-n': (Keys.Escape, 'n'),
+        'M-o': (Keys.Escape, 'o'),
+        'M-p': (Keys.Escape, 'p'),
+        'M-q': (Keys.Escape, 'q'),
+        'M-r': (Keys.Escape, 'r'),
+        'M-s': (Keys.Escape, 's'),
+        'M-t': (Keys.Escape, 't'),
+        'M-u': (Keys.Escape, 'u'),
+        'M-v': (Keys.Escape, 'v'),
+        'M-w': (Keys.Escape, 'w'),
+        'M-x': (Keys.Escape, 'x'),
+        'M-y': (Keys.Escape, 'y'),
+        'M-z': (Keys.Escape, 'z'),
+
+        'M-0': (Keys.Escape, '0'),
+        'M-1': (Keys.Escape, '1'),
+        'M-2': (Keys.Escape, '2'),
+        'M-3': (Keys.Escape, '3'),
+        'M-4': (Keys.Escape, '4'),
+        'M-5': (Keys.Escape, '5'),
+        'M-6': (Keys.Escape, '6'),
+        'M-7': (Keys.Escape, '7'),
+        'M-8': (Keys.Escape, '8'),
+        'M-9': (Keys.Escape, '9'),
+
+        'M-Up': (Keys.Escape, Keys.Up),
+        'M-Down': (Keys.Escape, Keys.Down, ),
+        'M-Left': (Keys.Escape, Keys.Left, ),
+        'M-Right': (Keys.Escape, Keys.Right, ),
+        'Left': (Keys.Left, ),
+        'Right': (Keys.Right, ),
+        'Up': (Keys.Up, ),
+        'Down': (Keys.Down, ),
+        #...
+    }.get(key) or tuple(key)
 
 
 SIGNALS = {

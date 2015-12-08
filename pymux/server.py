@@ -61,6 +61,9 @@ class ServerConnection(object):
         elif packet['cmd'] == 'in':
             self._inputstream.feed(packet['data'])
 
+        elif packet['cmd'] == 'flush-input':
+            self._inputstream.flush()  # Flush escape key.
+
         # Set size. (The client reports the size.)
         elif packet['cmd'] == 'size':
             data = packet['data']

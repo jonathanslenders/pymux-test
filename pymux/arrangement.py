@@ -160,6 +160,9 @@ class Window(object):
         return '(noname)'
 
     def add_pane(self, pane, vsplit=False):
+        """
+        Add another pane to this Window.
+        """
         assert isinstance(pane, Pane)
         assert isinstance(vsplit, bool)
 
@@ -188,6 +191,9 @@ class Window(object):
         self.zoom = False
 
     def remove_pane(self, pane):
+        """
+        Remove pane from this Window.
+        """
         assert isinstance(pane, Pane)
 
         if pane in self.panes:
@@ -302,24 +308,35 @@ class Window(object):
         """
         assert layout_type in LayoutTypes._ALL
 
+        # When there is only one pane, always choose EVEN_HORIZONTAL,
+        # Otherwise, we create VSplit/HSplit instances with an empty list of
+        # children.
+        if len(self.panes) == 1:
+            layout_type = LayoutTypes.EVEN_HORIZONTAL
+
+        # even-horizontal.
         if layout_type == LayoutTypes.EVEN_HORIZONTAL:
             self.root = HSplit(self.panes)
 
+        # even-vertical.
         elif layout_type == LayoutTypes.EVEN_VERTICAL:
             self.root = VSplit(self.panes)
 
+        # main-horizontal.
         elif layout_type == LayoutTypes.MAIN_HORIZONTAL:
             self.root = HSplit([
                 self.active_pane,
                 VSplit([p for p in self.panes if p != self.active_pane])
             ])
 
+        # main-vertical.
         elif layout_type == LayoutTypes.MAIN_VERTICAL:
             self.root = VSplit([
                 self.active_pane,
                 HSplit([p for p in self.panes if p != self.active_pane])
             ])
 
+        # tiled.
         elif layout_type == LayoutTypes.TILED:
             panes = self.panes
             column_count = math.ceil(len(panes) ** .5)
@@ -380,7 +397,7 @@ class Window(object):
 
             return split, child # split can be None!
 
-        def handle_side(split_cls, is_before, amount):
+        def handle_side(split_cls, is_before, amount, trying_other_side=False):
             " Increase weights on one side. (top/left/right/bottom). "
             if amount:
                 split, child = find_split_and_child(split_cls, is_before)
@@ -398,6 +415,17 @@ class Window(object):
                     for k, value in split.weights.items():
                         if value < 1:
                             split.weights[k] = 1
+
+                else:
+                    # When no split has been found where we can move in this
+                    # direction, try to move the other side instead using a
+                    # negative amount. This happens when we run "resize-pane -R 4"
+                    # inside the pane that is completely on the right. In that
+                    # case it's logical to move the left border to the right
+                    # instead.
+                    if not trying_other_side:
+                        handle_side(split_cls, not is_before, -amount,
+                                    trying_other_side=True)
 
         handle_side(VSplit, True, left)
         handle_side(VSplit, False, right)

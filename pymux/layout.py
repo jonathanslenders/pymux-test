@@ -7,6 +7,7 @@ from prompt_toolkit.filters import HasFocus, Condition
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
+from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
 from prompt_toolkit.layout.screen import Char, Screen
@@ -20,10 +21,8 @@ import datetime
 import six
 import weakref
 
-from .commands.commands import get_documentation_for_command
-from .commands.lexer import create_command_lexer
 from .enums import COMMAND, PROMPT
-from .filters import WaitsForConfirmation, WaitsForPrompt
+from .filters import WaitsForConfirmation
 from .log import logger
 from .screen import DEFAULT_TOKEN
 
@@ -319,7 +318,7 @@ class LayoutManager(object):
                         content=BufferControl(
                             buffer_name=COMMAND,
                             default_char=Char(' ', Token.CommandLine),
-                            lexer=create_command_lexer(self.pymux),
+                            lexer=SimpleLexer(Token.CommandLine),
                             input_processors=[
                                 BeforeInput.static(':', Token.CommandLine),
                                 AppendAutoSuggestion(),

@@ -1,11 +1,9 @@
 from __future__ import unicode_literals
-from prompt_toolkit.document import Document
-from prompt_toolkit.filters import HasFocus, Filter, Condition
+from prompt_toolkit.filters import HasFocus, Condition
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.keys import Keys
 
 from .enums import COMMAND, PROMPT
-from .commands.handler import handle_command
 from .filters import WaitsForConfirmation, HasPrefix
 
 __all__ = (
@@ -68,92 +66,10 @@ def create_key_bindings(pymux):
         " Enter prefix mode. "
         pymux.get_client_state(event.cli).has_prefix = True
 
-    def prefix_binding(*a):
-        def decorator(func):
-            @registry.add_binding(*a, filter=has_prefix)
-            def _(event):
-                func(event)
-                pymux.invalidate()  # Invalidate all clients, not just the current CLI.
-                pymux.get_client_state(event.cli).has_prefix = False
-            return func
-        return decorator
-
-    pymux_commands = {
-            '"': 'split-window -v',
-            '%': 'split-window -h',
-            'c': 'new-window',
-            'z': 'resize-pane -Z',
-            Keys.Right: 'select-pane -R',
-            Keys.Left: 'select-pane -L',
-            Keys.Down: 'select-pane -D',
-            Keys.Up: 'select-pane -U',
-            Keys.ControlL: 'select-pane -R',
-            Keys.ControlH: 'select-pane -L',
-            Keys.ControlJ: 'select-pane -D',
-            Keys.ControlK: 'select-pane -U',
-            ';': 'last-pane',
-            '!': 'break-pane',
-            'd': 'detach-client',
-            't': 'clock-mode',
-            ' ': 'next-layout',
-            Keys.ControlZ: 'suspend-client',
-            'k': 'resize-pane -U 5',
-            'j': 'resize-pane -D 5',
-            'h': 'resize-pane -L 5',
-            'l': 'resize-pane -R 5',
-            ':': 'command-prompt',
-            '0': 'select-window -t :0',
-            '1': 'select-window -t :1',
-            '2': 'select-window -t :2',
-            '3': 'select-window -t :3',
-            '4': 'select-window -t :4',
-            '5': 'select-window -t :5',
-            '6': 'select-window -t :6',
-            '7': 'select-window -t :7',
-            '8': 'select-window -t :8',
-            '9': 'select-window -t :9',
-            'n': 'next-window',
-            'p': 'previous-window',
-            'o': 'select-pane -t :.+',  # Focus next pane.
-            '{': 'swap-pane -U',
-            '}': 'swap-pane -D',
-            'x': 'confirm-before -p "kill-pane #P?" kill-pane',
-            Keys.ControlO: 'rotate-window',
-            Keys.ControlB: 'send-prefix',
-            (Keys.Escape, 'o'): 'rotate-window -D',
-
-            (Keys.Escape, '1'): 'select-layout even-horizontal',
-            (Keys.Escape, '2'): 'select-layout even-vertical',
-            (Keys.Escape, '3'): 'select-layout main-horizontal',
-            (Keys.Escape, '4'): 'select-layout main-vertical',
-            (Keys.Escape, '5'): 'select-layout tiled',
-
-            ',': 'command-prompt -I #W "rename-window \'%%\'"',
-            "'": 'command-prompt -I #W "rename-pane \'%%\'"',
-            #'.': 'command-prompt "move-window -t \'%%\'"',
-    }
-
-    def bind_command(keys, command):
-        @prefix_binding(*keys)
-        def _(event):
-            handle_command(pymux, event.cli, command)
-
-    for keys, command in pymux_commands.items():
-        if not isinstance(keys, tuple):
-            keys = (keys,)
-        bind_command(keys, command)
-
-#    @prefix_binding('l')
-#    def _(event):
-#        " Go to previous active window. "
-#        w = pymux.arrangement.get_previous_active_window(event.cli)
-#
-#        if w:
-#            pymux.arrangement.set_active_window(event.cli, w)
-
-    @prefix_binding(Keys.Any)
+    @registry.add_binding(Keys.Any, filter=has_prefix)
     def _(event):
         " Ignore unknown Ctrl-B prefixed key sequences. "
+        pymux.get_client_state(event.cli).has_prefix = False
 
     @registry.add_binding(Keys.ControlC, filter=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix)
     @registry.add_binding(Keys.ControlG, filter=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix)
