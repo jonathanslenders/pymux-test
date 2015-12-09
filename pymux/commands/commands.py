@@ -197,7 +197,7 @@ def rotate_window(pymux, cli, variables):
         pymux.arrangement.rotate_window(cli)
 
 
-@cmd('swap-pane', options='(-U|-D)')
+@cmd('swap-pane', options='(-D|-U)')
 def swap_pane(pymux, cli, variables):
     if variables['-U']:
         pymux.arrangement.get_active_window(cli).rotate(with_pane_after_only=True)
