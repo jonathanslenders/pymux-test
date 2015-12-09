@@ -10,19 +10,31 @@ def format_pymux_string(pymux, cli, string):
     Apply pymux sting formatting. (Similar to tmux.)
     E.g.  #P is replaced by the index of the active pane.
     """
+    arrangement = pymux.arrangement
+    window = arrangement.get_active_window(cli)
+    pane = window.active_pane
+
+    def id_of_pane():
+        return '%s' % (pane.pane_id, )
+
     def index_of_pane():
         try:
-            w = pymux.arrangement.get_active_window(cli)
-            return '%s' % (w.get_pane_index(w.active_pane), )
+            return '%s' % (window.get_pane_index(pane), )
         except ValueError:
             return '/'
 
     def name_of_window():
-        return pymux.arrangement.get_active_window(cli).name
+        return window.name
+
+    def title_of_pane():
+        return pane.process.screen.title
+
 
     format_table = {
+        '#D': id_of_pane,
         '#P': index_of_pane,
         '#W': name_of_window,
+        '#T': title_of_pane,
     }
 
     for symbol, f in format_table.items():
