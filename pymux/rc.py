@@ -58,6 +58,6 @@ bind-key M-5 select-layout tiled
 
 # Renaming stuff.
 bind-key , command-prompt -I #W "rename-window '%%'"
-bind-key "'" command-prompt -I #W "rename-pane'%%'"
+bind-key "'" command-prompt -I #W "rename-pane '%%'"
 bind-key . command-prompt "move-window -t '%%'"
 """

@@ -10,23 +10,30 @@ COMMAND_GRAMMAR = compile(r"""
     \s*
     (
         # Commands accepting a location.
-        (?P<command>new-window) \s+ (?P<executable>.+)     |
+        new-window \s+ (?P<executable>.+)     |
 
         # Commands accepting a text.
-        (?P<command>rename-window|rename-pane) \s+ (?P<text>.+)  |
+        (rename-window|rename-pane) \s+ (?P<text>.+)  |
 
         # split:  -h/-v
-        (?P<command>split-window) \s+ ((?P<horizontal_or_vertical>-[hv]+) \s+)? (?P<executable>[^-].*)? |
+        split-window \s+ ((?P<horizontal_or_vertical>-[hv]+) \s+)? (?P<executable>[^-].*)? |
 
         # select-pane:  -R/-L/-U/-D.
-        (?P<command>select-pane) \s+ (?P<direction>-[LRUD]+)     |
-        (?P<command>resize-pane) \s+ (?P<direction>-[LRUD]+)     |
+        select-pane \s+ (?P<direction>-[LRUD]+)     |
+        resize-pane \s+ (?P<direction>-[LRUD]+)     |
 
         # select-layout
-        (?P<command>select-layout) \s+ (?P<layout_type>[^\s]+)   |
+        select-layout \s+ (?P<layout_type>[^\s]+)   |
 
         # Commands accepting signals.
-        (?P<command>send-signal) \s+ (?P<signal>[^\s]+)          |
+        send-signal \s+ (?P<signal>[^\s]+)          |
+
+        # bind-key
+        bind-key \s+ (?P<key_name>[^\s]+)             |
+        bind-key \s+ [^\s]+ \s+ (?P<command>[^\s]+)   |
+
+        # send-keys
+        send-keys \s+ (?P<key_name>[^\s]+)             |
 
         # Any other normal command.
         (?P<command>[^\s]+) \s+  ([^\s]*)                        |

@@ -25,8 +25,7 @@ ui_style = {
 
     Token.CommandLine:             'bg:#884444 #ffffff',
     Token.CommandLine.Command:     'bold',
-    Token.CommandLine.Executable:  'bg:#bbffbb #000000',
-    Token.CommandLine.Text:        'bg:#bbffbb #000000',
+    Token.CommandLine.Prompt:      'bold',
     Token.StatusBar:               'bg:#444444 #ffffff',
     Token.StatusBar.Window:        'bg:#888888',
     Token.StatusBar.Window.Active: '#88ff88 bold',
@@ -35,9 +34,9 @@ ui_style = {
     Token.Background:              '#888888',
     Token.Clock:                   'bg:#88aa00',
 
-    Token.ConfirmationDialog:          'bg:#880000 #ffffff',
-    Token.ConfirmationDialog.Question: '',
-    Token.ConfirmationDialog.YesNo:    'bg:#440000',
+    Token.ConfirmationToolbar:          'bg:#880000 #ffffff',
+    Token.ConfirmationToolbar.Question: '',
+    Token.ConfirmationToolbar.YesNo:    'bg:#440000',
 }
 
 

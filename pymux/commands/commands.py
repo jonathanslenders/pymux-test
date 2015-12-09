@@ -5,11 +5,13 @@ import signal
 import six
 
 from prompt_toolkit.document import Document
-from prompt_toolkit.keys import Keys
+from prompt_toolkit.terminal.vt100_input import ANSI_SEQUENCES
 
 from pymux.arrangement import LayoutTypes
 from pymux.enums import COMMAND, PROMPT
 from pymux.filters import HasPrefix
+from pymux.format import format_pymux_string
+from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence
 
 __all__ = (
     'call_command_handler',
@@ -384,7 +386,8 @@ def command_prompt(pymux, cli, variables):
         client_state.prompt_command = variables['<command>']
 
         cli.focus_stack.replace(PROMPT)
-        cli.buffers[PROMPT].reset(Document(variables['<default>'] or ''))
+        cli.buffers[PROMPT].reset(Document(
+            format_pymux_string(pymux, cli, variables['<default>'] or '')))
     else:
         # Show the ':' prompt.
         client_state.prompt_command = ''
@@ -408,7 +411,7 @@ def bind_key(pymux, cli, variables):
     -n: Not necessary to use the prefix.
     """
     # Turn pymux key name into prompt_toolkit key.
-    keys_sequence = _pymux_key_to_prompt_toolkit_key_sequence(variables['<key>'])
+    keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(variables['<key>'])
 
     if variables['-n']:
         filter = ~HasPrefix(pymux)
@@ -428,9 +431,19 @@ def send_keys(pymux, cli, variables):
     """
     process = pymux.arrangement.get_active_pane(cli).process
 
+    # Create a mapping from prompt_toolkit keys to their ANSI sequences.
+    # TODO: This is not completely correct yet. It doesn't take
+    #       cursor/application mode into account. Create new tables for this.
+    table = dict((key, vt100_data) for vt100_data, key in ANSI_SEQUENCES.items())
+
     for key in variables['<keys>']:
-        process.write_input(key)  # TODO: translate key from pymux key to prompt_toolkit key with the table below.
-                                  #       then translate that to a VT100 key stroke.
+        # Translate key from pymux key to prompt_toolkit key.
+        keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(key)
+
+        # Translate prompt_toolkit key to VT100 key.
+        for k in keys_sequence:
+            vt100_data = table.get(k, k)
+            process.write_input(vt100_data)
 
 
 @cmd('source-file', options='<filename>')
@@ -446,97 +459,6 @@ def source_file(pymux, cli, variables):
     except IOError as e:
         raise CommandException('IOError: %s' % (e, ))
 
-
-def _pymux_key_to_prompt_toolkit_key_sequence(key):
-    """
-    Turn a pymux description of a key. E.g.  "C-a" or "M-x" into a
-    prompt-toolkit key sequence.
-    """
-    if len(key) == 1 and key.isalnum():
-        return key
-
-    return {
-        'C-a': (Keys.ControlA, ),
-        'C-b': (Keys.ControlB, ),
-        'C-c': (Keys.ControlC, ),
-        'C-d': (Keys.ControlD, ),
-        'C-e': (Keys.ControlE, ),
-        'C-f': (Keys.ControlF, ),
-        'C-g': (Keys.ControlG, ),
-        'C-h': (Keys.ControlH, ),
-        'C-i': (Keys.ControlI, ),
-        'C-j': (Keys.ControlJ, ),
-        'C-k': (Keys.ControlK, ),
-        'C-l': (Keys.ControlL, ),
-        'C-m': (Keys.ControlM, ),
-        'C-n': (Keys.ControlN, ),
-        'C-o': (Keys.ControlO, ),
-        'C-p': (Keys.ControlP, ),
-        'C-q': (Keys.ControlQ, ),
-        'C-r': (Keys.ControlR, ),
-        'C-s': (Keys.ControlS, ),
-        'C-t': (Keys.ControlT, ),
-        'C-u': (Keys.ControlU, ),
-        'C-v': (Keys.ControlV, ),
-        'C-w': (Keys.ControlW, ),
-        'C-x': (Keys.ControlX, ),
-        'C-y': (Keys.ControlY, ),
-        'C-z': (Keys.ControlZ, ),
-
-        'C-Left': (Keys.ControlLeft, ),
-        'C-Right': (Keys.ControlRight, ),
-        'C-Up': (Keys.ControlUp, ),
-        'C-Down': (Keys.ControlDown, ),
-        'Space': (' '),
-
-        'M-a': (Keys.Escape, 'a'),
-        'M-b': (Keys.Escape, 'b'),
-        'M-c': (Keys.Escape, 'c'),
-        'M-d': (Keys.Escape, 'd'),
-        'M-e': (Keys.Escape, 'e'),
-        'M-f': (Keys.Escape, 'f'),
-        'M-g': (Keys.Escape, 'g'),
-        'M-h': (Keys.Escape, 'h'),
-        'M-i': (Keys.Escape, 'i'),
-        'M-j': (Keys.Escape, 'j'),
-        'M-k': (Keys.Escape, 'k'),
-        'M-l': (Keys.Escape, 'l'),
-        'M-m': (Keys.Escape, 'm'),
-        'M-n': (Keys.Escape, 'n'),
-        'M-o': (Keys.Escape, 'o'),
-        'M-p': (Keys.Escape, 'p'),
-        'M-q': (Keys.Escape, 'q'),
-        'M-r': (Keys.Escape, 'r'),
-        'M-s': (Keys.Escape, 's'),
-        'M-t': (Keys.Escape, 't'),
-        'M-u': (Keys.Escape, 'u'),
-        'M-v': (Keys.Escape, 'v'),
-        'M-w': (Keys.Escape, 'w'),
-        'M-x': (Keys.Escape, 'x'),
-        'M-y': (Keys.Escape, 'y'),
-        'M-z': (Keys.Escape, 'z'),
-
-        'M-0': (Keys.Escape, '0'),
-        'M-1': (Keys.Escape, '1'),
-        'M-2': (Keys.Escape, '2'),
-        'M-3': (Keys.Escape, '3'),
-        'M-4': (Keys.Escape, '4'),
-        'M-5': (Keys.Escape, '5'),
-        'M-6': (Keys.Escape, '6'),
-        'M-7': (Keys.Escape, '7'),
-        'M-8': (Keys.Escape, '8'),
-        'M-9': (Keys.Escape, '9'),
-
-        'M-Up': (Keys.Escape, Keys.Up),
-        'M-Down': (Keys.Escape, Keys.Down, ),
-        'M-Left': (Keys.Escape, Keys.Left, ),
-        'M-Right': (Keys.Escape, Keys.Right, ),
-        'Left': (Keys.Left, ),
-        'Right': (Keys.Right, ),
-        'Up': (Keys.Up, ),
-        'Down': (Keys.Down, ),
-        #...
-    }.get(key) or tuple(key)
 
 
 SIGNALS = {

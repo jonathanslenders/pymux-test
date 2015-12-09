@@ -23,6 +23,7 @@ import weakref
 
 from .enums import COMMAND, PROMPT
 from .filters import WaitsForConfirmation
+from .format import format_pymux_string
 from .log import logger
 from .screen import DEFAULT_TOKEN
 
@@ -294,12 +295,14 @@ class LayoutManager(object):
         client_state = self.pymux.get_client_state(cli)
         if client_state.prompt_command:
             return [
-                (Token.CommandLine, '(%s) ' % client_state.prompt_command.split()[0])
+                (Token.CommandLine.Prompt, '(%s) ' % client_state.prompt_command.split()[0])
             ]
         else:
             return []
 
     def _create_layout(self):
+        waits_for_confirmation = WaitsForConfirmation(self.pymux)
+
         return FloatContainer(
             content=HSplit([
                 # The main window.
@@ -311,7 +314,15 @@ class LayoutManager(object):
                               content=TraceBodyWritePosition(self.pymux, DynamicBody(self.pymux)))
                     ])),
 
-                # Bottom toolbars.
+                # Wait for confirmation toolbar.
+                ConditionalContainer(
+                    content=Window(
+                        height=D.exact(1),
+                        content=ConfirmationToolbar(self.pymux),
+                    ),
+                    filter=waits_for_confirmation,
+                ),
+                # ':' prompt toolbar.
                 ConditionalContainer(
                     content=Window(
                         height=D.exact(1),
@@ -320,25 +331,28 @@ class LayoutManager(object):
                             default_char=Char(' ', Token.CommandLine),
                             lexer=SimpleLexer(Token.CommandLine),
                             input_processors=[
-                                BeforeInput.static(':', Token.CommandLine),
+                                BeforeInput.static(':', Token.CommandLine.Prompt),
                                 AppendAutoSuggestion(),
                             ])
                     ),
-                    filter=HasFocus(COMMAND),
+                    filter=HasFocus(COMMAND) & ~waits_for_confirmation,
                 ),
+                # Other command-prompt commands toolbar.
                 ConditionalContainer(
                     content=Window(
                         height=D.exact(1),
                         content=BufferControl(
                             buffer_name=PROMPT,
                             default_char=Char(' ', Token.CommandLine),
+                            lexer=SimpleLexer(Token.CommandLine),
                             input_processors=[
                                 BeforeInput(self._before_prompt_command_tokens),
                                 AppendAutoSuggestion(),
                             ])
                     ),
-                    filter=HasFocus(PROMPT),
+                    filter=HasFocus(PROMPT) & ~waits_for_confirmation,
                 ),
+                # Status bar.
                 ConditionalContainer(
                     content=VSplit([
                         Window(
@@ -351,48 +365,37 @@ class LayoutManager(object):
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),
-                    filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT),
+                    filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~waits_for_confirmation,
                 )
             ]),
             floats=[
                 Float(bottom=1, left=0, content=MessageToolbar(self.pymux)),
                 Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=12)),
-                Float(content=ConditionalContainer(
-                    content=ConfirmationWindow(self.pymux),
-                    filter=WaitsForConfirmation(self.pymux),
-                ))
             ]
         )
 
 
-class ConfirmationWindow(HSplit):
+class ConfirmationToolbar(TokenListControl):
     """
     Window that displays the yes/no confirmation dialog.
     """
     def __init__(self, pymux):
-        token = Token.ConfirmationDialog
+        token = Token.ConfirmationToolbar
 
         def get_tokens(cli):
             client_state = pymux.get_client_state(cli)
-            return [(token.Question, ' %s ' % (client_state.confirm_text, ))]
-
-        def get_tokens2(cli):
-            client_state = pymux.get_client_state(cli)
             return [
+                (token.Question, ' '),
+                (token.Question, format_pymux_string(
+                    pymux, cli, client_state.confirm_text or '')),
+                (token.Question, ' '),
                 (token.YesNo, '  y/n'),
                 (Token.SetCursorPosition, ''),
                 (token.YesNo, '  '),
             ]
 
-        default_char1 = Char(' ', token.Question)
-        default_char2 = Char(' ', token.YesNo)
+        super(ConfirmationToolbar, self).__init__(get_tokens, default_char=Char(' ', token))
 
-        super(ConfirmationWindow, self).__init__(
-            [
-                TokenListToolbar(get_tokens, default_char=default_char1),
-                TokenListToolbar(get_tokens2, default_char=default_char2, align_right=True,
-                                 has_focus=WaitsForConfirmation(pymux)),
-            ])
 
 
 class DynamicBody(Container):
@@ -602,9 +605,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                 Window(
                     height=D.exact(1),
                     width=D.exact(4),
-                    content=TokenListControl(
-                        get_pane_index,
-                        )#get_default_char=lambda cli: Char(' ', get_titlebar_token(cli)))
+                    content=TokenListControl(get_pane_index)
                 )
             ]),
             # The pane content.
