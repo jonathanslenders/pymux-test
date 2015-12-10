@@ -51,13 +51,13 @@ def handle_command(pymux, cli, input_string):
             call_command_handler(parts[0], pymux, cli, parts[1:])
 
 
-def call_command_handler(command, pymux, cli, parameters):
+def call_command_handler(command, pymux, cli, arguments):
     """
     Execute command.
 
-    :param parameters: List of options.
+    :param arguments: List of options.
     """
-    assert isinstance(parameters, list)
+    assert isinstance(arguments, list)
 
     try:
         handler = COMMANDS_TO_HANDLERS[command]
@@ -65,14 +65,14 @@ def call_command_handler(command, pymux, cli, parameters):
         pymux.show_message(cli, 'Invalid command: %s' % command)
     else:
         try:
-            handler(pymux, cli, parameters)
+            handler(pymux, cli, arguments)
         except CommandException as e:
             pymux.show_message(cli, e.message)
 
 
 def cmd(name, options=''):
     """
-    Decorator for commands that don't take parameters.
+    Decorator for all commands.
     """
     # Validate options.
     if options:
@@ -82,21 +82,21 @@ def cmd(name, options=''):
             pass
 
     def decorator(func):
-        def command_wrapper(pymux, cli, parameters):
+        def command_wrapper(pymux, cli, arguments):
             # Hack to make the 'bind-key' option work.
             # (bind-key expects a variable number of arguments.)
-            if name == 'bind-key' and '--' not in parameters:
+            if name == 'bind-key' and '--' not in arguments:
                 # Insert a double dash after the first non-option.
-                for i, p in enumerate(parameters):
+                for i, p in enumerate(arguments):
                     if not p.startswith('-'):
-                        parameters.insert(i + 1, '--')
+                        arguments.insert(i + 1, '--')
                         break
 
             # Parse options.
             try:
                 received_options = docopt.docopt(
                     'Usage:\n    %s %s' % (name, options),
-                    parameters,
+                    arguments,
                     help=False)  # Don't interpret the '-h' option as help.
 
                 # Make sure that all the received options from docopt are
@@ -404,24 +404,31 @@ def send_prefix(pymux, cli, variables):
     pymux.active_process_for_cli(cli).write_input('\x02')
 
 
-@cmd('bind-key', options='[-n] <key> [--] <command> [<options>...]')
+@cmd('bind-key', options='[-n] <key> [--] <command> [<arguments>...]')
 def bind_key(pymux, cli, variables):
     """
     Bind a key sequence.
     -n: Not necessary to use the prefix.
     """
-    # Turn pymux key name into prompt_toolkit key.
-    keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(variables['<key>'])
+    key = variables['<key>']
+    command = variables['<command>']
+    arguments = variables['<arguments>']
+    needs_prefix = not variables['-n']
 
-    if variables['-n']:
-        filter = ~HasPrefix(pymux)
-    else:
-        filter = HasPrefix(pymux)
+    pymux.key_bindings_manager.add_custom_binding(
+        key, command, arguments, needs_prefix=needs_prefix)
 
-    @pymux.registry.add_binding(*keys_sequence, filter=filter)
-    def _(event):
-        call_command_handler(variables['<command>'], pymux, event.cli, variables['<options>'])
-        pymux.get_client_state(event.cli).has_prefix = False
+
+@cmd('unbind-key', options='[-n] <key>')
+def bind_key(pymux, cli, variables):
+    """
+    Remove key binding.
+    """
+    key = variables['<key>']
+    needs_prefix = not variables['-n']
+
+    pymux.key_bindings_manager.remove_custom_binding(
+        key, needs_prefix=needs_prefix)
 
 
 @cmd('send-keys', options='<keys>...')

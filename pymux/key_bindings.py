@@ -1,107 +1,200 @@
 from __future__ import unicode_literals
 from prompt_toolkit.filters import HasFocus, Condition
-from prompt_toolkit.key_binding.manager import KeyBindingManager
+from prompt_toolkit.key_binding.manager import KeyBindingManager as pt_KeyBindingManager
 from prompt_toolkit.keys import Keys
 
 from .enums import COMMAND, PROMPT
 from .filters import WaitsForConfirmation, HasPrefix
+from .key_mappings import pymux_key_to_prompt_toolkit_key_sequence
+from .commands.commands import call_command_handler
+
+import six
 
 __all__ = (
-    'create_key_bindings',
+    'KeyBindingsManager',
 )
 
 
-def create_key_bindings(pymux):
-    has_prefix = HasPrefix(pymux)
-    waits_for_confirmation = WaitsForConfirmation(pymux)
+class KeyBindingsManager(object):
+    """
+    Pymux key binding manager.
+    """
+    def __init__(self, pymux):
+        self.pymux = pymux
 
-    manager = KeyBindingManager(
-        enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix,
-        enable_auto_suggest_bindings=True)
-    registry = manager.registry
+        # Start from this KeyBindingManager from prompt_toolkit, to have basic
+        # editing functionality for the command line. These key binding are
+        # however only active when the following `enable_all` condition is met.
+        self.pt_key_bindings_manager = pt_KeyBindingManager(
+            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~HasPrefix(pymux),
+            enable_auto_suggest_bindings=True)
 
-    @registry.add_binding(Keys.Any, filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~has_prefix & ~waits_for_confirmation, invalidate_ui=False)
-    def _(event):
-        # NOTE: we don't invalidate the UI, because for pymux itself, nothing
-        #       in the output changes yet. It's the application in the pane
-        #       that will probably echo back the typed characters. When we
-        #       receive them, they are draw to the UI and it's invalidated.
-        data = event.data
-        pane = pymux.arrangement.get_active_pane(event.cli)
+        self.registry = self.pt_key_bindings_manager.registry
 
-        if pane.clock_mode:
-            # Leave clock mode on key press.
-            pane.clock_mode = False
-            pymux.invalidate()
+        # Load initial bindings.
+        self._load_builtins()
+
+        # Custom user configured key bindings.
+        # { (needs_prefix, key) -> (command, handler) }
+        self.custom_bindings = {}
+
+    def _load_builtins(self):
+        """
+        Create a Registry with the hard coded key bindings.
+        """
+        pymux = self.pymux
+        registry = self.registry
+
+        # Create filters.
+        has_prefix = HasPrefix(pymux)
+        waits_for_confirmation = WaitsForConfirmation(pymux)
+        prompt_or_command_focus = HasFocus(COMMAND) | HasFocus(PROMPT)
+        pane_input_allowed = ~prompt_or_command_focus & ~has_prefix & ~waits_for_confirmation
+
+        @registry.add_binding(Keys.Any, filter=pane_input_allowed, invalidate_ui=False)
+        def _(event):
+            """
+            When a pane has the focus, key bindings are redirected to the
+            process running inside the pane.
+            """
+            # NOTE: we don't invalidate the UI, because for pymux itself,
+            #       nothing in the output changes yet. It's the application in
+            #       the pane that will probably echo back the typed characters.
+            #       When we receive them, they are draw to the UI and it's
+            #       invalidated.
+            data = event.data
+            pane = pymux.arrangement.get_active_pane(event.cli)
+
+            if pane.clock_mode:
+                # Leave clock mode on key press.
+                pane.clock_mode = False
+                pymux.invalidate()
+            else:
+                process = pane.process
+
+                # Applications like htop with run in application mode require
+                # the following input.
+                if process.screen.in_application_mode:
+                    data = {
+                            Keys.Up: '\x1bOA',
+                            Keys.Left: '\x1bOD',
+                            Keys.Right: '\x1bOC',
+                            Keys.Down: '\x1bOB',
+                    }.get(event.key_sequence[0].key, data)
+
+                data = data.replace('\n', '\r')
+                process.write_input(data)
+
+        @registry.add_binding(Keys.BracketedPaste, filter=pane_input_allowed, invalidate_ui=False)
+        def _(event):
+            """
+            Pasting to the active pane. (Using bracketed paste.)
+            """
+            p = pymux.active_process_for_cli(event.cli)
+
+            if p.screen.bracketed_paste_enabled:
+                # When the process running in this pane understands bracketing paste.
+                p.write_input('\x1b[200~' + event.data + '\x1b[201~')
+            else:
+                p.write_input(event.data)
+
+        @registry.add_binding(Keys.ControlB, filter=~has_prefix & pane_input_allowed)
+        def _(event):
+            " Enter prefix mode. "
+            pymux.get_client_state(event.cli).has_prefix = True
+
+        @registry.add_binding(Keys.Any, filter=has_prefix)
+        def _(event):
+            " Ignore unknown Ctrl-B prefixed key sequences. "
+            pymux.get_client_state(event.cli).has_prefix = False
+
+        @registry.add_binding(Keys.ControlC, filter=prompt_or_command_focus & ~has_prefix)
+        @registry.add_binding(Keys.ControlG, filter=prompt_or_command_focus & ~has_prefix)
+        @registry.add_binding(Keys.Backspace, filter=HasFocus(COMMAND) & ~has_prefix &
+                              Condition(lambda cli: cli.buffers[COMMAND].text == ''))
+        def _(event):
+            " Leave command mode. "
+            pymux.leave_command_mode(event.cli, append_to_history=False)
+
+        @registry.add_binding('y', filter=waits_for_confirmation)
+        @registry.add_binding('Y', filter=waits_for_confirmation)
+        def _(event):
+            """
+            Confirm command.
+            """
+            client_state = pymux.get_client_state(event.cli)
+
+            command = client_state.confirm_command
+            client_state.confirm_command = None
+            client_state.confirm_text = None
+
+            pymux.handle_command(event.cli, command)
+
+        @registry.add_binding('n', filter=waits_for_confirmation)
+        @registry.add_binding('N', filter=waits_for_confirmation)
+        @registry.add_binding(Keys.ControlC, filter=waits_for_confirmation)
+        def _(event):
+            """
+            Cancel command.
+            """
+            client_state = pymux.get_client_state(event.cli)
+            client_state.confirm_command = None
+            client_state.confirm_text = None
+
+        return registry
+
+    def add_custom_binding(self, key_name, command, arguments, needs_prefix=False):
+        """
+        Add custom binding (for the "bind-key" command.)
+
+        :param key_name: Pymux key name, for instance "C-a" or "M-x".
+        """
+        assert isinstance(key_name, six.text_type)
+        assert isinstance(command, six.text_type)
+        assert isinstance(arguments, list)
+
+        # Unbind previous key.
+        self.remove_custom_binding(key_name, needs_prefix=needs_prefix)
+
+        # Translate the pymux key name into a prompt_toolkit key sequence.
+        keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(key_name)
+
+        # Create handler and add to Registry.
+        if needs_prefix:
+            filter = HasPrefix(self.pymux)
         else:
-            process = pane.process
+            filter = ~HasPrefix(self.pymux)
 
-            # Applications like htop with run in application mode require the
-            # following input.
-            if process.screen.in_application_mode:
-                data = {
-                        Keys.Up: '\x1bOA',
-                        Keys.Left: '\x1bOD',
-                        Keys.Right: '\x1bOC',
-                        Keys.Down: '\x1bOB',
-                }.get(event.key_sequence[0].key, data)
+        filter = filter & ~(WaitsForConfirmation(self.pymux) |
+                             HasFocus(COMMAND) | HasFocus(PROMPT))
 
-            data = data.replace('\n', '\r')
-            process.write_input(data)
+        def key_handler(event):
+            " The actual key handler. "
+            call_command_handler(command, self.pymux, event.cli, arguments)
+            self.pymux.get_client_state(event.cli).has_prefix = False
 
-    @registry.add_binding(Keys.BracketedPaste,
-        filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~has_prefix & ~waits_for_confirmation, invalidate_ui=False)
-    def _(event):
-        " Pasting to active pane. "
-        p = pymux.active_process_for_cli(event.cli)
+        self.registry.add_binding(*keys_sequence, filter=filter)(key_handler)
 
-        if p.screen.bracketed_paste_enabled:
-            # When the process running in this pane understands bracketing paste.
-            p.write_input('\x1b[200~' + event.data + '\x1b[201~')
-        else:
-            p.write_input(event.data)
+        # Store key in `custom_bindings` in order to be able to call
+        # "unbind-key" later on.
+        k = (needs_prefix, key_name)
+        self.custom_bindings[k] = CustomBinding(key_handler, command, arguments)
 
-    @registry.add_binding(Keys.ControlB, filter=~has_prefix & ~waits_for_confirmation)
-    def _(event):
-        " Enter prefix mode. "
-        pymux.get_client_state(event.cli).has_prefix = True
-
-    @registry.add_binding(Keys.Any, filter=has_prefix)
-    def _(event):
-        " Ignore unknown Ctrl-B prefixed key sequences. "
-        pymux.get_client_state(event.cli).has_prefix = False
-
-    @registry.add_binding(Keys.ControlC, filter=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix)
-    @registry.add_binding(Keys.ControlG, filter=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~has_prefix)
-    @registry.add_binding(Keys.Backspace, filter=HasFocus(COMMAND) & ~has_prefix &
-                          Condition(lambda cli: cli.buffers[COMMAND].text == ''))
-    def _(event):
-        " Leave command mode. "
-        pymux.leave_command_mode(event.cli, append_to_history=False)
-
-    @registry.add_binding('y', filter=waits_for_confirmation)
-    @registry.add_binding('Y', filter=waits_for_confirmation)
-    def _(event):
+    def remove_custom_binding(self, key_name, needs_prefix=False):
         """
-        Confirm command.
+        Remove custom key binding for a key.
+
+        :param key_name: Pymux key name, for instance "C-A".
         """
-        client_state = pymux.get_client_state(event.cli)
+        k = (needs_prefix, key_name)
 
-        command = client_state.confirm_command
-        client_state.confirm_command = None
-        client_state.confirm_text = None
+        if k in self.custom_bindings:
+            self.registry.remove_binding(self.custom_bindings[k].handler)
+            del self.custom_bindings[k]
 
-        pymux.handle_command(event.cli, command)
 
-    @registry.add_binding('n', filter=waits_for_confirmation)
-    @registry.add_binding('N', filter=waits_for_confirmation)
-    @registry.add_binding(Keys.ControlC, filter=waits_for_confirmation)
-    def _(event):
-        """
-        Cancel command.
-        """
-        client_state = pymux.get_client_state(event.cli)
-        client_state.confirm_command = None
-        client_state.confirm_text = None
-
-    return registry
+class CustomBinding(object):
+    def __init__(self, handler, command, arguments):
+        self.handler = handler
+        self.command = command
+        self.arguments = arguments

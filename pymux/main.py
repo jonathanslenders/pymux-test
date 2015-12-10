@@ -15,7 +15,7 @@ from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
 from .commands.commands import handle_command, call_command_handler
 from .enums import COMMAND, PROMPT
-from .key_bindings import create_key_bindings
+from .key_bindings import KeyBindingsManager
 from .rc import STARTUP_COMMANDS
 from .layout import LayoutManager
 from .log import logger
@@ -97,7 +97,8 @@ class Pymux(object):
         # Create eventloop.
         self.eventloop = PosixEventLoop()
 
-        self.registry = create_key_bindings(self)
+        # Key bindings manager.
+        self.key_bindings_manager = KeyBindingsManager(self)
 
         self.style = PymuxStyle()
 
@@ -272,7 +273,7 @@ class Pymux(object):
 
         application = Application(
             layout=self.layout_manager.layout,
-            key_bindings_registry=self.registry,
+            key_bindings_registry=self.key_bindings_manager.registry,
             buffers={
                 COMMAND: Buffer(
                     complete_while_typing=True,

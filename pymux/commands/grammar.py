@@ -29,8 +29,8 @@ COMMAND_GRAMMAR = compile(r"""
         send-signal \s+ (?P<signal>[^\s]+)          |
 
         # bind-key
-        bind-key \s+ (?P<key_name>[^\s]+)             |
-        bind-key \s+ [^\s]+ \s+ (?P<command>[^\s]+)   |
+        bind-key \s+ (-n \s+)? (?P<key_name>[^\s]+)             |
+        bind-key \s+ (-n \s+)? [^\s]+ \s+ (?P<command>[^\s]+)   |
 
         # send-keys
         send-keys \s+ (?P<key_name>[^\s]+)             |
