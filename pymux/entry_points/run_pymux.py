@@ -5,7 +5,7 @@ Usage:
     pymux [(standalone|start-server|attach)] [-d] [(-S <socket>)] [(-f <file>)] [(--log <logfile>)] [--] [<command>]
     pymux list-sessions
     pymux -h | --help
-    pymux <pymux-command>
+    pymux <command>
 
 Options:
     standalone   : Run as a standalone process. (for debugging, detaching is
@@ -92,10 +92,10 @@ def run():
                 print('No pymux instance found.')
                 sys.exit(1)
 
-    elif a['<pymux-command>'] and socket_name:
-        Client(socket_name).run_command(a['<pymux-command>'], pane_id)
+    elif a['<command>'] and socket_name:
+        Client(socket_name).run_command(a['<command>'], pane_id)
 
-    elif not a['<pymux-command>']:
+    elif not socket_name:
         if socket_name_from_env:
             _socket_from_env_warning()
             sys.exit(1)

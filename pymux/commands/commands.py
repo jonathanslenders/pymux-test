@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import docopt
+import os
 import shlex
 import signal
 import six
@@ -479,8 +480,9 @@ def source_file(pymux, cli, variables):
     """
     Source configuration file.
     """
+    filename = os.path.expanduser(variables['<filename>'])
     try:
-        with open(variables['<filename>'], 'rb') as f:
+        with open(filename, 'rb') as f:
             for line in f:
                 line = line.decode('utf-8')
                 handle_command(pymux, cli, line)
