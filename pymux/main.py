@@ -54,6 +54,7 @@ class ClientState(object):
         self.confirm_command = None
 
         # When a "command-prompt" command is running.
+        self.prompt_text = None
         self.prompt_command = None
 
 
@@ -155,7 +156,7 @@ class Pymux(object):
         else:
             return Size(rows=20, columns=80)
 
-    def _create_pane(self, window=None, command=None):
+    def _create_pane(self, window=None, command=None, start_directory=None):
         def done_callback():
             # Remove pane from layout.
             self.arrangement.remove_pane(pane)
@@ -170,19 +171,22 @@ class Pymux(object):
             for c in self.clis.values():
                 c.output.bell()
 
-        # When the path of the active process is known,
-        # start the new process at the same location.
-        if window and window.active_process:
+        # Start directory.
+        if start_directory:
+            path = start_directory
+        elif window and window.active_process:
+            # When the path of the active process is known,
+            # start the new process at the same location.
             path = window.active_process.get_cwd()
         else:
             path = None
 
         def before_exec():
             " Called in the process fork. "
-            if path:
-                os.chdir(path)
-            else:
-                os.chdir(self.original_cwd)
+            try:
+                os.chdir(path or self.original_cwd)
+            except OSError:
+                pass  # No such file or directory.
 
             # Make sure to set the PYMUX environment variable.
             if self.socket_name:
@@ -214,16 +218,16 @@ class Pymux(object):
         shell = pwd.getpwnam(username).pw_shell
         return shell
 
-    def create_window(self, cli=None, command=None):
-        pane = self._create_pane(None, command)
+    def create_window(self, cli=None, command=None, start_directory=None):
+        pane = self._create_pane(None, command, start_directory=start_directory)
 
         self.arrangement.create_window(cli, pane)
         self.invalidate()
 
-    def add_process(self, cli, command=None, vsplit=False):
+    def add_process(self, cli, command=None, vsplit=False, start_directory=None):
         window = self.arrangement.get_active_window(cli)
 
-        pane = self._create_pane(window, command)
+        pane = self._create_pane(window, command, start_directory=start_directory)
         window.add_pane(pane, vsplit=vsplit)
         self.invalidate()
 

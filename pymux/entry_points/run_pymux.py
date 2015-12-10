@@ -2,7 +2,7 @@
 """
 pymux: Pure Python terminal multiplexer.
 Usage:
-    pymux [(standalone|server|attach)] [-d] [(-S <socket>)] [(-f <file>)] [(--log <logfile>)] [--] [<command>]
+    pymux [(standalone|start-server|attach)] [-d] [(-S <socket>)] [(-f <file>)] [(--log <logfile>)] [--] [<command>]
     pymux list-sessions
     pymux -h | --help
     pymux <pymux-command>
@@ -10,7 +10,7 @@ Usage:
 Options:
     standalone   : Run as a standalone process. (for debugging, detaching is
                    not possible.
-    server       : Run a server daemon that can be attached later on.
+    start-server : Run a server daemon that can be attached later on.
     attach       : Attach to a running session.
 
     -S           : Unix socket path.
@@ -59,7 +59,7 @@ def run():
         for c in list_clients():
             print(c.socket_name)
 
-    elif a['server']:
+    elif a['start-server']:
         if socket_name_from_env:
             _socket_from_env_warning()
             sys.exit(1)

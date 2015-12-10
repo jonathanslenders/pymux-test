@@ -269,7 +269,8 @@ class LayoutManager(object):
         result = []
         previous_window = self.pymux.arrangement.get_previous_active_window(cli)
 
-        for i, w in enumerate(self.pymux.arrangement.windows):
+        for w in self.pymux.arrangement.windows:
+            i = w.index
             result.append((Token.StatusBar, ' '))
             handler = self._create_select_window_handler(w)
 
@@ -293,12 +294,7 @@ class LayoutManager(object):
 
     def _before_prompt_command_tokens(self, cli):
         client_state = self.pymux.get_client_state(cli)
-        if client_state.prompt_command:
-            return [
-                (Token.CommandLine.Prompt, '(%s) ' % client_state.prompt_command.split()[0])
-            ]
-        else:
-            return []
+        return [(Token.CommandLine.Prompt, '%s ' % (client_state.prompt_text, ))]
 
     def _create_layout(self):
         waits_for_confirmation = WaitsForConfirmation(self.pymux)

@@ -206,7 +206,7 @@ class Process(object):
 
             def connect_with_delay():
                 " For slow motion: reconnect reader after .5 seconds. "
-                import time; time.sleep(.1)
+                time.sleep(.1)
                 self.eventloop.call_from_executor(connect_reader)
             self.eventloop.run_in_executor(connect_with_delay)
 

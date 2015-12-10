@@ -56,7 +56,7 @@ class Client(object):
             socket_fd = self.socket.fileno()
             current_timeout = INPUT_TIMEOUT  # Timeout, used to flush escape sequences.
 
-            with call_on_sigwinch(lambda: self._send_size()):
+            with call_on_sigwinch(self._send_size):
                 while True:
                     r, w, x = _select([stdin_fd, socket_fd], [], [], current_timeout)
 

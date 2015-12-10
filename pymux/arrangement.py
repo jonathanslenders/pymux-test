@@ -32,7 +32,7 @@ class LayoutTypes:
 
 
 class Pane(object):
-    _pane_counter = 0
+    _pane_counter = 1000  # Start at 1000, to be sure to not confuse this with pane indexes.
 
     def __init__(self, process):
         assert isinstance(process, Process)
@@ -78,9 +78,10 @@ class Window(object):
     """
     Pymux window.
     """
-    _window_counter = 0
+    _window_counter = 1000  # Start here, to avoid confusion with window index.
 
-    def __init__(self):
+    def __init__(self, index=0):
+        self.index = index
         self.root = HSplit()
         self._active_pane = None
         self._prev_active_pane = None
@@ -389,7 +390,7 @@ class Window(object):
             def found():
                 return isinstance(split, split_cls) and (
                     not is_before or split.index(child) > 0) and (
-                    is_before or split.index(child) < len(split) - 1)
+                        is_before or split.index(child) < len(split) - 1)
 
             while split and not found():
                 child = split
@@ -496,6 +497,12 @@ class Arrangement(object):
         except KeyError:
             return None
 
+    def get_window_by_index(self, index):
+        " Return the Window with this index or None if not found. "
+        for w in self.windows:
+            if w.index == index:
+                return w
+
     def create_window(self, cli, pane):
         """
         Create a new window that contains just this pane.
@@ -504,15 +511,38 @@ class Arrangement(object):
         assert isinstance(pane, Pane)
         assert cli is None or isinstance(cli, CommandLineInterface)
 
-        w = Window()
+        # Take the first available index.
+        taken_indexes = [w.index for w in self.windows]
+
+        index = 0
+        while index in taken_indexes:
+            index += 1
+
+        # Create new window and add it.
+        w = Window(index)
         w.add_pane(pane)
         self.windows.append(w)
+
+        # Sort windows by index.
+        self.windows = sorted(self.windows, key=lambda w: w.index)
 
         if cli is not None:
             self.set_active_window(cli, w)
 
         assert w.active_pane == pane
         assert w._get_parent(pane)
+
+    def move_window(self, window, new_index):
+        """
+        Move window to a new index.
+        """
+        assert isinstance(window, Window)
+        assert isinstance(new_index, int)
+
+        window.index = new_index
+
+        # Sort windows by index.
+        self.windows = sorted(self.windows, key=lambda w: w.index)
 
     def get_active_pane(self, cli):
         assert isinstance(cli, CommandLineInterface)
@@ -545,7 +575,7 @@ class Arrangement(object):
 
             # No panes left in this window?
             if not w.has_panes:
-                self.focus_previous_window()
+                self.focus_previous_window(cli)
                 self.windows.remove(w)
 
     def focus_previous_window(self, cli):

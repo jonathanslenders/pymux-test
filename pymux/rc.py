@@ -8,7 +8,6 @@ STARTUP_COMMANDS = """
 bind-key '"' split-window -v
 bind-key % split-window -h
 bind-key c new-window
-bind-key z resize-pane -Z
 bind-key Right select-pane -R
 bind-key Left select-pane -L
 bind-key Up select-pane -U
@@ -23,10 +22,21 @@ bind-key d detach-client
 bind-key t clock-mode
 bind-key Space next-layout
 bind-key C-z suspend-client
+
+bind-key z resize-pane -Z
 bind-key k resize-pane -U 2
 bind-key j resize-pane -D 2
 bind-key h resize-pane -L 2
 bind-key l resize-pane -R 2
+bind-key C-Up resize-pane -U 2
+bind-key C-Down resize-pane -D 2
+bind-key C-Left resize-pane -L 2
+bind-key C-Right resize-pane -R 2
+bind-key M-Up resize-pane -U 5
+bind-key M-Down resize-pane -D 5
+bind-key M-Left resize-pane -L 5
+bind-key M-Right resize-pane -R 5
+
 bind-key : command-prompt
 bind-key 0 select-window -t :0
 bind-key 1 select-window -t :1
@@ -48,6 +58,7 @@ bind-key & confirm-before -p "kill-window #W?" kill-window
 bind-key C-o rotate-window
 bind-key M-o rotate-window -D
 bind-key C-b send-prefix
+bind-key . command-prompt "move-window -t '%%'"
 
 # Layouts.
 bind-key M-1 select-layout even-horizontal
@@ -58,6 +69,7 @@ bind-key M-5 select-layout tiled
 
 # Renaming stuff.
 bind-key , command-prompt -I #W "rename-window '%%'"
-bind-key "'" command-prompt -I #W "rename-pane '%%'"
+#bind-key "'" command-prompt -I #W "rename-pane '%%'"
+bind-key "'" command-prompt -p index "select-window -t ':%%'"
 bind-key . command-prompt "move-window -t '%%'"
 """

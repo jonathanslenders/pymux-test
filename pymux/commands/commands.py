@@ -9,7 +9,6 @@ from prompt_toolkit.terminal.vt100_input import ANSI_SEQUENCES
 
 from pymux.arrangement import LayoutTypes
 from pymux.enums import COMMAND, PROMPT
-from pymux.filters import HasPrefix
 from pymux.format import format_pymux_string
 from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence
 
@@ -163,12 +162,12 @@ def select_pane(pymux, cli, variables):
         h(pymux, cli)
 
 
-@cmd('select-window', options='(-t <window-id>)')
+@cmd('select-window', options='(-t <target-window>)')
 def select_window(pymux, cli, variables):
     """
     Select a window. E.g:  select-window -t :3
     """
-    window_id = variables['<window-id>']
+    window_id = variables['<target-window>']
 
     def invalid_window():
         raise CommandException('Invalid window: %s' % window_id)
@@ -179,14 +178,33 @@ def select_window(pymux, cli, variables):
         except ValueError:
             invalid_window()
         else:
-            try:
-                w = pymux.arrangement.windows[number]
-            except IndexError:
-                invalid_window()
-            else:
+            w = pymux.arrangement.get_window_by_index(number)
+            if w:
                 pymux.arrangement.set_active_window(cli, w)
+            else:
+                invalid_window()
     else:
         invalid_window()
+
+
+@cmd('move-window', options='(-t <dst-window>)')
+def move_window(pymux, cli, variables):
+    """
+    Move window to a new index.
+    """
+    dst_window = variables['<dst-window>']
+    try:
+        new_index = int(dst_window)
+    except ValueError:
+        raise CommandException('Invalid window index: %r' % (dst_window, ))
+
+    # Check first whether the index was not yet taken.
+    if pymux.arrangement.get_window_by_index(new_index):
+        raise CommandException("Can't move window: index in use.")
+
+    # Save index.
+    w = pymux.arrangement.get_active_window(cli)
+    pymux.arrangement.move_window(w, new_index)
 
 
 @cmd('rotate-window', options='[-D|-U]')
@@ -199,10 +217,7 @@ def rotate_window(pymux, cli, variables):
 
 @cmd('swap-pane', options='(-D|-U)')
 def swap_pane(pymux, cli, variables):
-    if variables['-U']:
-        pymux.arrangement.get_active_window(cli).rotate(with_pane_after_only=True)
-    else:
-        pymux.arrangement.get_active_window(cli).rotate(with_pane_before_only=True)
+    pymux.arrangement.get_active_window(cli).rotate(with_pane_after_only=variables['-U'])
 
 
 @cmd('kill-pane')
@@ -257,10 +272,12 @@ def previous_layout(pymux, cli, variables):
         pane.select_previous_layout()
 
 
-@cmd('new-window', options='[<executable>]')
+@cmd('new-window', options='[(-c <start-directory>)] [<executable>]')
 def new_window(pymux, cli, variables):
     executable = variables['<executable>']
-    pymux.create_window(cli, executable)
+    start_directory = variables['<start-directory>']
+
+    pymux.create_window(cli, executable, start_directory=start_directory)
 
 
 @cmd('next-window')
@@ -324,15 +341,17 @@ def send_signal(pymux, cli, variables):
             raise CommandException('Invalid signal')
 
 
-@cmd('split-window', options='[-v|-h] [<executable>]')
+@cmd('split-window', options='[-v|-h] [(-c <start-directory>)] [<executable>]')
 def split_window(pymux, cli, variables):
     """
     Split horizontally or vertically.
     """
     executable = variables['<executable>']
+    start_directory = variables['<start-directory>']
 
     # The tmux definition of horizontal is the opposite of prompt_toolkit.
-    pymux.add_process(cli, executable, vsplit=variables['-h'])
+    pymux.add_process(cli, executable, vsplit=variables['-h'],
+                      start_directory=start_directory)
 
 
 @cmd('resize-pane', options="[(-L <left>)] [(-U <up>)] [(-D <down>)] [(-R <right>)] [-Z]")
@@ -374,7 +393,7 @@ def confirm_before(pymux, cli, variables):
     client_state.confirm_command = variables['<command>']
 
 
-@cmd('command-prompt', options='[(-I <default>)] [<command>]')
+@cmd('command-prompt', options='[(-p <message>)] [(-I <default>)] [<command>]')
 def command_prompt(pymux, cli, variables):
     """
     Enter command prompt.
@@ -383,6 +402,7 @@ def command_prompt(pymux, cli, variables):
 
     if variables['<command>']:
         # When a 'command' has been given.
+        client_state.prompt_text = variables['<message>'] or '(%s)' % variables['<command>'].split()[0]
         client_state.prompt_command = variables['<command>']
 
         cli.focus_stack.replace(PROMPT)
@@ -390,6 +410,7 @@ def command_prompt(pymux, cli, variables):
             format_pymux_string(pymux, cli, variables['<default>'] or '')))
     else:
         # Show the ':' prompt.
+        client_state.prompt_text = ''
         client_state.prompt_command = ''
         cli.focus_stack.replace(COMMAND)
 
