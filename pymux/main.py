@@ -6,6 +6,7 @@ from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
 from prompt_toolkit.eventloop.posix import PosixEventLoop
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.input import PipeInput
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.layout.screen import Size
@@ -78,6 +79,9 @@ class Pymux(object):
         self.layout_manager = LayoutManager(self)
 
         self._client_states = weakref.WeakKeyDictionary()  # Mapping from CLI to ClientState.
+
+        # Options
+        self.enable_mouse_support = True
 
         # When no panes are available.
         self.original_cwd = os.getcwd()
@@ -290,7 +294,7 @@ class Pymux(object):
                     auto_suggest=AutoSuggestFromHistory(),
                 ),
             },
-            mouse_support=True,
+            mouse_support=Condition(lambda cli: self.enable_mouse_support),
             use_alternate_screen=True,
             style=self.style,
             get_title=get_title)
