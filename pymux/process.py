@@ -105,19 +105,24 @@ class Process(object):
         def wait_for_finished():
             " Wait for PID in executor. "
             os.waitpid(self.pid, 0)
-            self.eventloop.remove_reader(self.master)
-
             self.eventloop.call_from_executor(done)
 
         def done():
             " PID received. Back in the main thread. "
+            # Close pty and remove reader.
+            os.close(self.master)
+            self.eventloop.remove_reader(self.master)
+            self.master = None
+
+            # Callback.
             self.is_terminated = True
             self.done_callback()
 
         self.eventloop.run_in_executor(wait_for_finished)
 
     def set_size(self, width, height):
-        set_terminal_size(self.master, height, width)
+        if self.master is not None:
+            set_terminal_size(self.master, height, width)
         self.screen.resize(lines=height, columns=width)
 
         self.screen.lines = height
@@ -170,7 +175,7 @@ class Process(object):
 
     def write_input(self, data):
         " Write user key strokes to the input. "
-        while True:
+        while self.master is not None:
             try:
                 os.write(self.master, data.encode('utf-8'))
             except OSError as e:
@@ -184,6 +189,8 @@ class Process(object):
         """
         Process output from processes.
         """
+        assert self.master is not None
+
         # Master side -> attached to terminal emulator.
         reader = PosixStdinReader(self.master)
 
@@ -201,18 +208,19 @@ class Process(object):
                 # End of stream. Remove child.
                 self.eventloop.remove_reader(self.master)
 
+            # In case of slow motion, disconnect for .5 seconds from the event loop.
             if self.slow_motion:
                 self.eventloop.remove_reader(self.master)
 
-            def connect_with_delay():
-                " For slow motion: reconnect reader after .5 seconds. "
-                time.sleep(.1)
-                self.eventloop.call_from_executor(connect_reader)
-            self.eventloop.run_in_executor(connect_with_delay)
+                def connect_with_delay():
+                    time.sleep(.1)
+                    self.eventloop.call_from_executor(connect_reader)
+                self.eventloop.run_in_executor(connect_with_delay)
 
         def connect_reader():
             # Connect read pipe.
-            self.eventloop.add_reader(self.master, read)
+            if self.master is not None:
+                self.eventloop.add_reader(self.master, read)
 
         connect_reader()
 
@@ -221,7 +229,8 @@ class Process(object):
 
     def get_name(self):
         # TODO: Cache for short time.
-        return get_name_for_fd(self.master)
+        if self.master is not None:
+            return get_name_for_fd(self.master)
 
     def send_signal(self, signal):
         " Send signal to running process. "

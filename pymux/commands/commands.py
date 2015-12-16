@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import docopt
 import os
+import re
 import shlex
 import signal
 import six
@@ -12,16 +13,19 @@ from pymux.arrangement import LayoutTypes
 from pymux.enums import COMMAND, PROMPT
 from pymux.format import format_pymux_string
 from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence
+from pymux.options import SetOptionError
 
 __all__ = (
     'call_command_handler',
     'get_documentation_for_command',
+    'get_option_flags_for_command',
     'handle_command',
     'has_command_handler',
 )
 
 COMMANDS_TO_HANDLERS = {}  # Global mapping of pymux commands to their handlers.
 COMMANDS_TO_HELP = {}
+COMMANDS_TO_OPTION_FLAGS = {}
 
 
 def has_command_handler(command):
@@ -33,6 +37,11 @@ def get_documentation_for_command(command):
     known. """
     if command in COMMANDS_TO_HELP:
         return 'Usage: %s %s' % (command, COMMANDS_TO_HELP.get(command, ''))
+
+
+def get_option_flags_for_command(command):
+    " Return a list of options (-x flags) for this command. "
+    return COMMANDS_TO_OPTION_FLAGS.get(command, [])
 
 
 def handle_command(pymux, cli, input_string):
@@ -116,6 +125,10 @@ def cmd(name, options=''):
         COMMANDS_TO_HANDLERS[name] = command_wrapper
         COMMANDS_TO_HELP[name] = options
 
+        # Get list of option flags.
+        flags = re.findall(r'-[a-zA-Z0-9]\b', options)
+        COMMANDS_TO_OPTION_FLAGS[name] = flags
+
         return func
     return decorator
 
@@ -144,8 +157,9 @@ def select_pane(pymux, cli, variables):
         w = pymux.arrangement.get_active_window(cli)
 
         if pane_id == ':.+':
-            # Select the next pane.
             w.focus_next()
+        elif pane_id == ':.-':
+            w.focus_previous()
         else:
             # Select pane by index.
             try:
@@ -223,14 +237,15 @@ def swap_pane(pymux, cli, variables):
 
 @cmd('kill-pane')
 def kill_pane(pymux, cli, variables):
-    pymux.arrangement.get_active_pane(cli).process.send_signal(signal.SIGKILL)
+    pane = pymux.arrangement.get_active_pane(cli)
+    pymux.kill_pane(pane)
 
 
 @cmd('kill-window')
 def kill_window(pymux, cli, variables):
     " Kill all panes in the current window. "
     for pane in pymux.arrangement.get_active_window(cli).panes:
-        pane.process.send_signal(signal.SIGKILL)
+        pymux.kill_pane(pane)
 
 
 @cmd('suspend-client')
@@ -326,20 +341,6 @@ def rename_pane(pymux, cli, variables):
     Rename the active pane.
     """
     pymux.arrangement.get_active_pane(cli).name = variables['<name>']
-
-
-@cmd('send-signal', options='<signal>')
-def send_signal(pymux, cli, variables):
-    try:
-        signal = variables['<signal>']
-    except ValueError:
-        pass  # Invalid integer.
-    else:
-        value = SIGNALS.get(signal)
-        if value:
-            pymux.arrangement.get_active_pane(cli).process.send_signal(value)
-        else:
-            raise CommandException('Invalid signal')
 
 
 @cmd('split-window', options='[-v|-h] [(-c <start-directory>)] [<executable>]')
@@ -442,7 +443,7 @@ def bind_key(pymux, cli, variables):
 
 
 @cmd('unbind-key', options='[-n] <key>')
-def bind_key(pymux, cli, variables):
+def unbind_key(pymux, cli, variables):
     """
     Remove key binding.
     """
@@ -490,11 +491,16 @@ def source_file(pymux, cli, variables):
         raise CommandException('IOError: %s' % (e, ))
 
 
+@cmd('set-option', options='<option> <value>')
+def set_option(pymux, cli, variables):
+    name = variables['<option>']
+    value = variables['<value>']
 
-SIGNALS = {
-    'kill': signal.SIGKILL,
-    'term': signal.SIGTERM,
-    'usr1': signal.SIGUSR1,
-    'usr2': signal.SIGUSR2,
-    'hup': signal.SIGHUP,
-}
+    option = pymux.options.get(name)
+    if option:
+        try:
+            option.set_value(pymux, value)
+        except SetOptionError as e:
+            raise CommandException(e.message)
+    else:
+        raise CommandException('Invalid option: %s' % (name, ))

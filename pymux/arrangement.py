@@ -48,6 +48,15 @@ class Pane(object):
         self.pane_id = Pane._pane_counter
 
 
+class _WeightsDictionary(weakref.WeakKeyDictionary):
+    " Dictionary for the weights: weak keys, but defaults to 1. "
+    def __getitem__(self, key):
+        try:
+            # (Don't use 'super' here. This is a classobj in Python2.)
+            return weakref.WeakKeyDictionary.__getitem__(self, key)
+        except KeyError:
+            return 1
+
 
 class _Split(list):
     """ Base class for horizontal and vertical splits. (This is a higher level
@@ -56,7 +65,7 @@ class _Split(list):
         list.__init__(self, *a, **kw)
 
         # Mapping children to its weight.
-        self.weights = weakref.WeakKeyDictionary()
+        self.weights = _WeightsDictionary()
 
     def __hash__(self):
         # Required in order to add HSplit/VSplit to the weights dict. "
@@ -265,10 +274,14 @@ class Window(object):
         if p is not None:
             return p.process
 
-    def focus_next(self):
+    def focus_next(self, count=1):
         " Focus the next pane. "
         panes = self.panes
-        self.active_pane = panes[(panes.index(self.active_pane) + 1) % len(panes)]
+        self.active_pane = panes[(panes.index(self.active_pane) + count) % len(panes)]
+
+    def focus_previous(self):
+        " Focus the previous pane. "
+        self.focus_next(count=-1)
 
     def rotate(self, count=1, with_pane_before_only=False, with_pane_after_only=False):
         """
@@ -448,6 +461,7 @@ class Arrangement(object):
     """
     def __init__(self):
         self.windows = []
+        self.base_index = 0
 
         self._active_window_for_cli = weakref.WeakKeyDictionary()
         self._prev_active_window_for_cli = weakref.WeakKeyDictionary()
@@ -514,7 +528,7 @@ class Arrangement(object):
         # Take the first available index.
         taken_indexes = [w.index for w in self.windows]
 
-        index = 0
+        index = self.base_index
         while index in taken_indexes:
             index += 1
 

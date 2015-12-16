@@ -13,12 +13,14 @@ def pymux_key_to_prompt_toolkit_key_sequence(key):
     prompt-toolkit key sequence.
     """
     if len(key) == 1 and key.isalnum():
-        return key
+        return (key, )
 
     return PYMUX_TO_PROMPT_TOOLKIT_KEYS.get(key) or tuple(key)
 
 
 PYMUX_TO_PROMPT_TOOLKIT_KEYS = {
+    'Space': (' '),
+
     'C-a': (Keys.ControlA, ),
     'C-b': (Keys.ControlB, ),
     'C-c': (Keys.ControlC, ),
@@ -50,7 +52,40 @@ PYMUX_TO_PROMPT_TOOLKIT_KEYS = {
     'C-Right': (Keys.ControlRight, ),
     'C-Up': (Keys.ControlUp, ),
     'C-Down': (Keys.ControlDown, ),
-    'Space': (' '),
+    'C-\\': (Keys.ControlBackslash, ),
+
+    'M-C-a': (Keys.Escape, Keys.ControlA, ),
+    'M-C-b': (Keys.Escape, Keys.ControlB, ),
+    'M-C-c': (Keys.Escape, Keys.ControlC, ),
+    'M-C-d': (Keys.Escape, Keys.ControlD, ),
+    'M-C-e': (Keys.Escape, Keys.ControlE, ),
+    'M-C-f': (Keys.Escape, Keys.ControlF, ),
+    'M-C-g': (Keys.Escape, Keys.ControlG, ),
+    'M-C-h': (Keys.Escape, Keys.ControlH, ),
+    'M-C-i': (Keys.Escape, Keys.ControlI, ),
+    'M-C-j': (Keys.Escape, Keys.ControlJ, ),
+    'M-C-k': (Keys.Escape, Keys.ControlK, ),
+    'M-C-l': (Keys.Escape, Keys.ControlL, ),
+    'M-C-m': (Keys.Escape, Keys.ControlM, ),
+    'M-C-n': (Keys.Escape, Keys.ControlN, ),
+    'M-C-o': (Keys.Escape, Keys.ControlO, ),
+    'M-C-p': (Keys.Escape, Keys.ControlP, ),
+    'M-C-q': (Keys.Escape, Keys.ControlQ, ),
+    'M-C-r': (Keys.Escape, Keys.ControlR, ),
+    'M-C-s': (Keys.Escape, Keys.ControlS, ),
+    'M-C-t': (Keys.Escape, Keys.ControlT, ),
+    'M-C-u': (Keys.Escape, Keys.ControlU, ),
+    'M-C-v': (Keys.Escape, Keys.ControlV, ),
+    'M-C-w': (Keys.Escape, Keys.ControlW, ),
+    'M-C-x': (Keys.Escape, Keys.ControlX, ),
+    'M-C-y': (Keys.Escape, Keys.ControlY, ),
+    'M-C-z': (Keys.Escape, Keys.ControlZ, ),
+
+    'M-C-Left': (Keys.Escape, Keys.ControlLeft, ),
+    'M-C-Right': (Keys.Escape, Keys.ControlRight, ),
+    'M-C-Up': (Keys.Escape, Keys.ControlUp, ),
+    'M-C-Down': (Keys.Escape, Keys.ControlDown, ),
+    'M-C-\\': (Keys.Escape, Keys.ControlBackslash, ),
 
     'M-a': (Keys.Escape, 'a'),
     'M-b': (Keys.Escape, 'b'),
@@ -135,6 +170,4 @@ PYMUX_TO_PROMPT_TOOLKIT_KEYS = {
     'PPage': (Keys.PageUp, ),
     'PageUp': (Keys.PageUp, ),
     'PgUp': (Keys.PageUp, ),
-
 }
-

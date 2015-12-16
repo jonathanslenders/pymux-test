@@ -23,6 +23,7 @@ from .log import logger
 from .process import Process
 from .server import ServerConnection, bind_socket
 from .style import PymuxStyle
+from .options import ALL_OPTIONS
 
 import getpass
 import os
@@ -82,6 +83,10 @@ class Pymux(object):
 
         # Options
         self.enable_mouse_support = True
+        self.enable_status = True
+        self.remain_on_exit = False
+
+        self.options = ALL_OPTIONS
 
         # When no panes are available.
         self.original_cwd = os.getcwd()
@@ -156,19 +161,22 @@ class Pymux(object):
             columns.append(c)
 
         if rows and columns:
-            return Size(rows=min(rows) - 1, columns=min(columns))
+            return Size(rows=min(rows) - (1 if self.enable_status else 0),
+                        columns=min(columns))
         else:
             return Size(rows=20, columns=80)
 
     def _create_pane(self, window=None, command=None, start_directory=None):
         def done_callback():
-            # Remove pane from layout.
-            self.arrangement.remove_pane(pane)
-            self.invalidate()
+            if not self.remain_on_exit:
+                # Remove pane from layout.
+                self.arrangement.remove_pane(pane)
 
-            # No panes left? -> Quit.
-            if not self.arrangement.has_panes:
-                self.eventloop.stop()
+                # No panes left? -> Quit.
+                if not self.arrangement.has_panes:
+                    self.eventloop.stop()
+
+            self.invalidate()
 
         def bell():
             " Sound bell on all clients. "
@@ -234,6 +242,20 @@ class Pymux(object):
         pane = self._create_pane(window, command, start_directory=start_directory)
         window.add_pane(pane, vsplit=vsplit)
         self.invalidate()
+
+    def kill_pane(self, pane):
+        assert isinstance(pane, Pane)
+
+        # Send kill signal.
+        if not pane.process.is_terminated:
+            pane.process.send_signal(signal.SIGKILL)
+
+        # Remove from layout.
+        self.arrangement.remove_pane(pane)
+
+        # No panes left? -> Quit.
+        if not self.arrangement.has_panes:
+            self.eventloop.stop()
 
     @classmethod
     def leave_command_mode(cls, cli, append_to_history=False):
@@ -323,9 +345,6 @@ class Pymux(object):
         if not self._startup_done:
             self._startup_done = True
 
-            # Make sure that there is one window created.
-            self.create_window(cli, command=self.startup_command)
-
             # Execute default config.
             for cmd in STARTUP_COMMANDS.splitlines():
                 self.handle_command(cli, cmd)
@@ -333,6 +352,9 @@ class Pymux(object):
             # Source the given file.
             if self.source_file:
                 call_command_handler('source-file', self, cli, [self.source_file])
+
+            # Make sure that there is one window created.
+            self.create_window(cli, command=self.startup_command)
 
         return cli
 

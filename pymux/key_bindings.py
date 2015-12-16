@@ -31,16 +31,49 @@ class KeyBindingsManager(object):
 
         self.registry = self.pt_key_bindings_manager.registry
 
+        self._prefix = (Keys.ControlB, )
+        self._prefix_binding = None
+
         # Load initial bindings.
         self._load_builtins()
+        self._load_prefix_binding()
 
         # Custom user configured key bindings.
         # { (needs_prefix, key) -> (command, handler) }
         self.custom_bindings = {}
 
+    def _load_prefix_binding(self):
+        """
+        Load the prefix key binding.
+        """
+        pymux = self.pymux
+        registry = self.registry
+
+        # Remove previous binding.
+        if self._prefix_binding:
+            self.registry.remove_binding(self._prefix_binding)
+
+        # Create new Python binding.
+        @registry.add_binding(*self._prefix, filter=
+            ~(HasPrefix(pymux) | HasFocus(COMMAND) | HasFocus(PROMPT) | WaitsForConfirmation(pymux)))
+        def enter_prefix_handler(event):
+            " Enter prefix mode. "
+            pymux.get_client_state(event.cli).has_prefix = True
+
+        self._prefix_binding = enter_prefix_handler
+
+    def set_prefix(self, keys):
+        """
+        Set a new prefix key.
+        """
+        assert isinstance(keys, tuple)
+
+        self._prefix = keys
+        self._load_prefix_binding()
+
     def _load_builtins(self):
         """
-        Create a Registry with the hard coded key bindings.
+        Fill the Registry with the hard coded key bindings.
         """
         pymux = self.pymux
         registry = self.registry
@@ -76,10 +109,10 @@ class KeyBindingsManager(object):
                 # the following input.
                 if process.screen.in_application_mode:
                     data = {
-                            Keys.Up: '\x1bOA',
-                            Keys.Left: '\x1bOD',
-                            Keys.Right: '\x1bOC',
-                            Keys.Down: '\x1bOB',
+                        Keys.Up: '\x1bOA',
+                        Keys.Left: '\x1bOD',
+                        Keys.Right: '\x1bOC',
+                        Keys.Down: '\x1bOB',
                     }.get(event.key_sequence[0].key, data)
 
                 data = data.replace('\n', '\r')
@@ -97,11 +130,6 @@ class KeyBindingsManager(object):
                 p.write_input('\x1b[200~' + event.data + '\x1b[201~')
             else:
                 p.write_input(event.data)
-
-        @registry.add_binding(Keys.ControlB, filter=~has_prefix & pane_input_allowed)
-        def _(event):
-            " Enter prefix mode. "
-            pymux.get_client_state(event.cli).has_prefix = True
 
         @registry.add_binding(Keys.Any, filter=has_prefix)
         def _(event):

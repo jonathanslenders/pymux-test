@@ -309,45 +309,6 @@ class LayoutManager(object):
                               get_height=lambda cli: self.pymux.get_window_size(cli).rows,
                               content=TraceBodyWritePosition(self.pymux, DynamicBody(self.pymux)))
                     ])),
-
-                # Wait for confirmation toolbar.
-                ConditionalContainer(
-                    content=Window(
-                        height=D.exact(1),
-                        content=ConfirmationToolbar(self.pymux),
-                    ),
-                    filter=waits_for_confirmation,
-                ),
-                # ':' prompt toolbar.
-                ConditionalContainer(
-                    content=Window(
-                        height=D.exact(1),
-                        content=BufferControl(
-                            buffer_name=COMMAND,
-                            default_char=Char(' ', Token.CommandLine),
-                            lexer=SimpleLexer(Token.CommandLine),
-                            input_processors=[
-                                BeforeInput.static(':', Token.CommandLine.Prompt),
-                                AppendAutoSuggestion(),
-                            ])
-                    ),
-                    filter=HasFocus(COMMAND) & ~waits_for_confirmation,
-                ),
-                # Other command-prompt commands toolbar.
-                ConditionalContainer(
-                    content=Window(
-                        height=D.exact(1),
-                        content=BufferControl(
-                            buffer_name=PROMPT,
-                            default_char=Char(' ', Token.CommandLine),
-                            lexer=SimpleLexer(Token.CommandLine),
-                            input_processors=[
-                                BeforeInput(self._before_prompt_command_tokens),
-                                AppendAutoSuggestion(),
-                            ])
-                    ),
-                    filter=HasFocus(PROMPT) & ~waits_for_confirmation,
-                ),
                 # Status bar.
                 ConditionalContainer(
                     content=VSplit([
@@ -361,11 +322,52 @@ class LayoutManager(object):
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),
-                    filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~waits_for_confirmation,
+                    filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~waits_for_confirmation &
+                        Condition(lambda cli: self.pymux.enable_status),
                 )
             ]),
             floats=[
                 Float(bottom=1, left=0, content=MessageToolbar(self.pymux)),
+                Float(left=0, right=0, bottom=0, height=1, content=HSplit([
+                    # Wait for confirmation toolbar.
+                    ConditionalContainer(
+                        content=Window(
+                            height=D.exact(1),
+                            content=ConfirmationToolbar(self.pymux),
+                        ),
+                        filter=waits_for_confirmation,
+                    ),
+                    # ':' prompt toolbar.
+                    ConditionalContainer(
+                        content=Window(
+                            height=D.exact(1),
+                            content=BufferControl(
+                                buffer_name=COMMAND,
+                                default_char=Char(' ', Token.CommandLine),
+                                lexer=SimpleLexer(Token.CommandLine),
+                                input_processors=[
+                                    BeforeInput.static(':', Token.CommandLine.Prompt),
+                                    AppendAutoSuggestion(),
+                                ])
+                        ),
+                        filter=HasFocus(COMMAND) & ~waits_for_confirmation,
+                    ),
+                    # Other command-prompt commands toolbar.
+                    ConditionalContainer(
+                        content=Window(
+                            height=D.exact(1),
+                            content=BufferControl(
+                                buffer_name=PROMPT,
+                                default_char=Char(' ', Token.CommandLine),
+                                lexer=SimpleLexer(Token.CommandLine),
+                                input_processors=[
+                                    BeforeInput(self._before_prompt_command_tokens),
+                                    AppendAutoSuggestion(),
+                                ])
+                        ),
+                        filter=HasFocus(PROMPT) & ~waits_for_confirmation,
+                    ),
+                ])),
                 Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=12)),
             ]
         )
@@ -565,6 +567,9 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
         if zoom:
             result.append((Token.TitleBar.Zoom, ' Z '))
+
+        if process.is_terminated:
+            result.append((Token.Terminated, ' Terminated '))
 
         if arrangement_pane.name:
             result.append((name_token, ' %s ' % arrangement_pane.name))
