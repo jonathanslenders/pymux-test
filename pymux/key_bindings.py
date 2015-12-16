@@ -26,6 +26,7 @@ class KeyBindingsManager(object):
         # editing functionality for the command line. These key binding are
         # however only active when the following `enable_all` condition is met.
         self.pt_key_bindings_manager = pt_KeyBindingManager(
+            enable_vi_mode=Condition(lambda cli: pymux.status_keys_vi_mode),
             enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~HasPrefix(pymux),
             enable_auto_suggest_bindings=True)
 

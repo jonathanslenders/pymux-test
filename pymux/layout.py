@@ -9,7 +9,7 @@ from prompt_toolkit.layout.controls import TokenListControl, FillControl, UICont
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion
+from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor
 from prompt_toolkit.layout.screen import Char, Screen
 from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.mouse_events import MouseEventTypes
@@ -381,6 +381,7 @@ class LayoutManager(object):
                                 default_char=Char(' ', Token.CommandLine),
                                 lexer=SimpleLexer(Token.CommandLine),
                                 input_processors=[
+                                    HighlightSelectionProcessor(),
                                     BeforeInput.static(':', Token.CommandLine.Prompt),
                                     AppendAutoSuggestion(),
                                 ])
@@ -396,6 +397,7 @@ class LayoutManager(object):
                                 default_char=Char(' ', Token.CommandLine),
                                 lexer=SimpleLexer(Token.CommandLine),
                                 input_processors=[
+                                    HighlightSelectionProcessor(),
                                     BeforeInput(self._before_prompt_command_tokens),
                                     AppendAutoSuggestion(),
                                 ])

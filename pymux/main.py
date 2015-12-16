@@ -86,6 +86,7 @@ class Pymux(object):
         self.enable_status = True
         self.enable_bell = True
         self.remain_on_exit = False
+        self.status_keys_vi_mode = False
 
         self.options = ALL_OPTIONS
 
