@@ -476,6 +476,13 @@ def send_keys(pymux, cli, variables):
             process.write_input(vt100_data)
 
 
+@cmd('copy-mode')
+def copy_mode(pymux, cli, variables):
+    """
+    Enter copy mode.
+    """
+
+
 @cmd('source-file', options='<filename>')
 def source_file(pymux, cli, variables):
     """

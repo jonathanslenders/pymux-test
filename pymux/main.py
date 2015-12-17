@@ -149,8 +149,8 @@ class Pymux(object):
         active_window = get_active_window(cli)
 
         # Get connections watching the same window.
-        connections= [c for c in self.connections if
-                      c.cli and get_active_window(c.cli) == active_window]
+        connections = [c for c in self.connections if
+                       c.cli and get_active_window(c.cli) == active_window]
 
         rows = [c.size.rows for c in connections]
         columns = [c.size.columns for c in connections]

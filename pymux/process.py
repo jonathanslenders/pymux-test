@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.eventloop.posix_utils import PosixStdinReader
+from prompt_toolkit.buffer import Buffer
 
 from .screen import BetterScreen
 from .stream import BetterStream
@@ -238,6 +239,28 @@ class Process(object):
 
         if self.pid and not self.is_terminated:
             os.kill(self.pid, signal)
+
+
+    def create_copy_buffer(self):
+        """
+        Create a Buffer instance that can be used in copy mode.
+        """
+        data_buffer = self.screen.pt_screen.data_buffer
+        text = []
+
+        first_row = min(data_buffer.keys())
+        last_row = max(data_buffer.keys())
+
+        for row_index in range(first_row, last_row + 1):
+            row = data_buffer[row_index]
+            max_column = max(row.keys())
+
+            for x in range(0, max_column + 1):
+                text.append(row[x])  # XXX: handle double width characters: ignore the next cell.
+
+            text.append('\n')
+
+        return Buffer(text=''.join(text))
 
 
 def get_cwd_for_pid(pid):
