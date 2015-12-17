@@ -63,6 +63,27 @@ class Background(Container):
     def walk(self):
         return []
 
+_numbers = [
+    ['xxxxx', 'x   x', 'x   x', 'x   x', 'xxxxx'], # 0
+    ['    x', '    x', '    x', '    x', '    x'], # 1
+    ['xxxxx', '    x', 'xxxxx', 'x    ', 'xxxxx'], # 2
+    ['xxxxx', '    x', 'xxxxx', '    x', 'xxxxx'], # 3
+    ['x   x', 'x   x', 'xxxxx', '    x', '    x'], # 4
+    ['xxxxx', 'x    ', 'xxxxx', '    x', 'xxxxx'], # 5
+    ['xxxxx', 'x    ', 'xxxxx', 'x   x', 'xxxxx'], # 6
+    ['xxxxx', '    x', '    x', '    x', '    x'], # 7
+    ['xxxxx', 'x   x', 'xxxxx', 'x   x', 'xxxxx'], # 8
+    ['xxxxx', 'x   x', 'xxxxx', '    x', 'xxxxx'], # 9
+]
+
+def _draw_number(screen, x_offset, number, default_token=Token):
+    " Write number at position. "
+    for y, row in enumerate(_numbers[number]):
+        screen_row = screen.data_buffer[y]
+        for x, n in enumerate(row):
+            token = Token.Clock if n == 'x' else default_token
+            screen_row[x + x_offset] = Char(' ', token)
+
 
 class BigClock(UIControl):
     """
@@ -71,19 +92,6 @@ class BigClock(UIControl):
     WIDTH = 28
     HEIGHT = 5
 
-    _numbers = [
-        ['xxxxx', 'x   x', 'x   x', 'x   x', 'xxxxx'], # 0
-        ['    x', '    x', '    x', '    x', '    x'], # 1
-        ['xxxxx', '    x', 'xxxxx', 'x    ', 'xxxxx'], # 2
-        ['xxxxx', '    x', 'xxxxx', '    x', 'xxxxx'], # 3
-        ['x   x', 'x   x', 'xxxxx', '    x', '    x'], # 4
-        ['xxxxx', 'x    ', 'xxxxx', '    x', 'xxxxx'], # 5
-        ['xxxxx', 'x    ', 'xxxxx', 'x   x', 'xxxxx'], # 6
-        ['xxxxx', '    x', '    x', '    x', '    x'], # 7
-        ['xxxxx', 'x   x', 'xxxxx', 'x   x', 'xxxxx'], # 8
-        ['xxxxx', 'x   x', 'xxxxx', '    x', 'xxxxx'], # 9
-    ]
-
     def create_screen(self, cli, width, height):
         screen = Screen(initial_width=width)
 
@@ -91,20 +99,12 @@ class BigClock(UIControl):
             for x in range(self.WIDTH):
                 screen.data_buffer[y][x] = Char(' ', Token)
 
-        def draw_number(x_offset, number):
-            " Write number at position. "
-            for y, row in enumerate(self._numbers[number]):
-                screen_row = screen.data_buffer[y]
-                for x, n in enumerate(row):
-                    token = Token.Clock if n == 'x' else Token
-                    screen_row[x + x_offset] = Char(' ', token)
-
         # Display time.
         now = datetime.datetime.now()
-        draw_number(0, now.hour // 10)
-        draw_number(6, now.hour % 10)
-        draw_number(16, now.minute // 10)
-        draw_number(23, now.minute % 10)
+        _draw_number(screen, 0, now.hour // 10)
+        _draw_number(screen, 6, now.hour % 10)
+        _draw_number(screen, 16, now.minute // 10)
+        _draw_number(screen, 23, now.minute % 10)
 
         # Add a colon
         screen.data_buffer[1][13] = Char(' ', Token.Clock)
@@ -112,6 +112,41 @@ class BigClock(UIControl):
 
         screen.width = self.WIDTH
         screen.height = self.HEIGHT
+        return screen
+
+
+class PaneNumber(UIControl):
+    """
+    Number of panes, to be drawn in the middle of the pane.
+    """
+    WIDTH = 5
+    HEIGHT = 5
+
+    def __init__(self, pymux, arrangement_pane):
+        self.pymux = pymux
+        self.arrangement_pane = arrangement_pane
+
+    def _get_index(self, cli):
+        window = self.pymux.arrangement.get_active_window(cli)
+        try:
+            return window.get_pane_index(self.arrangement_pane)
+        except ValueError:
+            return 0
+
+    def preferred_width(self, cli, max_available_width):
+        # Enough to display all the digits.
+        return 6 * len('%s' % self._get_index(cli)) - 1
+
+    def preferred_height(self, cli, width):
+        return 5
+
+    def create_screen(self, cli, width, height):
+        screen = Screen(initial_width=width)
+
+        for i, d in enumerate('%s' % (self._get_index(cli))):
+            _draw_number(screen, i * 6, int(d),
+                                 default_token=Token.Transparent)
+
         return screen
 
 
@@ -592,6 +627,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
 
     clock_is_visible = Condition(lambda cli: arrangement_pane.clock_mode)
+    pane_numbers_are_visible = Condition(lambda cli: pymux.display_pane_numbers)
 
     return TracePaneWritePosition(pymux, arrangement_pane,
         content=HSplit([
@@ -611,7 +647,17 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
             ]),
             # The pane content.
             ConditionalContainer(
-                content=PaneWindow(pymux, arrangement_pane, process),
+                content=FloatContainer(
+                    # The body of the pane.
+                    content=PaneWindow(pymux, arrangement_pane, process),
+
+                    # Pane numbers.
+                    floats=[
+                        Float(content=ConditionalContainer(
+                                content=Window(PaneNumber(pymux, arrangement_pane)),
+                                filter=pane_numbers_are_visible)),
+                    ]
+                ),
                 filter=~clock_is_visible,
             ),
             # The clock.

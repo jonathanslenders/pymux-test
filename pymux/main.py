@@ -84,12 +84,16 @@ class Pymux(object):
         # Options
         self.enable_mouse_support = True
         self.enable_status = True
+        self.enable_bell = True
         self.remain_on_exit = False
 
         self.options = ALL_OPTIONS
 
+
         # When no panes are available.
         self.original_cwd = os.getcwd()
+
+        self.display_pane_numbers = False
 
         #: List of clients.
         self._runs_standalone = False
@@ -180,8 +184,9 @@ class Pymux(object):
 
         def bell():
             " Sound bell on all clients. "
-            for c in self.clis.values():
-                c.output.bell()
+            if self.enable_bell:
+                for c in self.clis.values():
+                    c.output.bell()
 
         # Start directory.
         if start_directory:

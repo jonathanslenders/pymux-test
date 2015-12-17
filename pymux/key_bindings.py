@@ -82,7 +82,9 @@ class KeyBindingsManager(object):
         has_prefix = HasPrefix(pymux)
         waits_for_confirmation = WaitsForConfirmation(pymux)
         prompt_or_command_focus = HasFocus(COMMAND) | HasFocus(PROMPT)
-        pane_input_allowed = ~prompt_or_command_focus & ~has_prefix & ~waits_for_confirmation
+        display_panes = Condition(lambda cli: pymux.display_pane_numbers)
+        pane_input_allowed = ~(prompt_or_command_focus | has_prefix |
+                               waits_for_confirmation | display_panes)
 
         @registry.add_binding(Keys.Any, filter=pane_input_allowed, invalidate_ui=False)
         def _(event):
@@ -168,6 +170,11 @@ class KeyBindingsManager(object):
             client_state = pymux.get_client_state(event.cli)
             client_state.confirm_command = None
             client_state.confirm_text = None
+
+        @registry.add_binding(Keys.Any, filter=display_panes)
+        def _(event):
+            " When the pane numbers are shown. Any key press should hide them. "
+            pymux.display_pane_numbers = False
 
         return registry
 

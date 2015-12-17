@@ -511,3 +511,9 @@ def set_option(pymux, cli, variables):
             raise CommandException(e.message)
     else:
         raise CommandException('Invalid option: %s' % (name, ))
+
+
+@cmd('display-panes')
+def display_panes(pymux, cli, variables):
+    " Display the pane numbers. "
+    pymux.display_pane_numbers = True

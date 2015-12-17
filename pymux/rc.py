@@ -28,6 +28,7 @@ bind-key k resize-pane -U 2
 bind-key j resize-pane -D 2
 bind-key h resize-pane -L 2
 bind-key l resize-pane -R 2
+bind-key q display-panes
 bind-key C-Up resize-pane -U 2
 bind-key C-Down resize-pane -D 2
 bind-key C-Left resize-pane -L 2
