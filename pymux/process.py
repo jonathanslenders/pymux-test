@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.eventloop.posix_utils import PosixStdinReader
-from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.document import Document
 
 from .screen import BetterScreen
 from .stream import BetterStream
@@ -174,7 +174,7 @@ class Process(object):
             # sufficient. (I hope...)
             os.closerange(3, 4096)
 
-    def write_input(self, data):
+    def write_input(self, data):   # XXX: use copy_mode option, especially for pasting from clipboard.
         " Write user key strokes to the input. "
         while self.master is not None:
             try:
@@ -241,9 +241,9 @@ class Process(object):
             os.kill(self.pid, signal)
 
 
-    def create_copy_buffer(self):
+    def create_copy_document(self):
         """
-        Create a Buffer instance that can be used in copy mode.
+        Create a Document instance that can be used in copy mode.
         """
         data_buffer = self.screen.pt_screen.data_buffer
         text = []
@@ -256,12 +256,22 @@ class Process(object):
             max_column = max(row.keys())
 
             for x in range(0, max_column + 1):
-                text.append(row[x])  # XXX: handle double width characters: ignore the next cell.
+                text.append(row[x].char)  # XXX: handle double width characters: ignore the next cell.
+
+                # TODO: remove trailing whitespace.
 
             text.append('\n')
 
-        return Buffer(text=''.join(text))
+        # Remove last \n.
+        text.pop()
 
+        # Calculate cursor position.
+        d = Document(text=''.join(text))
+
+        return Document(text=d.text,
+                        cursor_position=d.translate_row_col_to_index(
+                            row=self.screen.pt_screen.cursor_position.y,
+                            col=self.screen.pt_screen.cursor_position.x))
 
 def get_cwd_for_pid(pid):
     if sys.platform in ('linux', 'linux2'):

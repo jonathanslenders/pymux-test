@@ -60,6 +60,8 @@ bind-key C-o rotate-window
 bind-key M-o rotate-window -D
 bind-key C-b send-prefix
 bind-key . command-prompt "move-window -t '%%'"
+bind-key [ copy-mode
+bind-key ] paste-buffer
 
 # Layouts.
 bind-key M-1 select-layout even-horizontal

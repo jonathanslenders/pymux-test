@@ -3,7 +3,6 @@ import docopt
 import os
 import re
 import shlex
-import signal
 import six
 
 from prompt_toolkit.document import Document
@@ -481,6 +480,17 @@ def copy_mode(pymux, cli, variables):
     """
     Enter copy mode.
     """
+    pane = pymux.arrangement.get_active_pane(cli)
+    pane.enter_copy_mode()
+
+
+@cmd('paste-buffer')
+def copy_mode(pymux, cli, variables):
+    """
+    Paste clipboard content into buffer.
+    """
+    pane = pymux.arrangement.get_active_pane(cli)
+    pane.process.write_input(cli.clipboard.get_data().text)
 
 
 @cmd('source-file', options='<filename>')

@@ -3,6 +3,7 @@
 """
 from __future__ import unicode_literals
 
+from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import HasFocus, Condition
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
@@ -60,7 +61,7 @@ class Background(Container):
             for x in range(xpos, xpos + write_position.width):
                 row[x] = dot if (x + y) % 3 == 0 else default_char
 
-    def walk(self):
+    def walk(self, cli):
         return []
 
 _numbers = [
@@ -183,6 +184,7 @@ class PaneContainer(UIControl):
             # Focus this process when the mouse has been clicked.
             self.pymux.arrangement.get_active_window(cli).active_pane = self.pane
             self.pymux.invalidate()
+            cli.focus_stack.replace(DEFAULT_BUFFER)
         else:
             # Already focussed, send event to application when it requested
             # mouse support.
@@ -484,8 +486,10 @@ class DynamicBody(Container):
         body = self._get_body(cli)
         body.write_to_screen(cli, screen, mouse_handlers, write_position)
 
-    def walk(self):
-        return []  # We don't need this.
+    def walk(self, cli):
+        # (Required for prompt_toolkit.layout.utils.find_window_for_buffer_name.)
+        body = self._get_body(cli)
+        return body.walk(cli)
 
 
 def _create_split(pymux, split):
@@ -608,6 +612,9 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
         if process.is_terminated:
             result.append((Token.Terminated, ' Terminated '))
 
+        if arrangement_pane.copy_mode:
+            result.append((Token.CopyMode, ' Copy '))
+
         if arrangement_pane.name:
             result.append((name_token, ' %s ' % arrangement_pane.name))
             result.append((token, ' '))
@@ -651,13 +658,26 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
             ConditionalContainer(
                 content=FloatContainer(
                     # The body of the pane.
-                    content=PaneWindow(pymux, arrangement_pane, process),
+                    content=VSplit([
+                        # The 'screen' of the pseudo terminal.
+                        ConditionalContainer(
+                            content=PaneWindow(pymux, arrangement_pane, process),
+                            filter=Condition(lambda cli: not arrangement_pane.copy_mode)),
 
-                    # Pane numbers.
+                        # The copy/paste buffer.
+                        ConditionalContainer(
+                            content=Window(BufferControl(buffer_name='pane-%i' % arrangement_pane.pane_id,
+                                                         wrap_lines=False, focus_on_click=True, input_processors=[
+                                    HighlightSelectionProcessor(),
+                                ])),
+                            filter=Condition(lambda cli: arrangement_pane.copy_mode)),
+                    ]),
+
+                    # Pane numbers. (Centered.)
                     floats=[
                         Float(content=ConditionalContainer(
-                                content=Window(PaneNumber(pymux, arrangement_pane)),
-                                filter=pane_numbers_are_visible)),
+                            content=Window(PaneNumber(pymux, arrangement_pane)),
+                            filter=pane_numbers_are_visible)),
                     ]
                 ),
                 filter=~clock_is_visible,
@@ -699,8 +719,8 @@ class _ContainerProxy(Container):
     def write_to_screen(self, cli, screen, mouse_handlers, write_position):
         self.content.write_to_screen(cli, screen, mouse_handlers, write_position)
 
-    def walk(self):
-        return self.content.walk()
+    def walk(self, cli):
+        return self.content.walk(cli)
 
 
 _focussed_border_titlebar = Char('┃', Token.TitleBar.Line.Focussed)

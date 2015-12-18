@@ -8,6 +8,8 @@ from __future__ import unicode_literals
 from .process import Process
 
 from prompt_toolkit.interface import CommandLineInterface
+from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.document import Document
 
 import math
 import os
@@ -46,6 +48,16 @@ class Pane(object):
         # Give unique ID.
         Pane._pane_counter += 1
         self.pane_id = Pane._pane_counter
+
+        # Prompt_toolkit buffer, for displaying scrollable text.
+        # (In copy mode, or help mode.)
+        self.copy_buffer = Buffer(read_only=True)
+        self.copy_mode = False
+
+    def enter_copy_mode(self):
+        d = self.process.create_copy_document()
+        self.copy_buffer.set_document(d, bypass_readonly=True)
+        self.copy_mode = True
 
 
 class _WeightsDictionary(weakref.WeakKeyDictionary):

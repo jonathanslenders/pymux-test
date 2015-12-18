@@ -34,6 +34,7 @@ ui_style = {
     Token.Background:              '#888888',
     Token.Clock:                   'bg:#88aa00',
     Token.Terminated:              'bg:#aa0000 #ffffff',
+    Token.CopyMode:                'bg:#aa8844 #000000',
 
     Token.ConfirmationToolbar:          'bg:#880000 #ffffff',
     Token.ConfirmationToolbar.Question: '',

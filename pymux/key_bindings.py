@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import HasFocus, Condition
 from prompt_toolkit.key_binding.manager import KeyBindingManager as pt_KeyBindingManager
 from prompt_toolkit.keys import Keys
@@ -14,6 +15,8 @@ __all__ = (
     'KeyBindingsManager',
 )
 
+has_pane_buffer_focus = Condition(lambda cli: cli.focus_stack.current.startswith('pane-'))
+
 
 class KeyBindingsManager(object):
     """
@@ -27,8 +30,9 @@ class KeyBindingsManager(object):
         # however only active when the following `enable_all` condition is met.
         self.pt_key_bindings_manager = pt_KeyBindingManager(
             enable_vi_mode=Condition(lambda cli: pymux.status_keys_vi_mode),
-            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT)) & ~HasPrefix(pymux),
-            enable_auto_suggest_bindings=True)
+            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | has_pane_buffer_focus) & ~HasPrefix(pymux),
+            enable_auto_suggest_bindings=True,
+            enable_extra_page_navigation=True)
 
         self.registry = self.pt_key_bindings_manager.registry
 
@@ -83,9 +87,10 @@ class KeyBindingsManager(object):
         has_prefix = HasPrefix(pymux)
         waits_for_confirmation = WaitsForConfirmation(pymux)
         prompt_or_command_focus = HasFocus(COMMAND) | HasFocus(PROMPT)
-        display_panes = Condition(lambda cli: pymux.display_pane_numbers)
+        display_pane_numbers = Condition(lambda cli: pymux.display_pane_numbers)
         pane_input_allowed = ~(prompt_or_command_focus | has_prefix |
-                               waits_for_confirmation | display_panes)
+                               waits_for_confirmation | display_pane_numbers |
+                               has_pane_buffer_focus)
 
         @registry.add_binding(Keys.Any, filter=pane_input_allowed, invalidate_ui=False)
         def _(event):
@@ -172,7 +177,14 @@ class KeyBindingsManager(object):
             client_state.confirm_command = None
             client_state.confirm_text = None
 
-        @registry.add_binding(Keys.Any, filter=display_panes)
+        @registry.add_binding(Keys.ControlC, filter=has_pane_buffer_focus)
+        def _(event):
+            " Exit scroll buffer. "
+            pane = pymux.arrangement.get_active_pane(event.cli)
+            pane.copy_mode = False
+            event.cli.focus_stack.replace(DEFAULT_BUFFER)
+
+        @registry.add_binding(Keys.Any, filter=display_pane_numbers)
         def _(event):
             " When the pane numbers are shown. Any key press should hide them. "
             pymux.display_pane_numbers = False
