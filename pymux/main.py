@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from prompt_toolkit.application import Application
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.buffer import Buffer, AcceptAction
-from prompt_toolkit.buffers_mapping import BuffersMapping
+from prompt_toolkit.buffer_mapping import BufferMapping
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
 from prompt_toolkit.eventloop.posix import PosixEventLoop
@@ -299,7 +299,7 @@ class Pymux(object):
         application = Application(
             layout=self.layout_manager.layout,
             key_bindings_registry=self.key_bindings_manager.registry,
-            buffers=_BuffersMapping(self),
+            buffers=_BufferMapping(self),
             focus_stack=_FocusStack(self),
             mouse_support=Condition(lambda cli: self.enable_mouse_support),
             use_alternate_screen=True,
@@ -432,7 +432,7 @@ class Pymux(object):
         cli.run()
 
 
-class _BuffersMapping(BuffersMapping):
+class _BufferMapping(BufferMapping):
     """
     Container for all the Buffer objects in a CommandLineInterface.
     """
@@ -459,7 +459,7 @@ class _BuffersMapping(BuffersMapping):
             client_state = pymux.get_client_state(cli)
             pymux.handle_command(cli, client_state.prompt_command.replace('%%', text))
 
-        super(_BuffersMapping, self).__init__({
+        super(_BufferMapping, self).__init__({
             COMMAND: Buffer(
                 complete_while_typing=True,
                 completer=create_command_completer(pymux),
@@ -481,7 +481,7 @@ class _BuffersMapping(BuffersMapping):
             except (ValueError, KeyError):
                 raise KeyError
         else:
-            return super(_BuffersMapping, self).__getitem__(name)
+            return super(_BufferMapping, self).__getitem__(name)
 
 
 class _FocusStack(FocusStack):
