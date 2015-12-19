@@ -4,14 +4,16 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.enums import DEFAULT_BUFFER
-from prompt_toolkit.filters import HasFocus, Condition
+from prompt_toolkit.filters import HasFocus, Condition, InFocusStack
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor
+from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor, HighlightSearchProcessor
+from prompt_toolkit.layout.prompt import DefaultPrompt
 from prompt_toolkit.layout.screen import Char, Screen
+from prompt_toolkit.layout.toolbars import SearchToolbar
 from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.mouse_events import MouseEventTypes
 
@@ -359,8 +361,7 @@ class LayoutManager(object):
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),
-                    filter=~HasFocus(COMMAND) & ~HasFocus(PROMPT) & ~waits_for_confirmation &
-                        Condition(lambda cli: self.pymux.enable_status),
+                    filter=Condition(lambda cli: self.pymux.enable_status),
                 )
             ]),
             floats=[
@@ -382,13 +383,15 @@ class LayoutManager(object):
                                 buffer_name=COMMAND,
                                 default_char=Char(' ', Token.CommandLine),
                                 lexer=SimpleLexer(Token.CommandLine),
+                                preview_search=True,
                                 input_processors=[
                                     HighlightSelectionProcessor(),
-                                    BeforeInput.static(':', Token.CommandLine.Prompt),
                                     AppendAutoSuggestion(),
+#                                    HighlightSearchProcessor(preview_search=True),  # Highlight reverse search in prompt.
+                                    DefaultPrompt(lambda cli:[(Token.CommandLine.Prompt, ':')]),
                                 ])
                         ),
-                        filter=HasFocus(COMMAND) & ~waits_for_confirmation,
+                        filter=InFocusStack(COMMAND) & ~waits_for_confirmation,
                     ),
                     # Other command-prompt commands toolbar.
                     ConditionalContainer(
@@ -404,7 +407,7 @@ class LayoutManager(object):
                                     AppendAutoSuggestion(),
                                 ])
                         ),
-                        filter=HasFocus(PROMPT) & ~waits_for_confirmation,
+                        filter=InFocusStack(PROMPT) & ~waits_for_confirmation,
                     ),
                 ])),
                 Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=12)),
@@ -658,7 +661,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
             ConditionalContainer(
                 content=FloatContainer(
                     # The body of the pane.
-                    content=VSplit([
+                    content=HSplit([
                         # The 'screen' of the pseudo terminal.
                         ConditionalContainer(
                             content=PaneWindow(pymux, arrangement_pane, process),
@@ -669,8 +672,16 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                             content=Window(BufferControl(buffer_name='pane-%i' % arrangement_pane.pane_id,
                                                          wrap_lines=False, focus_on_click=True, input_processors=[
                                     HighlightSelectionProcessor(),
+                                    HighlightSearchProcessor(preview_search=True),
                                 ])),
                             filter=Condition(lambda cli: arrangement_pane.copy_mode)),
+
+                        # Search toolbar. (Displayed when this pane has the focus, and searching.)
+                        ConditionalContainer(
+                            content=SearchToolbar(),
+                            #filter=Condition(lambda cli: cli.current_buffer_name == has_focus(cli))),
+                            #filter=Condition(lambda cli: 'pane-%i' % arrangement_pane.pane_id in cli.focus_stack))
+                            filter=InFocusStack('pane-%i' % arrangement_pane.pane_id))
                     ]),
 
                     # Pane numbers. (Centered.)

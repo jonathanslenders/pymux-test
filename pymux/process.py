@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 from prompt_toolkit.eventloop.posix_utils import PosixStdinReader
 from prompt_toolkit.document import Document
 
+from .key_mappings import prompt_toolkit_key_to_vt100_key
 from .screen import BetterScreen
 from .stream import BetterStream
 from .utils import set_terminal_size, pty_make_controlling_tty
@@ -174,8 +175,17 @@ class Process(object):
             # sufficient. (I hope...)
             os.closerange(3, 4096)
 
-    def write_input(self, data):   # XXX: use copy_mode option, especially for pasting from clipboard.
-        " Write user key strokes to the input. "
+    def write_input(self, data, paste=False):
+        """
+        Write user key strokes to the input.
+
+        :param paste: When True, and the process running here understands
+            bracketed paste. Send as pasted text.
+        """
+        # send as bracketed paste?
+        if paste and self.screen.bracketed_paste_enabled:
+            data = '\x1b[200~' + data + '\x1b[201~'
+
         while self.master is not None:
             try:
                 os.write(self.master, data.encode('utf-8'))
@@ -185,6 +195,14 @@ class Process(object):
                 if e.errno == 4:
                     continue
             return
+
+    def write_key(self, key):
+        """
+        Write prompt_toolkit Key.
+        """
+        data = prompt_toolkit_key_to_vt100_key(
+            key, application_mode=self.screen.in_application_mode)
+        self.write_input(data)
 
     def _process_pty_output(self):
         """

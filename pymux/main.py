@@ -4,15 +4,17 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.buffer_mapping import BufferMapping
-from prompt_toolkit.enums import DEFAULT_BUFFER
+from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
 from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
 from prompt_toolkit.eventloop.posix import PosixEventLoop
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.focus_stack import FocusStack
 from prompt_toolkit.input import PipeInput
 from prompt_toolkit.interface import CommandLineInterface
+from prompt_toolkit.key_binding.vi_state import InputMode, ViState
 from prompt_toolkit.layout.screen import Size
 from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
+from prompt_toolkit.utils import Callback
 
 from .arrangement import Arrangement, Pane
 from .commands.completer import create_command_completer
@@ -60,6 +62,9 @@ class ClientState(object):
         # When a "command-prompt" command is running.
         self.prompt_text = None
         self.prompt_command = None
+
+        # Vi state. (Each client has its own state.)
+        self.vi_state = ViState()
 
 
 class Pymux(object):
@@ -296,11 +301,20 @@ class Pymux(object):
         def get_title():
             return self.get_title(cli)
 
+        def on_focus_changed():
+            """ When the focus changes to a read/write buffer, make sure to go
+            to insert mode. This happens when the ViState was set to NAVIGATION
+            in the copy buffer. """
+            vi_state = self.key_bindings_manager.pt_key_bindings_manager.get_vi_state(cli)
+
+            if not cli.current_buffer.read_only():
+                vi_state.input_mode = InputMode.INSERT
+
         application = Application(
             layout=self.layout_manager.layout,
             key_bindings_registry=self.key_bindings_manager.registry,
             buffers=_BufferMapping(self),
-            focus_stack=_FocusStack(self),
+            focus_stack=_FocusStack(self, on_focus_changed=Callback(on_focus_changed)),
             mouse_support=Condition(lambda cli: self.enable_mouse_support),
             use_alternate_screen=True,
             style=self.style,
@@ -485,31 +499,49 @@ class _BufferMapping(BufferMapping):
 
 
 class _FocusStack(FocusStack):
-    def __init__(self, pymux):
-        super(_FocusStack, self).__init__()
+    def __init__(self, pymux, on_focus_changed=None):
+        super(_FocusStack, self).__init__(on_focus_changed=on_focus_changed)
+
         self._cli = None
         self.pymux = pymux
 
+    def _get_real_buffer_name(self, buffer_name):
+        if self._cli:
+            pane = self.pymux.arrangement.get_active_pane(self._cli)
+
+            if pane:
+                # When we have "DEFAULT_BUFFER", but the current pane is in copy mode,
+                # return that buffer.
+                if buffer_name == DEFAULT_BUFFER and pane.copy_mode:
+                    return 'pane-%i' % pane.pane_id
+
+                # When we have "SEARCH_BUFFER", but the current pane doesn't do searching.
+                # report DEFAULT_BUFFER.
+                if buffer_name == SEARCH_BUFFER and not pane.copy_mode:
+                    return DEFAULT_BUFFER
+
+        return buffer_name
+
     @property
     def current(self):
-        value = super(_FocusStack, self).current
+        return self._get_real_buffer_name(super(_FocusStack, self).current)
 
-        # When we have "DEFAULT_BUFFER", but the current pane is in copy mode,
-        # return that buffer.
-        if value == DEFAULT_BUFFER and self._cli:
+    @property
+    def previous(self):
+        return self._get_real_buffer_name(super(_FocusStack, self).previous)
+
+    def __contains__(self, value):
+        # When the copy buffer is in the stack.
+        if self._cli:
             pane = self.pymux.arrangement.get_active_pane(self._cli)
-            if pane and pane.copy_mode:
-                return 'pane-%i' % pane.pane_id
+            if pane and pane.copy_mode and value == 'pane-%i' % pane.pane_id:
+                return True
 
-        return value
+        return super(_FocusStack, self).__contains__(value)
 
-    def replace(self, buffer_name):
+    def push(self, buffer_name, replace=False):
         self._focus(buffer_name)
-        super(_FocusStack, self).replace(buffer_name)
-
-    def push(self, buffer_name):
-        self._focus(buffer_name)
-        super(_FocusStack, self).push(buffer_name)
+        super(_FocusStack, self).push(buffer_name, replace=replace)
 
     def _focus(self, buffer_name):
         if buffer_name.startswith('pane-') and self._cli:

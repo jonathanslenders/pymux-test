@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
-from prompt_toolkit.enums import DEFAULT_BUFFER
+from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
 from prompt_toolkit.filters import HasFocus, Condition
 from prompt_toolkit.key_binding.manager import KeyBindingManager as pt_KeyBindingManager
+from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.keys import Keys
 
 from .enums import COMMAND, PROMPT
@@ -30,9 +31,11 @@ class KeyBindingsManager(object):
         # however only active when the following `enable_all` condition is met.
         self.pt_key_bindings_manager = pt_KeyBindingManager(
             enable_vi_mode=Condition(lambda cli: pymux.status_keys_vi_mode),
-            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | has_pane_buffer_focus) & ~HasPrefix(pymux),
+            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | HasFocus(SEARCH_BUFFER) | has_pane_buffer_focus) & ~HasPrefix(pymux),
             enable_auto_suggest_bindings=True,
-            enable_extra_page_navigation=True)
+            enable_search=True,
+            enable_extra_page_navigation=True,
+            get_vi_state=self._get_vi_state)
 
         self.registry = self.pt_key_bindings_manager.registry
 
@@ -46,6 +49,18 @@ class KeyBindingsManager(object):
         # Custom user configured key bindings.
         # { (needs_prefix, key) -> (command, handler) }
         self.custom_bindings = {}
+
+
+    def _get_vi_state(self, cli):
+        " Return the ViState instance for the current client. "
+        vi_state = self.pymux.get_client_state(cli).vi_state
+
+        # Make sure to put the Vi state in navigation mode for read only
+        # buffers.
+        if cli.current_buffer.read_only():
+            vi_state.input_mode = InputMode.NAVIGATION
+
+        return vi_state
 
     def _load_prefix_binding(self):
         """
@@ -67,7 +82,13 @@ class KeyBindingsManager(object):
 
         self._prefix_binding = enter_prefix_handler
 
-    def set_prefix(self, keys):
+    @property
+    def prefix(self):
+        " Get the prefix key. "
+        return self._prefix
+
+    @prefix.setter
+    def prefix(self, keys):
         """
         Set a new prefix key.
         """
@@ -90,6 +111,7 @@ class KeyBindingsManager(object):
         display_pane_numbers = Condition(lambda cli: pymux.display_pane_numbers)
         pane_input_allowed = ~(prompt_or_command_focus | has_prefix |
                                waits_for_confirmation | display_pane_numbers |
+                               HasFocus(SEARCH_BUFFER) |
                                has_pane_buffer_focus)
 
         @registry.add_binding(Keys.Any, filter=pane_input_allowed, invalidate_ui=False)
@@ -111,20 +133,7 @@ class KeyBindingsManager(object):
                 pane.clock_mode = False
                 pymux.invalidate()
             else:
-                process = pane.process
-
-                # Applications like htop with run in application mode require
-                # the following input.
-                if process.screen.in_application_mode:
-                    data = {
-                        Keys.Up: '\x1bOA',
-                        Keys.Left: '\x1bOD',
-                        Keys.Right: '\x1bOC',
-                        Keys.Down: '\x1bOB',
-                    }.get(event.key_sequence[0].key, data)
-
-                data = data.replace('\n', '\r')
-                process.write_input(data)
+                pane.process.write_key(event.key_sequence[0].key)
 
         @registry.add_binding(Keys.BracketedPaste, filter=pane_input_allowed, invalidate_ui=False)
         def _(event):
@@ -132,12 +141,7 @@ class KeyBindingsManager(object):
             Pasting to the active pane. (Using bracketed paste.)
             """
             p = pymux.active_process_for_cli(event.cli)
-
-            if p.screen.bracketed_paste_enabled:
-                # When the process running in this pane understands bracketing paste.
-                p.write_input('\x1b[200~' + event.data + '\x1b[201~')
-            else:
-                p.write_input(event.data)
+            p.write_input(event.data, paste=True)
 
         @registry.add_binding(Keys.Any, filter=has_prefix)
         def _(event):

@@ -1,8 +1,10 @@
 from __future__ import unicode_literals
 from prompt_toolkit.keys import Keys
+from prompt_toolkit.terminal.vt100_input import ANSI_SEQUENCES
 
 __all__ = (
     'pymux_key_to_prompt_toolkit_key_sequence',
+    'prompt_toolkit_key_to_vt100_key',
     'PYMUX_TO_PROMPT_TOOLKIT_KEYS',
 )
 
@@ -16,6 +18,34 @@ def pymux_key_to_prompt_toolkit_key_sequence(key):
         return (key, )
 
     return PYMUX_TO_PROMPT_TOOLKIT_KEYS.get(key) or tuple(key)
+
+
+# Create a mapping from prompt_toolkit keys to their ANSI sequences.
+# TODO: This is not completely correct yet. It doesn't take
+#       cursor/application mode into account. Create new tables for this.
+_PROMPT_TOOLKIT_KEY_TO_VT100 = dict(
+    (key, vt100_data) for vt100_data, key in ANSI_SEQUENCES.items())
+
+
+def prompt_toolkit_key_to_vt100_key(key, application_mode=False):
+    """
+    Turn a prompt toolkit key. (E.g Keys.ControlB) into a Vt100 key sequence.
+    (E.g. \x1b[A.)
+    """
+    application_mode_keys = {
+        Keys.Up: '\x1bOA',
+        Keys.Left: '\x1bOD',
+        Keys.Right: '\x1bOC',
+        Keys.Down: '\x1bOB',
+    }
+
+    if key == '\n':
+        return '\r'
+
+    elif application_mode and key in application_mode_keys:
+        return application_mode_keys.get(key)
+    else:
+        return _PROMPT_TOOLKIT_KEY_TO_VT100.get(key, key)
 
 
 PYMUX_TO_PROMPT_TOOLKIT_KEYS = {

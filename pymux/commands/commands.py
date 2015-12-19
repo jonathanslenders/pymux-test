@@ -6,12 +6,11 @@ import shlex
 import six
 
 from prompt_toolkit.document import Document
-from prompt_toolkit.terminal.vt100_input import ANSI_SEQUENCES
 
 from pymux.arrangement import LayoutTypes
 from pymux.enums import COMMAND, PROMPT
 from pymux.format import format_pymux_string
-from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence
+from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence, prompt_toolkit_key_to_vt100_key
 from pymux.options import SetOptionError
 
 __all__ = (
@@ -421,9 +420,11 @@ def send_prefix(pymux, cli, variables):
     """
     Send prefix to active pane.
     """
-    # XXX: This is still a hard coded Control-B. Fix this when
-    #      the prefix key becomes configurable.
-    pymux.active_process_for_cli(cli).write_input('\x02')
+    process = pymux.arrangement.get_active_pane(cli).process
+
+    for k in pymux.key_bindings_manager.prefix:
+        vt100_data = prompt_toolkit_key_to_vt100_key(k)
+        process.write_input(vt100_data)
 
 
 @cmd('bind-key', options='[-n] <key> [--] <command> [<arguments>...]')
@@ -460,19 +461,13 @@ def send_keys(pymux, cli, variables):
     """
     process = pymux.arrangement.get_active_pane(cli).process
 
-    # Create a mapping from prompt_toolkit keys to their ANSI sequences.
-    # TODO: This is not completely correct yet. It doesn't take
-    #       cursor/application mode into account. Create new tables for this.
-    table = dict((key, vt100_data) for vt100_data, key in ANSI_SEQUENCES.items())
-
     for key in variables['<keys>']:
         # Translate key from pymux key to prompt_toolkit key.
         keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(key)
 
         # Translate prompt_toolkit key to VT100 key.
         for k in keys_sequence:
-            vt100_data = table.get(k, k)
-            process.write_input(vt100_data)
+            process.write_key(k)
 
 
 @cmd('copy-mode')
@@ -490,7 +485,7 @@ def copy_mode(pymux, cli, variables):
     Paste clipboard content into buffer.
     """
     pane = pymux.arrangement.get_active_pane(cli)
-    pane.process.write_input(cli.clipboard.get_data().text)
+    pane.process.write_input(cli.clipboard.get_data().text, paste=True)
 
 
 @cmd('source-file', options='<filename>')
