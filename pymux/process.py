@@ -275,7 +275,14 @@ class Process(object):
             row = data_buffer[row_index]
             max_column = max(row.keys())
 
-            char_iter = iter(range(0, max_column + 1))
+            # Remove trailing whitespace.
+            row_data = [row[x] for x in range(0, max_column + 1)]
+
+            while row_data and row_data[-1].char.isspace():
+                row_data.pop()
+
+            # Walk through row.
+            char_iter = iter(range(len(row_data)))
 
             for x in char_iter:
                 c = row[x]
@@ -286,8 +293,7 @@ class Process(object):
                 if c.width == 2:
                     next(char_iter)
 
-                # TODO: remove trailing whitespace.
-
+            # Add newline.
             text.append('\n')
             token_list.append((Token, '\n'))
 
