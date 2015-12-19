@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.eventloop.posix_utils import PosixStdinReader
 from prompt_toolkit.document import Document
+from pygments.token import Token
 
 from .key_mappings import prompt_toolkit_key_to_vt100_key
 from .screen import BetterScreen
@@ -258,13 +259,14 @@ class Process(object):
         if self.pid and not self.is_terminated:
             os.kill(self.pid, signal)
 
-
     def create_copy_document(self):
         """
-        Create a Document instance that can be used in copy mode.
+        Create a Document instance and token list that can be used in copy
+        mode.
         """
         data_buffer = self.screen.pt_screen.data_buffer
         text = []
+        token_list = []
 
         first_row = min(data_buffer.keys())
         last_row = max(data_buffer.keys())
@@ -273,15 +275,25 @@ class Process(object):
             row = data_buffer[row_index]
             max_column = max(row.keys())
 
-            for x in range(0, max_column + 1):
-                text.append(row[x].char)  # XXX: handle double width characters: ignore the next cell.
+            char_iter = iter(range(0, max_column + 1))
+
+            for x in char_iter:
+                c = row[x]
+                text.append(c.char)
+                token_list.append((c.token, c.char))
+
+                # Skip next cell when this is a double width character.
+                if c.width == 2:
+                    next(char_iter)
 
                 # TODO: remove trailing whitespace.
 
             text.append('\n')
+            token_list.append((Token, '\n'))
 
         # Remove last \n.
         text.pop()
+        token_list.pop()
 
         # Calculate cursor position.
         d = Document(text=''.join(text))
@@ -289,7 +301,8 @@ class Process(object):
         return Document(text=d.text,
                         cursor_position=d.translate_row_col_to_index(
                             row=self.screen.pt_screen.cursor_position.y,
-                            col=self.screen.pt_screen.cursor_position.x))
+                            col=self.screen.pt_screen.cursor_position.x)), token_list
+
 
 def get_cwd_for_pid(pid):
     if sys.platform in ('linux', 'linux2'):

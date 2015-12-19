@@ -10,7 +10,7 @@ from prompt_toolkit.layout.controls import TokenListControl, FillControl, UICont
 from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor, HighlightSearchProcessor
+from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor, HighlightSearchProcessor, Processor, Transformation
 from prompt_toolkit.layout.prompt import DefaultPrompt
 from prompt_toolkit.layout.screen import Char, Screen
 from prompt_toolkit.layout.toolbars import SearchToolbar
@@ -588,6 +588,22 @@ def _create_split(pymux, split):
                       report_dimensions_callback=report_dimensions_callback)
 
 
+class _UseCopyTokenListProcessor(Processor):
+    """
+    In order to allow highlighting of the copy region, we use a preprocessed
+    list of (Token, text) tuples. This processor returns just that list for the
+    given pane.
+    """
+    def __init__(self, arrangement_pane):
+        self.arrangement_pane = arrangement_pane
+
+    def apply_transformation(self, cli, document, tokens):
+        return Transformation(document, self.arrangement_pane.copy_token_list.copy())
+
+    def invalidation_hash(self, cli, document):
+        return document.text
+
+
 def _create_container_for_process(pymux, arrangement_pane, zoom=False):
     """
     Create a `Container` with a titlebar for a process.
@@ -671,16 +687,15 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                         ConditionalContainer(
                             content=Window(BufferControl(buffer_name='pane-%i' % arrangement_pane.pane_id,
                                                          wrap_lines=False, focus_on_click=True, input_processors=[
+                                    _UseCopyTokenListProcessor(arrangement_pane),
+                                    HighlightSearchProcessor(),  # No preview_search. That is too slow for big buffers.
                                     HighlightSelectionProcessor(),
-                                    HighlightSearchProcessor(preview_search=True),
                                 ])),
                             filter=Condition(lambda cli: arrangement_pane.copy_mode)),
 
                         # Search toolbar. (Displayed when this pane has the focus, and searching.)
                         ConditionalContainer(
                             content=SearchToolbar(),
-                            #filter=Condition(lambda cli: cli.current_buffer_name == has_focus(cli))),
-                            #filter=Condition(lambda cli: 'pane-%i' % arrangement_pane.pane_id in cli.focus_stack))
                             filter=InFocusStack('pane-%i' % arrangement_pane.pane_id))
                     ]),
 

@@ -51,12 +51,17 @@ class Pane(object):
 
         # Prompt_toolkit buffer, for displaying scrollable text.
         # (In copy mode, or help mode.)
+        # Note: Because the copy_buffer can only contain text, we also use the
+        #       copy_token_list, that contains a token list with color information.
         self.copy_buffer = Buffer(read_only=True)
+        self.copy_token_list = []
         self.copy_mode = False
 
     def enter_copy_mode(self):
-        d = self.process.create_copy_document()
-        self.copy_buffer.set_document(d, bypass_readonly=True)
+        document, token_list = self.process.create_copy_document()
+
+        self.copy_buffer.set_document(document, bypass_readonly=True)
+        self.copy_token_list = token_list
         self.copy_mode = True
 
 
