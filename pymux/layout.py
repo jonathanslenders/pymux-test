@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER, IncrementalSearchDirection
-from prompt_toolkit.filters import HasFocus, Condition, InFocusStack
+from prompt_toolkit.filters import Condition, InFocusStack
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
@@ -13,7 +13,6 @@ from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor, HighlightSearchProcessor, Processor, Transformation
 from prompt_toolkit.layout.prompt import DefaultPrompt
 from prompt_toolkit.layout.screen import Char, Screen
-from prompt_toolkit.layout.toolbars import SearchToolbar
 from prompt_toolkit.layout.toolbars import TokenListToolbar
 from prompt_toolkit.mouse_events import MouseEventTypes
 
@@ -623,7 +622,7 @@ class _UseCopyTokenListProcessor(Processor):
         self.arrangement_pane = arrangement_pane
 
     def apply_transformation(self, cli, document, tokens):
-        return Transformation(document, self.arrangement_pane.copy_token_list.copy())
+        return Transformation(document, self.arrangement_pane.copy_token_list[:])
 
     def invalidation_hash(self, cli, document):
         return document.text
@@ -657,7 +656,10 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
             result.append((Token.Terminated, ' Terminated '))
 
         if arrangement_pane.copy_mode:
+            document = arrangement_pane.copy_buffer.document
             result.append((Token.CopyMode, ' Copy '))
+            result.append((Token.CopyMode.Position, ' %i,%i ' % (
+                document.cursor_position_row, document.cursor_position_col)))
 
         if arrangement_pane.name:
             result.append((name_token, ' %s ' % arrangement_pane.name))

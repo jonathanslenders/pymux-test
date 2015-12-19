@@ -9,7 +9,6 @@ from .process import Process
 
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.document import Document
 
 import math
 import os

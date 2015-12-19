@@ -65,17 +65,21 @@ class BetterScreen(object):
             'max_y',
             ]
 
-    def __init__(self, lines, columns, write_process_input, bell_func=None):
+    def __init__(self, lines, columns, write_process_input, bell_func=None,
+                 get_history_limit=None):
         bell_func = bell_func or (lambda: None)
+        get_history_limit = get_history_limit or (lambda: 2000)
 
         assert callable(write_process_input)
         assert callable(bell_func)
+        assert callable(get_history_limit)
 
         self.savepoints = []
         self.lines = lines
         self.columns = columns
         self.write_process_input = write_process_input
         self.bell_func = bell_func
+        self.get_history_limit = get_history_limit
         self.reset()
 
     def __after__(self, ev):
@@ -389,7 +393,18 @@ class BetterScreen(object):
             else:
                 self.cursor_down()
 
-    def reverse_index(self): # XXX: Used when going multiline with bash. (only second part tested.)
+        self._remove_old_lines_from_history()
+
+    def _remove_old_lines_from_history(self):
+        " Remove from the scroll buffer. "
+        # TODO: don't call on every index() call, but maybe just once every few seconds.
+        remove_above = max(0, self.pt_screen.cursor_position.y - self.get_history_limit())
+        data_buffer = self.pt_screen.data_buffer
+        for line in list(data_buffer):
+            if line < remove_above:
+                del data_buffer[line]
+
+    def reverse_index(self):
         top, bottom = self.margins
         line_offset = self.line_offset
 

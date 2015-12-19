@@ -80,12 +80,24 @@ class StatusKeysOption(Option):
             raise SetOptionError('Expecting "vi" or "emacs".')
 
 
+class HistoryLimitOption(Option):
+    def get_all_values(self, pymux):
+        return ['200', '500', '1000', '2000', '5000', '10000']
+
+    def set_value(self, pymux, value):
+        try:
+            pymux.history_limit = int(value)
+        except ValueError:
+            raise SetOptionError('Expecting an integer.')
+
+
 ALL_OPTIONS = {
-    'mouse': OnOffOption('enable_mouse_support'),
-    'bell': OnOffOption('enable_bell'),
-    'status': OnOffOption('enable_status'),
-    'prefix': KeyPrefixOption(),
     'base-index': BaseIndexOption(),
+    'bell': OnOffOption('enable_bell'),
+    'history-limit': HistoryLimitOption(),
+    'mouse': OnOffOption('enable_mouse_support'),
+    'prefix': KeyPrefixOption(),
     'remain-on-exit': OnOffOption('remain_on_exit'),
+    'status': OnOffOption('enable_status'),
     'status-keys': StatusKeysOption(),
 }
