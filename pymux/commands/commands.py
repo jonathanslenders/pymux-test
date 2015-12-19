@@ -6,6 +6,7 @@ import shlex
 import six
 
 from prompt_toolkit.document import Document
+from prompt_toolkit.enums import SEARCH_BUFFER
 
 from pymux.arrangement import LayoutTypes
 from pymux.enums import COMMAND, PROMPT
@@ -477,6 +478,8 @@ def copy_mode(pymux, cli, variables):
     """
     pane = pymux.arrangement.get_active_pane(cli)
     pane.enter_copy_mode()
+
+    cli.buffers[SEARCH_BUFFER].text = ''
 
 
 @cmd('paste-buffer')

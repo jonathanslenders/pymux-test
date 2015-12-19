@@ -3,7 +3,7 @@
 """
 from __future__ import unicode_literals
 
-from prompt_toolkit.enums import DEFAULT_BUFFER
+from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER, IncrementalSearchDirection
 from prompt_toolkit.filters import HasFocus, Condition, InFocusStack
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
@@ -257,6 +257,31 @@ class PaneWindow(Window):
                     if token and token[0] == 'C':
                         token[-1] = not token[-1] # Invert reverse value.
                         row[x] = Char(char.char, tuple(token))
+
+
+class SearchWindow(Window):
+    """
+    Display the search input in copy mode.
+    """
+    def __init__(self):
+        token = Token.Search
+
+        def get_before_input(cli):
+            if not cli.is_searching:
+                text = ''
+            elif cli.search_state.direction == IncrementalSearchDirection.BACKWARD:
+                text = 'Search up: '
+            else:
+                text = 'Search down: '
+
+            return [(token, text)]
+
+        super(SearchWindow, self).__init__(
+            content=BufferControl(
+                buffer_name=SEARCH_BUFFER,
+                input_processors=[BeforeInput(get_before_input)],
+                lexer=SimpleLexer(default_token=token.Text),
+            default_char=Char(token=Token)))
 
 
 class MessageToolbar(TokenListToolbar):
@@ -686,16 +711,18 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                         # The copy/paste buffer.
                         ConditionalContainer(
                             content=Window(BufferControl(buffer_name='pane-%i' % arrangement_pane.pane_id,
-                                                         wrap_lines=False, focus_on_click=True, input_processors=[
+                                                         wrap_lines=False, focus_on_click=True,
+                                                         default_char=Char(token=Token),
+                                                         input_processors=[
                                     _UseCopyTokenListProcessor(arrangement_pane),
-                                    HighlightSearchProcessor(),  # No preview_search. That is too slow for big buffers.
+                                    #HighlightSearchProcessor(),  # No preview_search. That is too slow for big buffers.
                                     HighlightSelectionProcessor(),
                                 ])),
                             filter=Condition(lambda cli: arrangement_pane.copy_mode)),
 
                         # Search toolbar. (Displayed when this pane has the focus, and searching.)
                         ConditionalContainer(
-                            content=SearchToolbar(),
+                            content=SearchWindow(),
                             filter=InFocusStack('pane-%i' % arrangement_pane.pane_id))
                     ]),
 

@@ -34,11 +34,14 @@ ui_style = {
     Token.Background:              '#888888',
     Token.Clock:                   'bg:#88aa00',
     Token.Terminated:              'bg:#aa0000 #ffffff',
-    Token.CopyMode:                'bg:#aa8844 #000000',
+    Token.CopyMode:                'bg:#aaff44 #000000',
 
     Token.ConfirmationToolbar:          'bg:#880000 #ffffff',
     Token.ConfirmationToolbar.Question: '',
     Token.ConfirmationToolbar.YesNo:    'bg:#440000',
+
+    Token.Search:                  'bg:#aaff44 #444444',
+    Token.Search.Text:             'bold #000000',
 }
 
 
