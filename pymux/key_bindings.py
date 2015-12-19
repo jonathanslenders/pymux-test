@@ -1,9 +1,10 @@
 from __future__ import unicode_literals
 from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
-from prompt_toolkit.filters import HasFocus, Condition
+from prompt_toolkit.filters import HasFocus, Condition, HasSelection
 from prompt_toolkit.key_binding.manager import KeyBindingManager as pt_KeyBindingManager
 from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.keys import Keys
+from prompt_toolkit.selection import SelectionType
 
 from .enums import COMMAND, PROMPT
 from .filters import WaitsForConfirmation, HasPrefix
@@ -31,7 +32,8 @@ class KeyBindingsManager(object):
         # however only active when the following `enable_all` condition is met.
         self.pt_key_bindings_manager = pt_KeyBindingManager(
             enable_vi_mode=Condition(lambda cli: pymux.status_keys_vi_mode),
-            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | HasFocus(SEARCH_BUFFER) | has_pane_buffer_focus) & ~HasPrefix(pymux),
+            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) |
+                        HasFocus(SEARCH_BUFFER) | has_pane_buffer_focus) & ~HasPrefix(pymux),
             enable_auto_suggest_bindings=True,
             enable_search=True,
             enable_extra_page_navigation=True,
@@ -187,6 +189,17 @@ class KeyBindingsManager(object):
             pane = pymux.arrangement.get_active_pane(event.cli)
             pane.copy_mode = False
             event.cli.focus_stack.replace(DEFAULT_BUFFER)
+
+        @registry.add_binding(' ', filter=has_pane_buffer_focus)
+        def _(event):
+            " Enter selection mode when pressing space in copy mode. "
+            event.current_buffer.start_selection(selection_type=SelectionType.CHARACTERS)
+
+        @registry.add_binding(Keys.ControlJ, filter=has_pane_buffer_focus & HasSelection())
+        def _(event):
+            " Copy selection when pressing Enter. "
+            clipboard_data = event.current_buffer.copy_selection()
+            event.cli.clipboard.set_data(clipboard_data)
 
         @registry.add_binding(Keys.Any, filter=display_pane_numbers)
         def _(event):
