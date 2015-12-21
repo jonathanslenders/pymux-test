@@ -21,7 +21,12 @@ ui_style = {
     Token.TitleBar.Focussed.Title: '',
     Token.TitleBar.Zoom:           'bg:#884400 #ffffff',
     Token.TitleBar.PaneIndex:      '',
-    Token.TitleBar.Focussed.PaneIndex: 'bg:#88aa44 #ffffff',
+    Token.TitleBar.CopyMode:           'bg:#888888 #000000',
+    Token.TitleBar.CopyMode.Position:  '',
+
+    Token.TitleBar.Focussed.PaneIndex:         'bg:#88aa44 #ffffff',
+    Token.TitleBar.Focussed.CopyMode:          'bg:#aaff44 #000000',
+    Token.TitleBar.Focussed.CopyMode.Position: '#888888',
 
     Token.CommandLine:             'bg:#884444 #ffffff',
     Token.CommandLine.Command:     'bold',
@@ -34,15 +39,15 @@ ui_style = {
     Token.Background:              '#888888',
     Token.Clock:                   'bg:#88aa00',
     Token.Terminated:              'bg:#aa0000 #ffffff',
-    Token.CopyMode:                'bg:#aaff44 #000000',
-    Token.CopyMode.Position:       '#888888',
 
     Token.ConfirmationToolbar:          'bg:#880000 #ffffff',
     Token.ConfirmationToolbar.Question: '',
     Token.ConfirmationToolbar.YesNo:    'bg:#440000',
 
-    Token.Search:                  'bg:#aaff44 #444444',
-    Token.Search.Text:             'bold #000000',
+    Token.Search:                  'bg:#888888 #000000',
+    Token.Search.Text:             '',
+    Token.Search.Focussed:         'bg:#aaff44 #444444',
+    Token.Search.Focussed.Text:    'bold #000000',
 }
 
 

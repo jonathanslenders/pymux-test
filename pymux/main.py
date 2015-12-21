@@ -549,7 +549,7 @@ class _FocusStack(FocusStack):
     def previous(self):
         return DUMMY_BUFFER
 
-    def __contains__(self, value):
+    def __contains__(self, value):  # XXX: cleanup. (We don't use this.)
         # When the copy/search buffer is in the stack.
         if self._cli:
             pane = self.pymux.arrangement.get_active_pane(self._cli)
@@ -560,7 +560,7 @@ class _FocusStack(FocusStack):
 
         return super(_FocusStack, self).__contains__(value)
 
-    def push(self, buffer_name, replace=False):
+    def push(self, buffer_name, replace=False):  # XXX: cleanup: (We don't use this.)
         self._focus(buffer_name)
         super(_FocusStack, self).push(buffer_name, replace=replace)
 

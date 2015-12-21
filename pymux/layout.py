@@ -8,6 +8,7 @@ from prompt_toolkit.filters import Condition, InFocusStack, HasFocus, HasSearch
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
+from prompt_toolkit.layout.lexers import Lexer
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor, HighlightSearchProcessor, Processor, Transformation
@@ -262,10 +263,11 @@ class SearchWindow(Window):
     """
     Display the search input in copy mode.
     """
-    def __init__(self, arrangement_pane):
+    def __init__(self, pymux, arrangement_pane):
         assert isinstance(arrangement_pane, arrangement.Pane)
 
-        token = Token.Search
+        def focussed(cli):
+            return pymux.arrangement.get_active_pane(cli) == arrangement_pane
 
         def get_before_input(cli):
             if not arrangement_pane.is_searching:
@@ -275,13 +277,24 @@ class SearchWindow(Window):
             else:
                 text = 'Search down: '
 
-            return [(token, text)]
+            if focussed(cli):
+                return [(Token.Search.Focussed, text)]
+            else:
+                return [(Token.Search, text)]
+
+        class SearchLexer(Lexer):
+            " Color for the search string. "
+            def get_tokens(self, cli, text):
+                if focussed(cli):
+                    return [(Token.Search.Focussed.Text, text)]
+                else:
+                    return [(Token.Search.Text, text)]
 
         super(SearchWindow, self).__init__(
             content=BufferControl(
                 buffer_name='search-%i' % arrangement_pane.pane_id,
                 input_processors=[BeforeInput(get_before_input)],
-                lexer=SimpleLexer(default_token=token.Text),
+                lexer=SearchLexer(),
             default_char=Char(token=Token)))
 
 
@@ -661,8 +674,8 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
         if arrangement_pane.copy_mode:
             document = arrangement_pane.copy_buffer.document
-            result.append((Token.CopyMode, ' Copy '))
-            result.append((Token.CopyMode.Position, ' %i,%i ' % (
+            result.append((token.CopyMode, ' Copy '))
+            result.append((token.CopyMode.Position, ' %i,%i ' % (
                 document.cursor_position_row, document.cursor_position_col)))
 
         if arrangement_pane.name:
@@ -728,7 +741,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
                         # Search toolbar. (Displayed when this pane has the focus, and searching.)
                         ConditionalContainer(
-                            content=SearchWindow(arrangement_pane),
+                            content=SearchWindow(pymux, arrangement_pane),
                             filter=Condition(lambda cli: arrangement_pane.is_searching))
                     ]),
 
