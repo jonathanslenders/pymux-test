@@ -295,7 +295,8 @@ class SearchWindow(Window):
                 buffer_name='search-%i' % arrangement_pane.pane_id,
                 input_processors=[BeforeInput(get_before_input)],
                 lexer=SearchLexer(),
-            default_char=Char(token=Token)))
+                default_char=Char(token=Token)),
+            height=D.exact(1))
 
 
 class MessageToolbar(TokenListToolbar):
