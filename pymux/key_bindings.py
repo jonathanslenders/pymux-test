@@ -1,13 +1,13 @@
 from __future__ import unicode_literals
-from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
-from prompt_toolkit.filters import HasFocus, Condition, HasSelection
+from prompt_toolkit.enums import DEFAULT_BUFFER, IncrementalSearchDirection
+from prompt_toolkit.filters import HasFocus, Condition, HasSelection, Filter
 from prompt_toolkit.key_binding.manager import KeyBindingManager as pt_KeyBindingManager
 from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.selection import SelectionType
 
 from .enums import COMMAND, PROMPT
-from .filters import WaitsForConfirmation, HasPrefix
+from .filters import WaitsForConfirmation, HasPrefix, InCopyMode, InCopyModeNotSearching, InCopyModeSearching
 from .key_mappings import pymux_key_to_prompt_toolkit_key_sequence
 from .commands.commands import call_command_handler
 
@@ -16,8 +16,6 @@ import six
 __all__ = (
     'KeyBindingsManager',
 )
-
-has_pane_buffer_focus = Condition(lambda cli: cli.focus_stack.current.startswith('pane-'))
 
 
 class KeyBindingsManager(object):
@@ -32,10 +30,9 @@ class KeyBindingsManager(object):
         # however only active when the following `enable_all` condition is met.
         self.pt_key_bindings_manager = pt_KeyBindingManager(
             enable_vi_mode=Condition(lambda cli: pymux.status_keys_vi_mode),
-            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) |
-                        HasFocus(SEARCH_BUFFER) | has_pane_buffer_focus) & ~HasPrefix(pymux),
+            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | InCopyMode(pymux)) & ~HasPrefix(pymux),
             enable_auto_suggest_bindings=True,
-            enable_search=True,
+            enable_search=False,  # We have our own search bindings, that support multiple panes.
             enable_extra_page_navigation=True,
             get_vi_state=self._get_vi_state)
 
@@ -47,11 +44,11 @@ class KeyBindingsManager(object):
         # Load initial bindings.
         self._load_builtins()
         self._load_prefix_binding()
+        load_emacs_search_bindings(pymux, self.registry)
 
         # Custom user configured key bindings.
         # { (needs_prefix, key) -> (command, handler) }
         self.custom_bindings = {}
-
 
     def _get_vi_state(self, cli):
         " Return the ViState instance for the current client. "
@@ -111,10 +108,10 @@ class KeyBindingsManager(object):
         waits_for_confirmation = WaitsForConfirmation(pymux)
         prompt_or_command_focus = HasFocus(COMMAND) | HasFocus(PROMPT)
         display_pane_numbers = Condition(lambda cli: pymux.display_pane_numbers)
+        in_copy_mode_not_searching = InCopyModeNotSearching(pymux)
         pane_input_allowed = ~(prompt_or_command_focus | has_prefix |
                                waits_for_confirmation | display_pane_numbers |
-                               HasFocus(SEARCH_BUFFER) |
-                               has_pane_buffer_focus)
+                               InCopyMode(pymux))
 
         @registry.add_binding(Keys.Any, filter=pane_input_allowed, invalidate_ui=False)
         def _(event):
@@ -183,19 +180,18 @@ class KeyBindingsManager(object):
             client_state.confirm_command = None
             client_state.confirm_text = None
 
-        @registry.add_binding(Keys.ControlC, filter=has_pane_buffer_focus)
+        @registry.add_binding(Keys.ControlC, filter=in_copy_mode_not_searching)
         def _(event):
             " Exit scroll buffer. "
             pane = pymux.arrangement.get_active_pane(event.cli)
             pane.copy_mode = False
-            event.cli.focus_stack.replace(DEFAULT_BUFFER)
 
-        @registry.add_binding(' ', filter=has_pane_buffer_focus)
+        @registry.add_binding(' ', filter=in_copy_mode_not_searching)
         def _(event):
             " Enter selection mode when pressing space in copy mode. "
             event.current_buffer.start_selection(selection_type=SelectionType.CHARACTERS)
 
-        @registry.add_binding(Keys.ControlJ, filter=has_pane_buffer_focus & HasSelection())
+        @registry.add_binding(Keys.ControlJ, filter=in_copy_mode_not_searching & HasSelection())
         def _(event):
             " Copy selection when pressing Enter. "
             clipboard_data = event.current_buffer.copy_selection()
@@ -263,3 +259,98 @@ class CustomBinding(object):
         self.handler = handler
         self.command = command
         self.arguments = arguments
+
+
+
+def load_emacs_search_bindings(pymux, registry):
+    is_searching = InCopyModeSearching(pymux)
+    in_copy_mode_not_searching = InCopyModeNotSearching(pymux)
+
+    def search_buffer_is_empty(cli):
+        """ Returns True when the search buffer is empty. """
+        return pymux.arrangement.get_active_pane(cli).search_buffer.text == ''
+
+    @registry.add_binding(Keys.ControlG, filter=is_searching)
+    @registry.add_binding(Keys.ControlC, filter=is_searching)
+    @registry.add_binding(Keys.Backspace, filter=is_searching & Condition(search_buffer_is_empty))
+    def _(event):
+        """
+        Abort an incremental search and restore the original line.
+        """
+        pane = pymux.arrangement.get_active_pane(event.cli)
+        pane.search_buffer.reset()
+        pane.is_searching = False
+
+    @registry.add_binding(Keys.ControlJ, filter=is_searching)
+    def _(event):
+        """
+        When enter pressed in isearch, accept search.
+        """
+        pane = pymux.arrangement.get_active_pane(event.cli)
+
+        input_buffer = pane.copy_buffer
+        search_buffer = pane.search_buffer
+
+        # Update search state.
+        if search_buffer.text:
+            pane.search_state.text = search_buffer.text
+
+        # Apply search.
+        input_buffer.apply_search(pane.search_state, include_current_position=True)
+
+        # Add query to history of search line.
+        search_buffer.append_to_history()
+        search_buffer.reset()
+
+        # Focus previous document again.
+        pane.is_searching = False
+
+    @registry.add_binding(Keys.ControlR, filter=in_copy_mode_not_searching)
+    @registry.add_binding('?', filter=in_copy_mode_not_searching)
+    def _(event):
+        pane = pymux.arrangement.get_active_pane(event.cli)
+
+        pane.is_searching = True
+        pane.search_state.direction = IncrementalSearchDirection.BACKWARD
+
+    @registry.add_binding(Keys.ControlS, filter=in_copy_mode_not_searching)
+    @registry.add_binding('/', filter=in_copy_mode_not_searching)
+    def _(event):
+        pane = pymux.arrangement.get_active_pane(event.cli)
+
+        pane.is_searching = True
+        pane.search_state.direction = IncrementalSearchDirection.FORWARD
+
+    @registry.add_binding(Keys.ControlR, filter=is_searching)
+    @registry.add_binding(Keys.Up, filter=is_searching)
+    def _(event):
+        pane = pymux.arrangement.get_active_pane(event.cli)
+
+        # Update search_state.
+        search_state = pane.search_state
+        direction_changed = search_state.direction != IncrementalSearchDirection.BACKWARD
+
+        search_state.text = pane.search_buffer.text
+        search_state.direction = IncrementalSearchDirection.BACKWARD
+
+        # Apply search to current buffer.
+        if not direction_changed:
+            pane.copy_buffer.apply_search(pane.search_state,
+                                          include_current_position=False, count=event.arg)
+
+    @registry.add_binding(Keys.ControlS, filter=is_searching)
+    @registry.add_binding(Keys.Down, filter=is_searching)
+    def _(event):
+        pane = pymux.arrangement.get_active_pane(event.cli)
+
+        # Update search_state.
+        search_state = pane.search_state
+        direction_changed = search_state.direction != IncrementalSearchDirection.FORWARD
+
+        search_state.text = pane.search_buffer.text
+        search_state.direction = IncrementalSearchDirection.FORWARD
+
+        # Apply search to current buffer.
+        if not direction_changed:
+            pane.copy_buffer.apply_search(pane.search_state,
+                                          include_current_position=False, count=event.arg)

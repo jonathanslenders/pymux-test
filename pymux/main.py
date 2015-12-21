@@ -4,7 +4,7 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.buffer_mapping import BufferMapping
-from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
+from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER, DUMMY_BUFFER
 from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
 from prompt_toolkit.eventloop.posix import PosixEventLoop
 from prompt_toolkit.filters import Condition
@@ -52,6 +52,9 @@ class ClientState(object):
 
         #: Error/info message.
         self.message = None
+
+        # True when the command prompt is visible.
+        self.command_mode = False
 
         # When a "confirm-before" command is running,
         # Show this text in the command bar. When confirmed, execute
@@ -278,12 +281,11 @@ class Pymux(object):
         if not self.arrangement.has_panes:
             self.eventloop.stop()
 
-    @classmethod
-    def leave_command_mode(cls, cli, append_to_history=False):
+    def leave_command_mode(self, cli, append_to_history=False):
         cli.buffers[COMMAND].reset(append_to_history=append_to_history)
         cli.buffers[PROMPT].reset(append_to_history=True)
 
-        cli.focus_stack.replace(DEFAULT_BUFFER)
+        self.get_client_state(cli).command_mode = False
 
     def handle_command(self, cli, command):
         handle_command(self, cli, command)
@@ -495,6 +497,12 @@ class _BufferMapping(BufferMapping):
                 return self.pymux.panes_by_id[id].copy_buffer
             except (ValueError, KeyError):
                 raise KeyError
+        elif name.startswith('search-'):
+            try:
+                id = int(name[len('search-'):])
+                return self.pymux.panes_by_id[id].search_buffer
+            except (ValueError, KeyError):
+                raise KeyError
         else:
             return super(_BufferMapping, self).__getitem__(name)
 
@@ -506,36 +514,48 @@ class _FocusStack(FocusStack):
         self._cli = None
         self.pymux = pymux
 
-    def _get_real_buffer_name(self, buffer_name):
+    def _get_real_buffer_name(self):
         if self._cli:
+            client_state = self.pymux.get_client_state(self._cli)
+
+            # Confirm.
+            if client_state.confirm_text:
+                return DUMMY_BUFFER
+
+            # Custom prompt.
+            if client_state.prompt_command:
+                return PROMPT
+
+            # Command mode.
+            if client_state.command_mode:
+                return COMMAND
+
+            # Copy/search mode.
             pane = self.pymux.arrangement.get_active_pane(self._cli)
 
-            if pane:
-                # When we have "DEFAULT_BUFFER", but the current pane is in copy mode,
-                # return that buffer.
-                if buffer_name == DEFAULT_BUFFER and pane.copy_mode:
+            if pane and pane.copy_mode:
+                if pane.is_searching:
+                    return 'search-%i' % pane.pane_id
+                else:
                     return 'pane-%i' % pane.pane_id
 
-                # When we have "SEARCH_BUFFER", but the current pane doesn't do searching.
-                # report DEFAULT_BUFFER.
-                if buffer_name == SEARCH_BUFFER and not pane.copy_mode:
-                    return DEFAULT_BUFFER
-
-        return buffer_name
+        return DUMMY_BUFFER
 
     @property
     def current(self):
-        return self._get_real_buffer_name(super(_FocusStack, self).current)
+        return self._get_real_buffer_name()
 
     @property
     def previous(self):
-        return self._get_real_buffer_name(super(_FocusStack, self).previous)
+        return DUMMY_BUFFER
 
     def __contains__(self, value):
-        # When the copy buffer is in the stack.
+        # When the copy/search buffer is in the stack.
         if self._cli:
             pane = self.pymux.arrangement.get_active_pane(self._cli)
             if pane and pane.copy_mode and value == 'pane-%i' % pane.pane_id:
+                return True
+            if pane and pane.is_searching and value == 'search-%i' % pane.pane_id:
                 return True
 
         return super(_FocusStack, self).__contains__(value)

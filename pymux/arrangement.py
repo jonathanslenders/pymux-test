@@ -7,8 +7,9 @@ level abstraction of the Pymux window layout.
 from __future__ import unicode_literals
 from .process import Process
 
-from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.interface import CommandLineInterface
+from prompt_toolkit.search_state import SearchState
 
 import math
 import os
@@ -55,6 +56,11 @@ class Pane(object):
         self.copy_buffer = Buffer(read_only=True)
         self.copy_token_list = []
         self.copy_mode = False
+
+        # Search buffer, for use in copy mode. (Each pane gets its own search buffer.)
+        self.search_buffer = Buffer()
+        self.is_searching = False
+        self.search_state = SearchState(ignore_case=False)
 
     def enter_copy_mode(self):
         document, token_list = self.process.create_copy_document()

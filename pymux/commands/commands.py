@@ -406,14 +406,15 @@ def command_prompt(pymux, cli, variables):
         client_state.prompt_text = variables['<message>'] or '(%s)' % variables['<command>'].split()[0]
         client_state.prompt_command = variables['<command>']
 
-        cli.focus_stack.replace(PROMPT)
+        client_state.prompt_mode = True
         cli.buffers[PROMPT].reset(Document(
             format_pymux_string(pymux, cli, variables['<default>'] or '')))
     else:
         # Show the ':' prompt.
         client_state.prompt_text = ''
         client_state.prompt_command = ''
-        cli.focus_stack.replace(COMMAND)
+
+        client_state.command_mode = True
 
 
 @cmd('send-prefix')
@@ -479,7 +480,7 @@ def copy_mode(pymux, cli, variables):
     pane = pymux.arrangement.get_active_pane(cli)
     pane.enter_copy_mode()
 
-    cli.buffers[SEARCH_BUFFER].text = ''
+    cli.buffers[SEARCH_BUFFER].reset()
 
 
 @cmd('paste-buffer')

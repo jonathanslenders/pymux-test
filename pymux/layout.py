@@ -3,8 +3,8 @@
 """
 from __future__ import unicode_literals
 
-from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER, IncrementalSearchDirection
-from prompt_toolkit.filters import Condition, InFocusStack, HasSearch
+from prompt_toolkit.enums import DEFAULT_BUFFER, IncrementalSearchDirection
+from prompt_toolkit.filters import Condition, InFocusStack, HasFocus, HasSearch
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
@@ -24,7 +24,7 @@ import six
 import weakref
 
 from .enums import COMMAND, PROMPT
-from .filters import WaitsForConfirmation
+from .filters import WaitsForConfirmation, WaitsForPrompt, InCommandMode
 from .format import format_pymux_string
 from .log import logger
 from .screen import DEFAULT_TOKEN
@@ -183,9 +183,9 @@ class PaneContainer(UIControl):
 
         if not self.has_focus(cli):
             # Focus this process when the mouse has been clicked.
-            self.pymux.arrangement.get_active_window(cli).active_pane = self.pane
-            self.pymux.invalidate()
-            cli.focus_stack.replace(DEFAULT_BUFFER)
+            if mouse_event.event_type == MouseEventTypes.MOUSE_UP:
+                self.pymux.arrangement.get_active_window(cli).active_pane = self.pane
+                self.pymux.invalidate()
         else:
             # Already focussed, send event to application when it requested
             # mouse support.
@@ -262,13 +262,15 @@ class SearchWindow(Window):
     """
     Display the search input in copy mode.
     """
-    def __init__(self):
+    def __init__(self, arrangement_pane):
+        assert isinstance(arrangement_pane, arrangement.Pane)
+
         token = Token.Search
 
         def get_before_input(cli):
-            if not cli.is_searching:
+            if not arrangement_pane.is_searching:
                 text = ''
-            elif cli.search_state.direction == IncrementalSearchDirection.BACKWARD:
+            elif arrangement_pane.search_state.direction == IncrementalSearchDirection.BACKWARD:
                 text = 'Search up: '
             else:
                 text = 'Search down: '
@@ -277,7 +279,7 @@ class SearchWindow(Window):
 
         super(SearchWindow, self).__init__(
             content=BufferControl(
-                buffer_name=SEARCH_BUFFER,
+                buffer_name='search-%i' % arrangement_pane.pane_id,
                 input_processors=[BeforeInput(get_before_input)],
                 lexer=SimpleLexer(default_token=token.Text),
             default_char=Char(token=Token)))
@@ -361,6 +363,8 @@ class LayoutManager(object):
 
     def _create_layout(self):
         waits_for_confirmation = WaitsForConfirmation(self.pymux)
+        waits_for_prompt = WaitsForPrompt(self.pymux)
+        in_command_mode = InCommandMode(self.pymux)
 
         return FloatContainer(
             content=HSplit([
@@ -415,7 +419,7 @@ class LayoutManager(object):
                                     DefaultPrompt(lambda cli:[(Token.CommandLine.Prompt, ':')]),
                                 ])
                         ),
-                        filter=InFocusStack(COMMAND) & ~waits_for_confirmation,
+                        filter=in_command_mode,
                     ),
                     # Other command-prompt commands toolbar.
                     ConditionalContainer(
@@ -431,7 +435,7 @@ class LayoutManager(object):
                                     AppendAutoSuggestion(),
                                 ])
                         ),
-                        filter=InFocusStack(PROMPT) & ~waits_for_confirmation,
+                        filter=waits_for_prompt,
                     ),
                 ])),
                 Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=12)),
@@ -724,8 +728,8 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
                         # Search toolbar. (Displayed when this pane has the focus, and searching.)
                         ConditionalContainer(
-                            content=SearchWindow(),
-                            filter=InFocusStack('pane-%i' % arrangement_pane.pane_id) & HasSearch())
+                            content=SearchWindow(arrangement_pane),
+                            filter=Condition(lambda cli: arrangement_pane.is_searching))
                     ]),
 
                     # Pane numbers. (Centered.)
