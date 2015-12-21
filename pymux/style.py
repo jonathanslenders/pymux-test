@@ -21,7 +21,7 @@ ui_style = {
     Token.TitleBar.Focussed.Title: '',
     Token.TitleBar.Zoom:           'bg:#884400 #ffffff',
     Token.TitleBar.PaneIndex:      '',
-    Token.TitleBar.CopyMode:           'bg:#888888 #000000',
+    Token.TitleBar.CopyMode:           'bg:#88aa88 #444444',
     Token.TitleBar.CopyMode.Position:  '',
 
     Token.TitleBar.Focussed.PaneIndex:         'bg:#88aa44 #ffffff',
@@ -44,7 +44,7 @@ ui_style = {
     Token.ConfirmationToolbar.Question: '',
     Token.ConfirmationToolbar.YesNo:    'bg:#440000',
 
-    Token.Search:                  'bg:#888888 #000000',
+    Token.Search:                  'bg:#88aa88 #444444',
     Token.Search.Text:             '',
     Token.Search.Focussed:         'bg:#aaff44 #444444',
     Token.Search.Focussed.Text:    'bold #000000',
