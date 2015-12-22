@@ -286,7 +286,10 @@ class Pymux(object):
         cli.buffers[COMMAND].reset(append_to_history=append_to_history)
         cli.buffers[PROMPT].reset(append_to_history=True)
 
-        self.get_client_state(cli).command_mode = False
+        client_state = self.get_client_state(cli)
+        client_state.command_mode = False
+        client_state.prompt_command = ''  # TODO: is this the right place to do this??
+        client_state.confirm_command = ''
 
     def handle_command(self, cli, command):
         handle_command(self, cli, command)
@@ -474,10 +477,10 @@ class _BufferMapping(BufferMapping):
             " When a command-prompt command is accepted. "
             text = buffer.text
 
-            pymux.leave_command_mode(cli, append_to_history=True)
-
             client_state = pymux.get_client_state(cli)
             pymux.handle_command(cli, client_state.prompt_command.replace('%%', text))
+
+            pymux.leave_command_mode(cli, append_to_history=True)
 
         super(_BufferMapping, self).__init__({
             COMMAND: Buffer(
