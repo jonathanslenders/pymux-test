@@ -68,14 +68,17 @@ class BaseIndexOption(Option):
             pymux.arrangement.base_index = value
 
 
-class StatusKeysOption(Option):
+class KeysOption(Option):
     " Emacs or Vi mode. "
+    def __init__(self, property_name):
+        self.property_name = property_name
+
     def get_all_values(self, pymux):
         return ['emacs', 'vi']
 
     def set_value(self, pymux, value):
         if value in ('emacs', 'vi'):
-            pymux.status_keys_vi_mode = (value == 'vi')
+            setattr(pymux, self.property_name, value == 'vi')
         else:
             raise SetOptionError('Expecting "vi" or "emacs".')
 
@@ -99,5 +102,6 @@ ALL_OPTIONS = {
     'prefix': KeyPrefixOption(),
     'remain-on-exit': OnOffOption('remain_on_exit'),
     'status': OnOffOption('enable_status'),
-    'status-keys': StatusKeysOption(),
+    'status-keys': KeysOption('status_keys_vi_mode'),
+    'mode-keys': KeysOption('mode_keys_vi_mode'),
 }

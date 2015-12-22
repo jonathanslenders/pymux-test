@@ -7,6 +7,7 @@ import six
 
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import SEARCH_BUFFER
+from prompt_toolkit.key_binding.vi_state import InputMode
 
 from pymux.arrangement import LayoutTypes
 from pymux.enums import COMMAND, PROMPT
@@ -415,6 +416,9 @@ def command_prompt(pymux, cli, variables):
         client_state.prompt_command = ''
 
         client_state.command_mode = True
+
+    # Go to insert mode.
+    client_state.vi_state.input_mode = InputMode.INSERT
 
 
 @cmd('send-prefix')

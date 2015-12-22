@@ -25,11 +25,19 @@ class KeyBindingsManager(object):
     def __init__(self, pymux):
         self.pymux = pymux
 
+        def enable_vi_mode(cli):
+            " Return True when Vi mode is currently active. "
+            client_state = pymux.get_client_state(cli)
+            if client_state.confirm_text or client_state.prompt_command or client_state.command_mode:
+                return pymux.status_keys_vi_mode
+            else:
+                return pymux.mode_keys_vi_mode
+
         # Start from this KeyBindingManager from prompt_toolkit, to have basic
         # editing functionality for the command line. These key binding are
         # however only active when the following `enable_all` condition is met.
         self.pt_key_bindings_manager = pt_KeyBindingManager(
-            enable_vi_mode=Condition(lambda cli: pymux.status_keys_vi_mode),
+            enable_vi_mode=Condition(enable_vi_mode),
             enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | InCopyMode(pymux)) & ~HasPrefix(pymux),
             enable_auto_suggest_bindings=True,
             enable_search=False,  # We have our own search bindings, that support multiple panes.
