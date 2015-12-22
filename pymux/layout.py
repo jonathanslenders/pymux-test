@@ -735,7 +735,9 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                                 wrap_lines=False,
                                 focus_on_click=True,
                                 default_char=Char(token=Token),
-                                preview_search=True,  # XXX doesn't work because we have a different search buffer.
+                                preview_search=True,
+                                get_search_state=lambda cli: arrangement_pane.search_state,
+                                search_buffer_name='search-%i' % arrangement_pane.pane_id,
                                 input_processors=[_UseCopyTokenListProcessor(arrangement_pane)],
                                 highlighters=[
                                     SearchHighlighter(
