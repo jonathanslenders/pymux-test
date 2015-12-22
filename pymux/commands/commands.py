@@ -465,7 +465,10 @@ def send_keys(pymux, cli, variables):
     """
     Send key strokes to the active process.
     """
-    process = pymux.arrangement.get_active_pane(cli).process
+    pane = pymux.arrangement.get_active_pane(cli)
+
+    if pane.copy_mode:
+        raise CommandException('Cannot send keys. Pane is in copy mode.')
 
     for key in variables['<keys>']:
         # Translate key from pymux key to prompt_toolkit key.
@@ -473,7 +476,7 @@ def send_keys(pymux, cli, variables):
 
         # Translate prompt_toolkit key to VT100 key.
         for k in keys_sequence:
-            process.write_key(k)
+            pane.process.write_key(k)
 
 
 @cmd('copy-mode')
