@@ -273,7 +273,7 @@ class Process(object):
 
         for row_index in range(first_row, last_row + 1):
             row = data_buffer[row_index]
-            max_column = max(row.keys())
+            max_column = max(row.keys()) if row else 0
 
             # Remove trailing whitespace.
             row_data = [row[x] for x in range(0, max_column + 1)]

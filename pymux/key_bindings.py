@@ -44,7 +44,7 @@ class KeyBindingsManager(object):
         # Load initial bindings.
         self._load_builtins()
         self._load_prefix_binding()
-        load_emacs_search_bindings(pymux, self.registry)
+        _load_search_bindings(pymux, self.registry, self._get_vi_state)
 
         # Custom user configured key bindings.
         # { (needs_prefix, key) -> (command, handler) }
@@ -261,7 +261,13 @@ class CustomBinding(object):
         self.arguments = arguments
 
 
-def load_emacs_search_bindings(pymux, registry):
+def _load_search_bindings(pymux, registry, get_vi_state):
+    """
+    Load the key bindings for searching. (Vi and Emacs)
+
+    This is different from the ones of prompt_toolkit, because we have a
+    separate search buffer for each pane.
+    """
     is_searching = InCopyModeSearching(pymux)
     in_copy_mode_not_searching = InCopyModeNotSearching(pymux)
 
@@ -302,23 +308,25 @@ def load_emacs_search_bindings(pymux, registry):
         # Focus previous document again.
         pane.is_searching = False
 
+    def enter_search(cli):
+        get_vi_state(cli).input_mode = InputMode.INSERT
+
+        pane = pymux.arrangement.get_active_pane(cli)
+        pane.is_searching = True
+        pane.search_buffer.reset()
+        return pane.search_state
+
     @registry.add_binding(Keys.ControlR, filter=in_copy_mode_not_searching)
     @registry.add_binding('?', filter=in_copy_mode_not_searching)
     def _(event):
-        pane = pymux.arrangement.get_active_pane(event.cli)
-
-        pane.is_searching = True
-        pane.search_buffer.reset()
-        pane.search_state.direction = IncrementalSearchDirection.BACKWARD
+        search_state = enter_search(event.cli)
+        search_state.direction = IncrementalSearchDirection.BACKWARD
 
     @registry.add_binding(Keys.ControlS, filter=in_copy_mode_not_searching)
     @registry.add_binding('/', filter=in_copy_mode_not_searching)
     def _(event):
-        pane = pymux.arrangement.get_active_pane(event.cli)
-
-        pane.is_searching = True
-        pane.search_buffer.reset()
-        pane.search_state.direction = IncrementalSearchDirection.FORWARD
+        search_state = enter_search(event.cli)
+        search_state.direction = IncrementalSearchDirection.FORWARD
 
     @registry.add_binding(Keys.ControlR, filter=is_searching)
     @registry.add_binding(Keys.Up, filter=is_searching)

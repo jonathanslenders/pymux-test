@@ -297,7 +297,7 @@ class SearchWindow(Window):
                 input_processors=[BeforeInput(get_before_input)],
                 lexer=SearchLexer(),
                 default_char=Char(token=Token)),
-            height=D.exact(1))
+            dont_extend_height=True)
 
 
 class MessageToolbar(TokenListToolbar):
@@ -735,6 +735,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                                 wrap_lines=False,
                                 focus_on_click=True,
                                 default_char=Char(token=Token),
+                                preview_search=True,  # XXX doesn't work because we have a different search buffer.
                                 input_processors=[_UseCopyTokenListProcessor(arrangement_pane)],
                                 highlighters=[
                                     SearchHighlighter(
