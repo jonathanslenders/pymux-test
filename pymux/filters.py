@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 from prompt_toolkit.filters import Filter
+from prompt_toolkit.enums import DEFAULT_BUFFER
 
 __all__ = (
     'HasPrefix',
@@ -55,11 +56,21 @@ class WaitsForPrompt(Filter):
         return bool(client_state.prompt_command) and not client_state.confirm_command
 
 
+def _confirm_or_prompt_or_command(pymux, cli):
+    " True when we are waiting for a command, prompt or confirmation. "
+    client_state = pymux.get_client_state(cli)
+    if client_state.confirm_text or client_state.prompt_command or client_state.command_mode:
+        return True
+
+
 class InCopyMode(Filter):
     def __init__(self, pymux):
         self.pymux = pymux
 
     def __call__(self, cli):
+        if _confirm_or_prompt_or_command(self.pymux, cli):
+            return False
+
         pane = self.pymux.arrangement.get_active_pane(cli)
         return pane.copy_mode
 
@@ -69,6 +80,9 @@ class InCopyModeNotSearching(Filter):
         self.pymux = pymux
 
     def __call__(self, cli):
+        if _confirm_or_prompt_or_command(self.pymux, cli):
+            return False
+
         pane = self.pymux.arrangement.get_active_pane(cli)
         return pane.copy_mode and not pane.is_searching
 
@@ -78,5 +92,8 @@ class InCopyModeSearching(Filter):
         self.pymux = pymux
 
     def __call__(self, cli):
+        if _confirm_or_prompt_or_command(self.pymux, cli):
+            return False
+
         pane = self.pymux.arrangement.get_active_pane(cli)
         return pane.copy_mode and pane.is_searching

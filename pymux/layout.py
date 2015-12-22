@@ -11,7 +11,8 @@ from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.lexers import Lexer
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, HighlightSelectionProcessor, HighlightSearchProcessor, Processor, Transformation
+from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, Processor, Transformation
+from prompt_toolkit.layout.highlighters import SelectionHighlighter, SearchHighlighter
 from prompt_toolkit.layout.prompt import DefaultPrompt
 from prompt_toolkit.layout.screen import Char, Screen
 from prompt_toolkit.layout.toolbars import TokenListToolbar
@@ -426,10 +427,9 @@ class LayoutManager(object):
                                 default_char=Char(' ', Token.CommandLine),
                                 lexer=SimpleLexer(Token.CommandLine),
                                 preview_search=True,
+                                highlighters=[SelectionHighlighter()],
                                 input_processors=[
-                                    HighlightSelectionProcessor(),
                                     AppendAutoSuggestion(),
-#                                    HighlightSearchProcessor(preview_search=True),  # Highlight reverse search in prompt.
                                     DefaultPrompt(lambda cli:[(Token.CommandLine.Prompt, ':')]),
                                 ])
                         ),
@@ -443,8 +443,8 @@ class LayoutManager(object):
                                 buffer_name=PROMPT,
                                 default_char=Char(' ', Token.CommandLine),
                                 lexer=SimpleLexer(Token.CommandLine),
+                                highlighters=[SelectionHighlighter()],
                                 input_processors=[
-                                    HighlightSelectionProcessor(),
                                     BeforeInput(self._before_prompt_command_tokens),
                                     AppendAutoSuggestion(),
                                 ])
@@ -730,14 +730,19 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
                         # The copy/paste buffer.
                         ConditionalContainer(
-                            content=Window(BufferControl(buffer_name='pane-%i' % arrangement_pane.pane_id,
-                                                         wrap_lines=False, focus_on_click=True,
-                                                         default_char=Char(token=Token),
-                                                         input_processors=[
-                                    _UseCopyTokenListProcessor(arrangement_pane),
-                                    #HighlightSearchProcessor(),  # No preview_search. That is too slow for big buffers.
-                                    HighlightSelectionProcessor(),
-                                ])),
+                            content=Window(BufferControl(
+                                buffer_name='pane-%i' % arrangement_pane.pane_id,
+                                wrap_lines=False,
+                                focus_on_click=True,
+                                default_char=Char(token=Token),
+                                input_processors=[_UseCopyTokenListProcessor(arrangement_pane)],
+                                highlighters=[
+                                    SearchHighlighter(
+                                        search_buffer_name='search-%i' % arrangement_pane.pane_id,
+                                       preview_search=True),
+                                    SelectionHighlighter(),
+                                ],
+                            )),
                             filter=Condition(lambda cli: arrangement_pane.copy_mode)),
 
                         # Search toolbar. (Displayed when this pane has the focus, and searching.)

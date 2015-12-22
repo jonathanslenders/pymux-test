@@ -261,7 +261,6 @@ class CustomBinding(object):
         self.arguments = arguments
 
 
-
 def load_emacs_search_bindings(pymux, registry):
     is_searching = InCopyModeSearching(pymux)
     in_copy_mode_not_searching = InCopyModeNotSearching(pymux)
@@ -278,7 +277,6 @@ def load_emacs_search_bindings(pymux, registry):
         Abort an incremental search and restore the original line.
         """
         pane = pymux.arrangement.get_active_pane(event.cli)
-        pane.search_buffer.reset()
         pane.is_searching = False
 
     @registry.add_binding(Keys.ControlJ, filter=is_searching)
@@ -300,7 +298,6 @@ def load_emacs_search_bindings(pymux, registry):
 
         # Add query to history of search line.
         search_buffer.append_to_history()
-        search_buffer.reset()
 
         # Focus previous document again.
         pane.is_searching = False
@@ -311,6 +308,7 @@ def load_emacs_search_bindings(pymux, registry):
         pane = pymux.arrangement.get_active_pane(event.cli)
 
         pane.is_searching = True
+        pane.search_buffer.reset()
         pane.search_state.direction = IncrementalSearchDirection.BACKWARD
 
     @registry.add_binding(Keys.ControlS, filter=in_copy_mode_not_searching)
@@ -319,6 +317,7 @@ def load_emacs_search_bindings(pymux, registry):
         pane = pymux.arrangement.get_active_pane(event.cli)
 
         pane.is_searching = True
+        pane.search_buffer.reset()
         pane.search_state.direction = IncrementalSearchDirection.FORWARD
 
     @registry.add_binding(Keys.ControlR, filter=is_searching)

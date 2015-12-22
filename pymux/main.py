@@ -310,7 +310,9 @@ class Pymux(object):
             in the copy buffer. """
             vi_state = self.key_bindings_manager.pt_key_bindings_manager.get_vi_state(cli)
 
-            if not cli.current_buffer.read_only():
+            if cli.current_buffer.read_only():
+                vi_state.input_mode = InputMode.NAVIGATION
+            else:
                 vi_state.input_mode = InputMode.INSERT
 
         application = Application(
