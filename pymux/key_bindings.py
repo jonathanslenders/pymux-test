@@ -33,6 +33,10 @@ class KeyBindingsManager(object):
             else:
                 return pymux.mode_keys_vi_mode
 
+        def get_search_state(cli):
+            " Return the currently active SearchState. (The one for the focussed pane.) "
+            return pymux.arrangement.get_active_pane(cli).search_state
+
         # Start from this KeyBindingManager from prompt_toolkit, to have basic
         # editing functionality for the command line. These key binding are
         # however only active when the following `enable_all` condition is met.
@@ -42,7 +46,8 @@ class KeyBindingsManager(object):
             enable_auto_suggest_bindings=True,
             enable_search=False,  # We have our own search bindings, that support multiple panes.
             enable_extra_page_navigation=True,
-            get_vi_state=self._get_vi_state)
+            get_vi_state=self._get_vi_state,
+            get_search_state=get_search_state)
 
         self.registry = self.pt_key_bindings_manager.registry
 
@@ -291,6 +296,7 @@ def _load_search_bindings(pymux, registry, get_vi_state):
         Abort an incremental search and restore the original line.
         """
         pane = pymux.arrangement.get_active_pane(event.cli)
+        pane.search_buffer.reset()
         pane.is_searching = False
 
     @registry.add_binding(Keys.ControlJ, filter=is_searching)
@@ -314,6 +320,7 @@ def _load_search_bindings(pymux, registry, get_vi_state):
         search_buffer.append_to_history()
 
         # Focus previous document again.
+        pane.search_buffer.reset()
         pane.is_searching = False
 
     def enter_search(cli):
@@ -321,7 +328,6 @@ def _load_search_bindings(pymux, registry, get_vi_state):
 
         pane = pymux.arrangement.get_active_pane(cli)
         pane.is_searching = True
-        pane.search_buffer.reset()
         return pane.search_state
 
     @registry.add_binding(Keys.ControlR, filter=in_copy_mode_not_searching)

@@ -739,7 +739,8 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                                 input_processors=[_UseCopyTokenListProcessor(arrangement_pane)],
                                 highlighters=[
                                     SearchHighlighter(
-                                        search_buffer_name='search-%i' % arrangement_pane.pane_id,
+                                       search_buffer_name='search-%i' % arrangement_pane.pane_id,
+                                       get_search_state=lambda cli: arrangement_pane.search_state,
                                        preview_search=True),
                                     SelectionHighlighter(),
                                 ],
