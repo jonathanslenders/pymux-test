@@ -278,7 +278,7 @@ class BetterScreen(object):
         if (1049 << 5) in modes:
             self._original_screen = self.pt_screen
             self._original_screen_vars = \
-                { v:getattr(self, v) for v in self.swap_variables }
+                dict((v, getattr(self, v)) for v in self.swap_variables)
             self._reset_screen()
             self._reset_offset_and_margins()
 
@@ -799,8 +799,8 @@ class BetterScreen(object):
                 line[x] = Char('E')
 
     # Mapping of the ANSI color codes to their names.
-    _fg_colors = {v: k for k, v in FG_ANSI_COLORS.items()}
-    _bg_colors = {v: k for k, v in BG_ANSI_COLORS.items()}
+    _fg_colors = dict((v, k) for k, v in FG_ANSI_COLORS.items())
+    _bg_colors = dict((v, k) for k, v in BG_ANSI_COLORS.items())
 
     # Mapping of the escape codes for 256colors to their 'ffffff' value.
     _256_colors = {}

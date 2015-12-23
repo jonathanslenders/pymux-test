@@ -156,7 +156,7 @@ class Pymux(object):
             title = ''
 
         if title:
-            return '{} - Pymux'.format(title)
+            return '%s - Pymux' % (title, )
         else:
             return 'Pymux'
 
