@@ -16,6 +16,9 @@ __all__ = (
 
 
 class ServerConnection(object):
+    """
+    For each client that connects, we have one instance of this class.
+    """
     def __init__(self, pymux, connection, client_address):
         self.pymux = pymux
         self.connection = connection

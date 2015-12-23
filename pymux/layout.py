@@ -836,7 +836,7 @@ class HighlightBorders(_ContainerProxy):
 
     def write_to_screen(self, cli, screen, mouse_handlers, write_position):
         # Clear previous list of pane coordinates.
-        self.layout_manager.pane_write_positions = {}   # XXX: Should be for each CLI individually!
+        self.layout_manager.pane_write_positions = {}   # XXX: Should be for each CLI individually!!!!!
         self.layout_manager.body_write_position = None
 
         # Render everything.

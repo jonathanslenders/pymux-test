@@ -33,6 +33,7 @@ import getpass
 import os
 import pwd
 import signal
+import six
 import sys
 import traceback
 import weakref
@@ -53,6 +54,9 @@ class ClientState(object):
         #: Error/info message.
         self.message = None
 
+        # Vi state. (Each client has its own state.)
+        self.vi_state = ViState()
+
         # True when the command prompt is visible.
         self.command_mode = False
 
@@ -65,9 +69,6 @@ class ClientState(object):
         # When a "command-prompt" command is running.
         self.prompt_text = None
         self.prompt_command = None
-
-        # Vi state. (Each client has its own state.)
-        self.vi_state = ViState()
 
 
 class Pymux(object):
@@ -247,10 +248,12 @@ class Pymux(object):
         return pane
 
     def invalidate(self):
+        " Invalidate the UI for all clients. "
         for c in self.clis.values():
             c.invalidate()
 
-    def _get_default_shell(self):
+    @classmethod
+    def _get_default_shell(cls):
         username = getpass.getuser()
         shell = pwd.getpwnam(username).pw_shell
         return shell
@@ -262,6 +265,10 @@ class Pymux(object):
         self.invalidate()
 
     def add_process(self, cli, command=None, vsplit=False, start_directory=None):
+        assert isinstance(cli, CommandLineInterface)
+        assert command is None or isinstance(command, six.text_type)
+        assert start_directory is None or isinstance(start_directory, six.text_type)
+
         window = self.arrangement.get_active_window(cli)
 
         pane = self._create_pane(window, command, start_directory=start_directory)
@@ -269,6 +276,9 @@ class Pymux(object):
         self.invalidate()
 
     def kill_pane(self, pane):
+        """
+        Kill the given pane, and remove it from the arrangement.
+        """
         assert isinstance(pane, Pane)
 
         # Send kill signal.
@@ -283,6 +293,9 @@ class Pymux(object):
             self.eventloop.stop()
 
     def leave_command_mode(self, cli, append_to_history=False):
+        """
+        Leave the command/prompt mode.
+        """
         cli.buffers[COMMAND].reset(append_to_history=append_to_history)
         cli.buffers[PROMPT].reset(append_to_history=True)
 
@@ -298,6 +311,9 @@ class Pymux(object):
         """
         Set a warning message. This will be shown at the bottom until a key has
         been pressed.
+
+        :param cli: CommandLineInterface instance. (The client.)
+        :param message: String.
         """
         self.get_client_state(cli).message = message
 
@@ -476,11 +492,12 @@ class _BufferMapping(BufferMapping):
         def _handle_prompt_command(cli, buffer):
             " When a command-prompt command is accepted. "
             text = buffer.text
-
             client_state = pymux.get_client_state(cli)
-            pymux.handle_command(cli, client_state.prompt_command.replace('%%', text))
+            prompt_command = client_state.prompt_command
 
+            # Leave command mode and handle command.
             pymux.leave_command_mode(cli, append_to_history=True)
+            pymux.handle_command(cli, prompt_command.replace('%%', text))
 
         super(_BufferMapping, self).__init__({
             COMMAND: Buffer(
@@ -553,7 +570,7 @@ class _FocusStack(FocusStack):
 
     @property
     def previous(self):
-        return DUMMY_BUFFER
+        return DUMMY_BUFFER  # Not used.
 
     def __contains__(self, value):  # XXX: cleanup. (We don't use this.)
         # When the copy/search buffer is in the stack.

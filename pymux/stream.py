@@ -13,7 +13,7 @@ class BetterStream(Stream):
     sequences. This is used by xterm to set the terminal title.
     """
     csi = {
-        'n': 'cpr',
+        'n': 'cpr',  # Cursor position request.
         'c': 'send_device_attributes',  # csi > Ps c
     }
     csi.update(Stream.csi)

@@ -85,7 +85,6 @@ class Process(object):
                    bell_func=bell_func, done_callback=done_callback)
 
     def _start(self):
-        os.environ['TERM'] = 'screen'
         pid = os.fork()
 
         if pid == 0:
@@ -105,6 +104,9 @@ class Process(object):
             self.pid = pid
 
     def _waitpid(self):
+        """
+        Create an executor that waits and handles process termination.
+        """
         def wait_for_finished():
             " Wait for PID in executor. "
             os.waitpid(self.pid, 0)
@@ -132,6 +134,7 @@ class Process(object):
         self.screen.columns = width
 
     def _in_child(self):
+        " Will be executed in the forked child. "
         os.close(self.master)
 
         # Remove signal handler for SIGWINCH as early as possible.
@@ -180,6 +183,7 @@ class Process(object):
         """
         Write user key strokes to the input.
 
+        :param data: (text, not bytes.) The input.
         :param paste: When True, and the process running here understands
             bracketed paste. Send as pasted text.
         """
@@ -245,9 +249,16 @@ class Process(object):
         connect_reader()
 
     def get_cwd(self):
+        """
+        The current working directory for this process. (Or `None` when
+        unknown.)
+        """
         return get_cwd_for_pid(self.pid)
 
     def get_name(self):
+        """
+        The name for this process. (Or `None` when unknown.)
+        """
         # TODO: Cache for short time.
         if self.master is not None:
             return get_name_for_fd(self.master)
@@ -311,6 +322,9 @@ class Process(object):
 
 
 def get_cwd_for_pid(pid):
+    """
+    Return the current working directory for a given process ID.
+    """
     if sys.platform in ('linux', 'linux2'):
         try:
             return os.readlink('/proc/%s/cwd' % pid)
@@ -318,6 +332,9 @@ def get_cwd_for_pid(pid):
             pass
 
 def get_name_for_fd(fd):
+    """
+    Return the process name for a given process ID.
+    """
     if sys.platform in ('linux', 'linux2'):
         pgrp = os.tcgetpgrp(fd)
 

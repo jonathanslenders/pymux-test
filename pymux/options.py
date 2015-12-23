@@ -84,6 +84,7 @@ class KeysOption(Option):
 
 
 class HistoryLimitOption(Option):
+    " Change the history limit. "
     def get_all_values(self, pymux):
         return ['200', '500', '1000', '2000', '5000', '10000']
 
