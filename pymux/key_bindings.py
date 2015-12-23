@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
-from prompt_toolkit.enums import DEFAULT_BUFFER, IncrementalSearchDirection
-from prompt_toolkit.filters import HasFocus, Condition, HasSelection, Filter
+from prompt_toolkit.enums import IncrementalSearchDirection
+from prompt_toolkit.filters import HasFocus, Condition, HasSelection
 from prompt_toolkit.key_binding.manager import KeyBindingManager as pt_KeyBindingManager
 from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.keys import Keys
@@ -137,7 +137,6 @@ class KeyBindingsManager(object):
             #       the pane that will probably echo back the typed characters.
             #       When we receive them, they are draw to the UI and it's
             #       invalidated.
-            data = event.data
             pane = pymux.arrangement.get_active_pane(event.cli)
 
             if pane.clock_mode:

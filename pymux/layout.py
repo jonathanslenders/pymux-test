@@ -3,8 +3,8 @@
 """
 from __future__ import unicode_literals
 
-from prompt_toolkit.enums import DEFAULT_BUFFER, IncrementalSearchDirection
-from prompt_toolkit.filters import Condition, InFocusStack, HasFocus, HasSearch
+from prompt_toolkit.enums import IncrementalSearchDirection
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContainer, Float, ConditionalContainer, Container
 from prompt_toolkit.layout.controls import TokenListControl, FillControl, UIControl, BufferControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D

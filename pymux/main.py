@@ -4,7 +4,7 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.buffer_mapping import BufferMapping
-from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER, DUMMY_BUFFER
+from prompt_toolkit.enums import DUMMY_BUFFER
 from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
 from prompt_toolkit.eventloop.posix import PosixEventLoop
 from prompt_toolkit.filters import Condition

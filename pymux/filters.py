@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 from prompt_toolkit.filters import Filter
-from prompt_toolkit.enums import DEFAULT_BUFFER
 
 __all__ = (
     'HasPrefix',
