@@ -368,7 +368,7 @@ class LayoutManager(object):
     def _get_time_tokens(self, cli):
         return [
             (Token.StatusBar,
-            datetime.datetime.now().strftime('%H:%M %d-%b-%y')),
+            format_pymux_string(self.pymux, cli, self.pymux.status_right)),
             (Token.StatusBar, ' '),
         ]
 

@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import datetime
 import socket
 
 __all__ = (
@@ -45,6 +46,10 @@ def format_pymux_string(pymux, cli, string):
         '##': literal,
     }
 
+    # Date/time formatting.
+    string = datetime.datetime.now().strftime(string)
+
+    # Apply '#' formatting.
     for symbol, f in format_table.items():
         if symbol in string:
             string = string.replace(symbol, f())

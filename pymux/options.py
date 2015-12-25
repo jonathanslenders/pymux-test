@@ -103,6 +103,14 @@ class DefaultTerminalOption(Option):
         pymux.default_terminal = value
 
 
+class StatusRightOption(Option):
+    def get_all_values(self, pymux):
+        return [pymux.status_right]
+
+    def set_value(self, pymux, value):
+        pymux.status_right = value
+
+
 ALL_OPTIONS = {
     'base-index': BaseIndexOption(),
     'bell': OnOffOption('enable_bell'),
@@ -114,4 +122,5 @@ ALL_OPTIONS = {
     'status-keys': KeysOption('status_keys_vi_mode'),
     'mode-keys': KeysOption('mode_keys_vi_mode'),
     'default-terminal': DefaultTerminalOption(),
+    'status-right': StatusRightOption(),
 }

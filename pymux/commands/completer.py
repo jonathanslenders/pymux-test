@@ -89,7 +89,7 @@ class ShlexCompleter(Completer):
 
     @classmethod
     def wrap(cls, text):
-        if not any(x in text for x in ['"', "'", '\\']):
+        if not any(x in text for x in [' ', '"', "'", '\\']):
             return text
         else:
             return '"%s"' % (text.replace('\\', r'\\').replace('"', r'\"'), )

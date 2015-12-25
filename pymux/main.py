@@ -101,6 +101,7 @@ class Pymux(object):
         self.mode_keys_vi_mode = False
         self.history_limit = 2000
         self.default_terminal = 'xterm-256color'
+        self.status_right = '%H:%M %d-%b-%y'
 
         self.options = ALL_OPTIONS
 
