@@ -100,6 +100,7 @@ class Pymux(object):
         self.status_keys_vi_mode = False
         self.mode_keys_vi_mode = False
         self.history_limit = 2000
+        self.default_terminal = 'xterm-256color'
 
         self.options = ALL_OPTIONS
 
@@ -216,10 +217,14 @@ class Pymux(object):
 
         def before_exec():
             " Called in the process fork. "
+            # Go to this directory.
             try:
                 os.chdir(path or self.original_cwd)
             except OSError:
                 pass  # No such file or directory.
+
+            # Set terminal variable. (We emulate xterm.)
+            os.environ['TERM'] = self.default_terminal
 
             # Make sure to set the PYMUX environment variable.
             if self.socket_name:

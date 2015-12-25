@@ -95,6 +95,14 @@ class HistoryLimitOption(Option):
             raise SetOptionError('Expecting an integer.')
 
 
+class DefaultTerminalOption(Option):
+    def get_all_values(self, pymux):
+        return ['xterm', 'xterm-256color', 'screen']
+
+    def set_value(self, pymux, value):
+        pymux.default_terminal = value
+
+
 ALL_OPTIONS = {
     'base-index': BaseIndexOption(),
     'bell': OnOffOption('enable_bell'),
@@ -105,4 +113,5 @@ ALL_OPTIONS = {
     'status': OnOffOption('enable_status'),
     'status-keys': KeysOption('status_keys_vi_mode'),
     'mode-keys': KeysOption('mode_keys_vi_mode'),
+    'default-terminal': DefaultTerminalOption(),
 }

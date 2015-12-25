@@ -142,9 +142,6 @@ class Process(object):
         # yet.)
         signal.signal(signal.SIGWINCH, 0)
 
-        # Set terminal variable. (We emulate xterm.)
-        os.environ['TERM'] = 'xterm-256color'
-
         pty_make_controlling_tty(self.slave)
 
         # In the fork, set the stdin/out/err to our slave pty.
