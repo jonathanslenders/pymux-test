@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import socket
 
 __all__ = (
     'format_pymux_string',
@@ -29,12 +30,19 @@ def format_pymux_string(pymux, cli, string):
     def title_of_pane():
         return pane.process.screen.title
 
+    def hostname():
+        return socket.gethostname()
+
+    def literal():
+        return '#'
 
     format_table = {
         '#D': id_of_pane,
         '#P': index_of_pane,
-        '#W': name_of_window,
         '#T': title_of_pane,
+        '#W': name_of_window,
+        '#h': hostname,
+        '##': literal,
     }
 
     for symbol, f in format_table.items():

@@ -511,7 +511,7 @@ def copy_mode(pymux, cli, variables):
 
 
 @cmd('paste-buffer')
-def copy_mode(pymux, cli, variables):
+def paste_buffer(pymux, cli, variables):
     """
     Paste clipboard content into buffer.
     """
@@ -553,3 +553,11 @@ def set_option(pymux, cli, variables):
 def display_panes(pymux, cli, variables):
     " Display the pane numbers. "
     pymux.display_pane_numbers = True
+
+
+@cmd('display-message', options='<message>')
+def display_message(pymux, cli, variables):
+    " Display a message. "
+    message = variables['<message>']
+    client_state = pymux.get_client_state(cli)
+    client_state.message = message
