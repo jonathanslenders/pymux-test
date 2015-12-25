@@ -96,8 +96,8 @@ class Client(object):
         packet = json.loads(data_buffer.decode('utf-8'))
 
         if packet['cmd'] == 'out':
-            sys.stdout.write(packet['data'])
-            sys.stdout.flush()
+            # Call os.write manually. In Python2.6, sys.stdout.write doesn't use UTF-8.
+            os.write(sys.stdout.fileno(), packet['data'].encode('utf-8'))
 
         elif packet['cmd'] == 'suspend':
             # Suspend client process to background.

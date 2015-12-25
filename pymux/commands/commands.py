@@ -4,16 +4,18 @@ import os
 import re
 import shlex
 import six
+import sys
 
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import SEARCH_BUFFER
 from prompt_toolkit.key_binding.vi_state import InputMode
 
 from pymux.arrangement import LayoutTypes
-from pymux.enums import COMMAND, PROMPT
+from pymux.enums import PROMPT
 from pymux.format import format_pymux_string
 from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence, prompt_toolkit_key_to_vt100_key
 from pymux.options import SetOptionError
+from pymux.log import logger
 
 __all__ = (
     'call_command_handler',
@@ -48,11 +50,19 @@ def handle_command(pymux, cli, input_string):
     """
     Handle command.
     """
+    assert isinstance(input_string, six.text_type)
+
     input_string = input_string.strip()
+    logger.info('handle command: %s %s.', input_string, type(input_string))
 
     if input_string and not input_string.startswith('#'):  # Ignore comments.
         try:
-            parts = shlex.split(input_string)
+            if sys.version.startswith('2.6.'):
+                # In Python2.6, shlex doesn't work with unicode input.
+                parts = shlex.split(input_string.encode('utf-8'))
+                parts = [p.decode('utf-8') for p in parts]
+            else:
+                parts = shlex.split(input_string)
         except ValueError as e:
             # E.g. missing closing quote.
             pymux.show_message(cli, 'Invalid command %s: %s' % (input_string, e))
@@ -71,7 +81,7 @@ def call_command_handler(command, pymux, cli, arguments):
     try:
         handler = COMMANDS_TO_HANDLERS[command]
     except KeyError:
-        pymux.show_message(cli, 'Invalid command: %s' % command)
+        pymux.show_message(cli, 'Invalid command: %s' % (command,))
     else:
         try:
             handler(pymux, cli, arguments)
@@ -103,6 +113,16 @@ def cmd(name, options=''):
 
             # Parse options.
             try:
+                # Python 2.6 workaround: pass bytes to docopt.
+                # From the following, only the bytes version returns the right
+                # output in Python 2.6:
+                #   docopt.docopt('Usage:\n  app <params>...', [b'a', b'b'])
+                #   docopt.docopt('Usage:\n  app <params>...', [u'a', u'b'])
+                # https://github.com/docopt/docopt/issues/30
+                # (Not sure how reliable this is...)
+                if sys.version.startswith('2.6.'):
+                    arguments = [a.encode('utf-8') for a in arguments]
+
                 received_options = docopt.docopt(
                     'Usage:\n    %s %s' % (name, options),
                     arguments,
