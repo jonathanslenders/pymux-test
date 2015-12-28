@@ -39,12 +39,12 @@ def get_completions_for_parts(parts, last_part, complete_event, pymux):
         completer = WordCompleter(sorted(flags), WORD=True)
 
     elif len(parts) == 1 and parts[0] == 'set-option':
-        completer = WordCompleter(sorted(pymux.options.keys()), WORD=True)
+        completer = WordCompleter(sorted(pymux.options.keys()), sentence=True)
 
     elif len(parts) == 2 and parts[0] == 'set-option':
         option = pymux.options.get(parts[1])
         if option:
-            completer = WordCompleter(sorted(option.get_all_values(pymux)), WORD=True)
+            completer = WordCompleter(sorted(option.get_all_values(pymux)), sentence=True)
 
     elif len(parts) == 1 and parts[0] == 'select-layout':
         completer = _layout_type_completer
@@ -79,11 +79,11 @@ class ShlexCompleter(Completer):
 
     def get_completions(self, document, complete_event):
         text = document.text_before_cursor
+
         parts, part_start_pos = self.parse(text)
 
         for c in self.get_completions_for_parts(parts[:-1], parts[-1], complete_event):
-            assert c.start_position == -len(parts[-1])
-            yield Completion(self.wrap(c.text),
+            yield Completion(self.wrap(parts[-1][:c.start_position] + c.text),
                              start_position=part_start_pos - len(document.text),
                              display=c.display)
 

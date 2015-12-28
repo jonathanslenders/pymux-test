@@ -47,7 +47,10 @@ def format_pymux_string(pymux, cli, string):
     }
 
     # Date/time formatting.
-    string = datetime.datetime.now().strftime(string)
+    try:
+        string = datetime.datetime.now().strftime(string)
+    except ValueError:  # strftime format ends with raw %
+        string = '<ValueError>'
 
     # Apply '#' formatting.
     for symbol, f in format_table.items():
