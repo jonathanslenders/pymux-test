@@ -404,6 +404,14 @@ class BetterScreen(object):
             if line < remove_above:
                 del data_buffer[line]
 
+    def clear_history(self):
+        """
+        Delete all history from the scroll buffer.
+        """
+        for line in list(self.data_buffer):
+            if line < self.line_offset:
+                del self.data_buffer[line]
+
     def reverse_index(self):
         top, bottom = self.margins
         line_offset = self.line_offset

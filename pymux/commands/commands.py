@@ -561,3 +561,14 @@ def display_message(pymux, cli, variables):
     message = variables['<message>']
     client_state = pymux.get_client_state(cli)
     client_state.message = message
+
+
+@cmd('clear-history')
+def clear_history(pymux, cli, variables):
+    " Clear scrollback buffer. "
+    pane = pymux.arrangement.get_active_pane(cli)
+
+    if pane.copy_mode:
+        raise CommandException('Not available in copy mode')
+    else:
+        pane.process.screen.clear_history()
