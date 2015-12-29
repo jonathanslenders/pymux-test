@@ -631,18 +631,6 @@ class Arrangement(object):
 
                 self.windows.remove(w)
 
-
-    def remove_dead_panes(self):
-        for w in self.windows[:]:
-            for pane in w.panes:
-                if pane.process.is_terminated:
-                    w.remove_pane(pane)
-
-            # No panes left in this window?
-            if not w.has_panes:
-                self.focus_previous_window(cli)
-                self.windows.remove(w)
-
     def focus_previous_window(self, cli):
         assert isinstance(cli, CommandLineInterface)
 
