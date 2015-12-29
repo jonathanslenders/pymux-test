@@ -46,8 +46,8 @@ def pty_make_controlling_tty(tty_fd):
         fd = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
         if fd >= 0:
             os.close(fd)
-            raise Exception('Failed to disconnect from ' +
-                'controlling tty. It is still possible to open /dev/tty.')
+            raise Exception('Failed to disconnect from controlling '
+                            'tty. It is still possible to open /dev/tty.')
     # which exception, shouldnt' we catch explicitly .. ?
     except:
         # Good! We are disconnected from a controlling tty.
@@ -72,14 +72,12 @@ def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
     """
     Double fork-trick. For starting a posix daemon.
 
-    This forks the current process into a daemon.
-    The stdin, stdout, and stderr arguments are file names that
-    will be opened and be used to replace the standard file descriptors
-    in sys.stdin, sys.stdout, and sys.stderr.
-    These arguments are optional and default to /dev/null.
-    Note that stderr is opened unbuffered, so
-    if it shares a file with stdout then interleaved output
-    may not appear in the order that you expect.
+    This forks the current process into a daemon. The stdin, stdout, and stderr
+    arguments are file names that will be opened and be used to replace the
+    standard file descriptors in sys.stdin, sys.stdout, and sys.stderr. These
+    arguments are optional and default to /dev/null. Note that stderr is opened
+    unbuffered, so if it shares a file with stdout then interleaved output may
+    not appear in the order that you expect.
 
     Thanks to:
     http://code.activestate.com/recipes/66012-fork-a-daemon-process-on-unix/
@@ -89,10 +87,9 @@ def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
         pid = os.fork()
         if pid > 0:
             os.waitpid(pid, 0)
-            return 0 # Return 0 from first parent.
-            #sys.exit(0) # Exit first parent.
+            return 0  # Return 0 from first parent.
     except OSError as e:
-        sys.stderr.write("fork #1 failed: (%d) %s\n" % (e.errno, e.strerror)    )
+        sys.stderr.write("fork #1 failed: (%d) %s\n" % (e.errno, e.strerror))
         sys.exit(1)
 
     # Decouple from parent environment.
@@ -104,9 +101,9 @@ def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
     try:
         pid = os.fork()
         if pid > 0:
-            sys.exit(0) # Exit second parent.
+            sys.exit(0)  # Exit second parent.
     except OSError as e:
-        sys.stderr.write("fork #2 failed: (%d) %s\n" % (e.errno, e.strerror)    )
+        sys.stderr.write("fork #2 failed: (%d) %s\n" % (e.errno, e.strerror))
         sys.exit(1)
 
     # Now I am a daemon!
@@ -114,8 +111,8 @@ def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
     # Redirect standard file descriptors.
 
         # NOTE: For debugging, you meight want to take these instead of /dev/null.
-    #so = open('/tmp/log2', 'ab+')
-    #se = open('/tmp/log2', 'ab+', 0)
+    # so = open('/tmp/log2', 'ab+')
+    # se = open('/tmp/log2', 'ab+', 0)
 
     si = open(stdin, 'rb')
     so = open(stdout, 'ab+')
@@ -141,7 +138,7 @@ def set_terminal_size(stdout_fileno, rows, cols):
     # Buffer for the C call
     # (The first parameter of 'array.array' needs to be 'str' on both Python 2
     # and Python 3.)
-    buf = array.array(str('h'), [rows, cols, 0, 0 ])
+    buf = array.array(str('h'), [rows, cols, 0, 0])
 
     # Do: TIOCSWINSZ (Set)
     fcntl.ioctl(stdout_fileno, termios.TIOCSWINSZ, buf)
