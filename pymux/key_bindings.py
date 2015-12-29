@@ -209,6 +209,19 @@ class KeyBindingsManager(object):
             clipboard_data = event.current_buffer.copy_selection()
             event.cli.clipboard.set_data(clipboard_data)
 
+        @registry.add_binding('v', filter=in_copy_mode_not_searching & HasSelection())
+        def _(event):
+            " Toggle between selection types. "
+            types = [SelectionType.LINES, SelectionType.BLOCK, SelectionType.CHARACTERS]
+            selection_state = event.current_buffer.selection_state
+
+            try:
+                index = types.index(selection_state.type)
+            except ValueError:  # Not in list.
+                index = 0
+
+            selection_state.type = types[(index + 1 ) % len(types)]
+
         @registry.add_binding(Keys.Any, filter=display_pane_numbers)
         def _(event):
             " When the pane numbers are shown. Any key press should hide them. "
