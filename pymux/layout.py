@@ -352,28 +352,24 @@ class LayoutManager(object):
 
     def _get_status_tokens(self, cli):
         result = []
-        previous_window = self.pymux.arrangement.get_previous_active_window(cli)
 
         # Display panes.
         for i, w in enumerate(self.pymux.arrangement.windows):
             if i > 0:
                 result.append((Token.StatusBar, ' '))
 
-            handler = self._create_select_window_handler(w)
-
             if w == self.pymux.arrangement.get_active_window(cli):
-                result.append((
-                    Token.StatusBar.Window.Active,
-                    format_pymux_string(self.pymux, cli,
-                        self.pymux.window_status_current_format, window=w),
-                    handler))
+                token = Token.StatusBar.Window.Current
+                format = self.pymux.window_status_current_format
 
             else:
-                result.append((
-                    Token.StatusBar.Window,
-                    format_pymux_string(self.pymux, cli,
-                        self.pymux.window_status_format, window=w),
-                    handler))
+                token = Token.StatusBar.Window
+                format = self.pymux.window_status_format
+
+            result.append((
+                token,
+                format_pymux_string(self.pymux, cli, format, window=w),
+                self._create_select_window_handler(w)))
 
         return result
 

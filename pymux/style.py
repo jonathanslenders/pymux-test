@@ -33,7 +33,7 @@ ui_style = {
     Token.CommandLine.Prompt:          'bold',
     Token.StatusBar:                   'bg:#444444 #ffffff',
     Token.StatusBar.Window:            'bg:#888888',
-    Token.StatusBar.Window.Active:     '#88ff88 bold',
+    Token.StatusBar.Window.Current:    '#88ff88 bold',
     Token.AutoSuggestion:              'bg:#884444 #ff8888',
     Token.Message:                     'bg:#bbee88 #222222',
     Token.Background:                  '#888888',
