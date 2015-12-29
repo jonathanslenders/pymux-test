@@ -30,6 +30,7 @@ __all__ = (
 DEFAULT_TOKEN = ('C', ) + Attrs(color=None, bgcolor=None, bold=False, underline=False,
                                 italic=False, blink=False, reverse=False)
 
+
 class CursorPosition(object):
     " Mutable CursorPosition. "
     def __init__(self, x=0, y=0):
@@ -147,7 +148,7 @@ class BetterScreen(object):
         #      not a French version of Vim would incorrectly show some
         #      characters.
         self.charset = 0
-        #self.g0_charset = cs.IBMPC_MAP
+        # self.g0_charset = cs.IBMPC_MAP
         self.g0_charset = cs.LAT1_MAP
         self.g1_charset = cs.VT100_MAP
 
@@ -164,7 +165,6 @@ class BetterScreen(object):
         alternate buffer. """
         self.pt_screen = Screen(default_char=Char(' ', DEFAULT_TOKEN))
 
-
         self.pt_screen.cursor_position = CursorPosition(0, 0)
         self.pt_screen.show_cursor = True
 
@@ -175,7 +175,7 @@ class BetterScreen(object):
 
         self.margins = Margins(0, self.lines - 1)
 
-        self.line_offset = 0 # Index of the line that's currently displayed on top.
+        self.line_offset = 0  # Index of the line that's currently displayed on top.
         self.max_y = 0  # Max 'y' position to which is written.
 
     def resize(self, lines=None, columns=None):
@@ -188,7 +188,7 @@ class BetterScreen(object):
             if lines > self.lines:
                 self.line_offset = max(0, self.line_offset - lines + self.lines)
 
-            self.lines =  lines
+            self.lines = lines
             self.columns = columns
 
             self._reset_offset_and_margins()
@@ -541,7 +541,7 @@ class BetterScreen(object):
                 else:
                     self.data_buffer[line + self.line_offset] = self.data_buffer[line + count + self.line_offset]
 
-    def insert_characters(self, count=None): # XXX: used by pressing space in bash vi mode
+    def insert_characters(self, count=None):  # XXX: used by pressing space in bash vi mode
         """Inserts the indicated # of blank characters at the cursor
         position. The cursor does not move and remains at the beginning
         of the inserted blank characters. Data on the line is shifted
@@ -560,7 +560,7 @@ class BetterScreen(object):
                 line[i + count] = line[i]
                 del line[i]
 
-    def delete_characters(self, count=None): # XXX: used by pressing 'x' on bash vi mode
+    def delete_characters(self, count=None):  # XXX: used by pressing 'x' on bash vi mode
         count = count or 1
 
         line = self.data_buffer[self.pt_screen.cursor_position.y]
@@ -650,8 +650,8 @@ class BetterScreen(object):
 
         :param int count: number of columns to skip.
         """
-        self.pt_screen.cursor_position.x = max(0,
-            self.pt_screen.cursor_position.x - (count or 1))
+        self.pt_screen.cursor_position.x = max(
+            0, self.pt_screen.cursor_position.x - (count or 1))
         self.ensure_bounds()
 
     def cursor_forward(self, count=None):
@@ -708,15 +708,15 @@ class BetterScreen(object):
         else:
             line = self.data_buffer[self.pt_screen.cursor_position.y]
 
-            def should_we_delete(column): # TODO: check for off-by-one errors!
+            def should_we_delete(column):  # TODO: check for off-by-one errors!
                 if type_of == 0:
                     return column >= self.pt_screen.cursor_position.x
                 if type_of == 1:
                     return column <= self.pt_screen.cursor_position.x
 
             for column in list(line.keys()):
-               if should_we_delete(column):
-                   del line[column]
+                if should_we_delete(column):
+                    del line[column]
 
     def erase_in_display(self, type_of=0, private=False):
         """Erases display in a specific way.
@@ -756,7 +756,7 @@ class BetterScreen(object):
             except IndexError:
                 return
 
-            for line in interval: # TODO: from where the -1 in the index below??
+            for line in interval:
                 self.data_buffer[line] = defaultdict(lambda: Char(' '))
 
             # In case of 0 or 1 we have to erase the line with the cursor.
@@ -814,7 +814,7 @@ class BetterScreen(object):
     _256_colors = {}
 
     for i, (r, g, b) in enumerate(Terminal256Formatter().xterm_colors):
-         _256_colors[1024 + i] = '%02x%02x%02x' % (r, g, b)
+        _256_colors[1024 + i] = '%02x%02x%02x' % (r, g, b)
 
     def select_graphic_rendition(self, *attrs):
         """ Support 256 colours """
