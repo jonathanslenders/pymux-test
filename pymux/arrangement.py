@@ -17,6 +17,7 @@ from pygments.token import Token
 import math
 import os
 import weakref
+import six
 
 __all__ = (
     'Pane',
@@ -563,13 +564,14 @@ class Arrangement(object):
             if w.index == index:
                 return w
 
-    def create_window(self, cli, pane):
+    def create_window(self, cli, pane, name=None):
         """
         Create a new window that contains just this pane.
         If `cli` has been given, this window will be focussed for that client.
         """
         assert isinstance(pane, Pane)
         assert cli is None or isinstance(cli, CommandLineInterface)
+        assert name is None or isinstance(name, six.text_type)
 
         # Take the first available index.
         taken_indexes = [w.index for w in self.windows]
@@ -588,6 +590,9 @@ class Arrangement(object):
 
         if cli is not None:
             self.set_active_window(cli, w)
+
+        if name is not None:
+            w.chosen_name = name
 
         assert w.active_pane == pane
         assert w._get_parent(pane)

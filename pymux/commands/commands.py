@@ -309,12 +309,13 @@ def previous_layout(pymux, cli, variables):
         pane.select_previous_layout()
 
 
-@cmd('new-window', options='[(-c <start-directory>)] [<executable>]')
+@cmd('new-window', options='[(-n <name>)] [(-c <start-directory>)] [<executable>]')
 def new_window(pymux, cli, variables):
     executable = variables['<executable>']
     start_directory = variables['<start-directory>']
+    name = variables['<name>']
 
-    pymux.create_window(cli, executable, start_directory=start_directory)
+    pymux.create_window(cli, executable, start_directory=start_directory, name=name)
 
 
 @cmd('next-window')

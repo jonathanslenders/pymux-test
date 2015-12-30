@@ -264,10 +264,10 @@ class Pymux(object):
         for c in self.clis.values():
             c.invalidate()
 
-    def create_window(self, cli=None, command=None, start_directory=None):
+    def create_window(self, cli=None, command=None, start_directory=None, name=None):
         pane = self._create_pane(None, command, start_directory=start_directory)
 
-        self.arrangement.create_window(cli, pane)
+        self.arrangement.create_window(cli, pane, name=name)
         self.invalidate()
 
     def add_process(self, cli, command=None, vsplit=False, start_directory=None):
