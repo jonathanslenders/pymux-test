@@ -36,6 +36,15 @@ __all__ = (
 )
 
 
+class Justify:
+    " Justify enum for the status bar. "
+    LEFT = 'left'
+    CENTER = 'center'
+    RIGHT = 'right'
+
+    _ALL = [LEFT, CENTER, RIGHT]
+
+
 class Background(Container):
     """
     Generate the background of dots, which becomes visible when several clients
@@ -390,6 +399,12 @@ class LayoutManager(object):
              format_pymux_string(self.pymux, cli, self.pymux.status_right)),
         ]
 
+    def _status_align_right(self, cli):
+        return self.pymux.status_justify == Justify.RIGHT
+
+    def _status_align_center(self, cli):
+        return self.pymux.status_justify == Justify.CENTER
+
     def _before_prompt_command_tokens(self, cli):
         client_state = self.pymux.get_client_state(cli)
         return [(Token.CommandLine.Prompt, '%s ' % (client_state.prompt_text, ))]
@@ -425,6 +440,8 @@ class LayoutManager(object):
                             height=D.exact(1),
                             content=TokenListControl(
                                 self._get_status_tokens,
+                                align_right=Condition(self._status_align_right),
+                                align_center=Condition(self._status_align_center),
                                 default_char=Char(' ', Token.StatusBar))),
                         # Right.
                         Window(

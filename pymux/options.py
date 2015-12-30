@@ -7,6 +7,7 @@ import six
 
 from .key_mappings import PYMUX_TO_PROMPT_TOOLKIT_KEYS, pymux_key_to_prompt_toolkit_key_sequence
 from .utils import get_default_shell
+from .layout import Justify
 
 __all__ = (
     'Option',
@@ -44,8 +45,8 @@ class OnOffOption(Option):
     """
     Boolean on/off option.
     """
-    def __init__(self, attribute):
-        self.attribute = attribute
+    def __init__(self, attribute_name):
+        self.attribute_name = attribute_name
 
     def get_all_values(self, pymux):
         return ['on', 'off']
@@ -54,7 +55,7 @@ class OnOffOption(Option):
         value = value.lower()
 
         if value in ('on', 'off'):
-            setattr(pymux, self.attribute, (value == 'on'))
+            setattr(pymux, self.attribute_name, (value == 'on'))
         else:
             raise SetOptionError('Expecting "yes" or "no".')
 
@@ -63,30 +64,31 @@ class StringOption(Option):
     """
     String option, the attribute is set as a Pymux attribute.
     """
-    def __init__(self, attribute, possible_values=None):
-        self.attribute = attribute
+    def __init__(self, attribute_name, possible_values=None):
+        self.attribute_name = attribute_name
         self.possible_values = possible_values or []
 
     def get_all_values(self, pymux):
         return sorted(set(
-            self.possible_values + [getattr(pymux, self.attribute)]
+            self.possible_values + [getattr(pymux, self.attribute_name)]
         ))
 
     def set_value(self, pymux, value):
-        setattr(pymux, self.attribute, value)
+        setattr(pymux, self.attribute_name, value)
 
 
 class PositiveIntOption(Option):
     """
     Positive integer option, the attribute is set as a Pymux attribute.
     """
-    def __init__(self, attribute, possible_values=None):
-        self.attribute = attribute
+    def __init__(self, attribute_name, possible_values=None):
+        self.attribute_name = attribute_name
         self.possible_values = ['%s' % i for i in (possible_values or [])]
 
     def get_all_values(self, pymux):
         return sorted(set(
-            self.possible_values + ['%s' % getattr(pymux, self.attribute)]
+            self.possible_values +
+            ['%s' % getattr(pymux, self.attribute_name)]
         ))
 
     def set_value(self, pymux, value):
@@ -101,7 +103,7 @@ class PositiveIntOption(Option):
         except ValueError:
             raise SetOptionError('Expecting an integer.')
         else:
-            setattr(pymux, self.attribute, value)
+            setattr(pymux, self.attribute_name, value)
 
 
 class KeyPrefixOption(Option):
@@ -130,17 +132,30 @@ class BaseIndexOption(Option):
 
 class KeysOption(Option):
     " Emacs or Vi mode. "
-    def __init__(self, property_name):
-        self.property_name = property_name
+    def __init__(self, attribute_name):
+        self.attribute_name = attribute_name
 
     def get_all_values(self, pymux):
         return ['emacs', 'vi']
 
     def set_value(self, pymux, value):
         if value in ('emacs', 'vi'):
-            setattr(pymux, self.property_name, value == 'vi')
+            setattr(pymux, self.attribute_name, value == 'vi')
         else:
             raise SetOptionError('Expecting "vi" or "emacs".')
+
+class JustifyOption(Option):
+    def __init__(self, attribute_name):
+        self.attribute_name = attribute_name
+
+    def get_all_values(self, pymux):
+        return Justify._ALL
+
+    def set_value(self, pymux, value):
+        if value in Justify._ALL:
+            setattr(pymux, self.attribute_name, value)
+        else:
+            raise SetOptionError('Invalid justify option.')
 
 
 ALL_OPTIONS = {
@@ -164,4 +179,5 @@ ALL_OPTIONS = {
     'window-status-current-format': StringOption('window_status_current_format'),
     'default-shell': StringOption(
         'default_shell', [get_default_shell()]),
+    'status-justify': JustifyOption('status_justify'),
 }

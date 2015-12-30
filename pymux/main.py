@@ -21,7 +21,7 @@ from .commands.commands import handle_command, call_command_handler
 from .commands.completer import create_command_completer
 from .enums import COMMAND, PROMPT
 from .key_bindings import KeyBindingsManager
-from .layout import LayoutManager
+from .layout import LayoutManager, Justify
 from .log import logger
 from .options import ALL_OPTIONS
 from .process import Process
@@ -107,6 +107,7 @@ class Pymux(object):
         self.window_status_current_format = '#I:#W#F'
         self.window_status_format = '#I:#W#F'
         self.session_name = '0'
+        self.status_justify = Justify.LEFT
         self.default_shell = get_default_shell()
 
         self.options = ALL_OPTIONS
