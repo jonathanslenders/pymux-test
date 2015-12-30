@@ -164,7 +164,7 @@ def bind_socket(socket_name=None):
                 # When 100 times failed, cancel server
                 if i == 100:
                     logging.warning('100 times failed to listen on posix socket. '
-                                    'Please clean up old sockets.')  # XXX
+                                    'Please clean up old sockets.')
                     raise
 
 

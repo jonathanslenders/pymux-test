@@ -396,8 +396,9 @@ class BetterScreen(object):
         self._remove_old_lines_from_history()
 
     def _remove_old_lines_from_history(self):
-        " Remove from the scroll buffer. "
-        # TODO: don't call on every index() call, but maybe just once every few seconds.
+        """
+        Remove top from the scroll buffer. (Outside bounds of history limit.)
+        """
         remove_above = max(0, self.pt_screen.cursor_position.y - self.get_history_limit())
         data_buffer = self.pt_screen.data_buffer
         for line in list(data_buffer):
