@@ -163,6 +163,7 @@ class CommandException(Exception):
 # The actual commands.
 #
 
+
 @cmd('break-pane')
 def break_pane(pymux, cli, variables):
     pymux.arrangement.break_pane(cli)

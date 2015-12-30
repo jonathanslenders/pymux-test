@@ -139,4 +139,4 @@ class ShlexCompleter(Completer):
         return parts, part_start_pos
 
 
-#assert ShlexCompleter.parse('"hello" world') == (['hello', 'world'], 8)
+# assert ShlexCompleter.parse('"hello" world') == (['hello', 'world'], 8)

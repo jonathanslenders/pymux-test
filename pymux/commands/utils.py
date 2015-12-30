@@ -13,4 +13,3 @@ def wrap_argument(text):
         return text
     else:
         return '"%s"' % (text.replace('\\', r'\\').replace('"', r'\"'), )
-
