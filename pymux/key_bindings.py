@@ -196,7 +196,7 @@ class KeyBindingsManager(object):
         def _(event):
             " Exit scroll buffer. "
             pane = pymux.arrangement.get_active_pane(event.cli)
-            pane.copy_mode = False
+            pane.exit_copy_mode()
 
         @registry.add_binding(' ', filter=in_copy_mode_not_searching)
         def _(event):

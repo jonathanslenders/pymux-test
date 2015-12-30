@@ -37,10 +37,14 @@ class Process(object):
         self.done_callback = done_callback
         self.pid = None
         self.is_terminated = False
+        self.suspended = False
         self.slow_motion = False  # For debugging
 
         # Create pseudo terminal for this pane.
         self.master, self.slave = os.openpty()
+
+        # Master side -> attached to terminal emulator.
+        self._reader = PosixStdinReader(self.master)
 
         # Create output stream and attach to screen
         self.sx = 120
@@ -58,7 +62,7 @@ class Process(object):
         """
         self.set_size(self.sx, self.sy)
         self._start()
-        self._process_pty_output()
+        self._connect_reader()
         self._waitpid()
 
     @classmethod
@@ -206,44 +210,53 @@ class Process(object):
             key, application_mode=self.screen.in_application_mode)
         self.write_input(data)
 
-    def _process_pty_output(self):
+    def _connect_reader(self):
         """
-        Process output from processes.
+        Process stdout output from the process.
         """
-        assert self.master is not None
+        if self.master is not None:
+            self.eventloop.add_reader(self.master, self._read)
 
-        # Master side -> attached to terminal emulator.
-        reader = PosixStdinReader(self.master)
+    def _read(self):
+        """
+        Read callback, called by the eventloop.
+        """
+        if self.slow_motion:
+            # Read characters one-by-one in slow motion.
+            d = self._reader.read(1)
+        else:
+            d = self._reader.read()
 
-        def read():
-            if self.slow_motion:
-                # Read characters one-by-one in slow motion.
-                d = reader.read(1)
-            else:
-                d = reader.read()
+        if d:
+            self.stream.feed(d)
+            self.invalidate()
+        else:
+            # End of stream. Remove child.
+            self.eventloop.remove_reader(self.master)
 
-            if d:
-                self.stream.feed(d)
-                self.invalidate()
-            else:
-                # End of stream. Remove child.
-                self.eventloop.remove_reader(self.master)
+        # In case of slow motion, disconnect for .5 seconds from the event loop.
+        if self.slow_motion:
+            self.eventloop.remove_reader(self.master)
 
-            # In case of slow motion, disconnect for .5 seconds from the event loop.
-            if self.slow_motion:
-                self.eventloop.remove_reader(self.master)
+            def connect_with_delay():
+                time.sleep(.1)
+                self.eventloop.call_from_executor(self._connect_reader)
+            self.eventloop.run_in_executor(connect_with_delay)
 
-                def connect_with_delay():
-                    time.sleep(.1)
-                    self.eventloop.call_from_executor(connect_reader)
-                self.eventloop.run_in_executor(connect_with_delay)
+    def suspend(self):
+        """
+        Suspend process. Stop reading stdout. (Called when going into copy mode.)
+        """
+        self.suspended = True
+        self.eventloop.remove_reader(self.master)
 
-        def connect_reader():
-            # Connect read pipe.
-            if self.master is not None:
-                self.eventloop.add_reader(self.master, read)
-
-        connect_reader()
+    def resume(self):
+        """
+        Resume from 'suspend'.
+        """
+        if self.suspended and self.master is not None:
+            self._connect_reader()
+            self.suspended = False
 
     def get_cwd(self):
         """

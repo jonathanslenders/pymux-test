@@ -63,11 +63,16 @@ class Pane(object):
         self.search_state = SearchState(ignore_case=False)
 
     def enter_copy_mode(self):
+        self.process.suspend()
         document, token_list = self.process.create_copy_document()
 
         self.copy_buffer.set_document(document, bypass_readonly=True)
         self.copy_token_list = token_list
         self.copy_mode = True
+
+    def exit_copy_mode(self):
+        self.process.resume()
+        self.copy_mode = False
 
 
 class _WeightsDictionary(weakref.WeakKeyDictionary):
