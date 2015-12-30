@@ -323,13 +323,17 @@ class MessageToolbar(TokenListToolbar):
         def get_tokens(cli):
             message = get_message(cli)
             if message:
-                return [(Token.Message, message)]
+                return [
+                    (Token.Message, message),
+                    (Token.SetCursorPosition, ''),
+                    (Token.Message, ' '),
+                ]
             else:
                 return []
 
-        super(MessageToolbar, self).__init__(
-                get_tokens,
-                filter=Condition(lambda cli: get_message(cli) is not None))
+        f = Condition(lambda cli: get_message(cli) is not None)
+
+        super(MessageToolbar, self).__init__(get_tokens, filter=f, has_focus=f)
 
 
 class LayoutManager(object):
