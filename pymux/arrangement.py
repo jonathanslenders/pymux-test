@@ -604,7 +604,10 @@ class Arrangement(object):
     def create_window(self, cli, pane, name=None):
         """
         Create a new window that contains just this pane.
-        If `cli` has been given, this window will be focussed for that client.
+
+        :param cli: If been given, this window will be focussed for that client.
+        :param pane: The :class:`.Pane` instance to put in the new window.
+        :param name: If given, name for the new window.
         """
         assert isinstance(pane, Pane)
         assert cli is None or isinstance(cli, CommandLineInterface)

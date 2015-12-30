@@ -1,3 +1,7 @@
+"""
+Mapping between vt100 key sequences, the prompt_toolkit key constants and the
+Pymux namings. (Those namings are kept compatible with tmux.)
+"""
 from __future__ import unicode_literals
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.terminal.vt100_input import ANSI_SEQUENCES

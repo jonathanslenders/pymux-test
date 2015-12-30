@@ -1,3 +1,6 @@
+"""
+All configurable options which can be changed through "set-option" commands.
+"""
 from __future__ import unicode_literals
 from abc import ABCMeta, abstractmethod
 import six
@@ -14,10 +17,15 @@ __all__ = (
 
 
 class Option(six.with_metaclass(ABCMeta, object)):
+    """
+    Base class for all options.
+    """
     @abstractmethod
     def get_all_values(self):
-        """ Return a list of strings, with all possible values. (For
-        autocompletion.) """
+        """
+        Return a list of strings, with all possible values. (For
+        autocompletion.)
+        """
 
     @abstractmethod
     def set_value(self):
@@ -25,6 +33,9 @@ class Option(six.with_metaclass(ABCMeta, object)):
 
 
 class SetOptionError(Exception):
+    """
+    Raised when setting an option fails.
+    """
     def __init__(self, message):
         self.message = message
 
@@ -49,6 +60,9 @@ class OnOffOption(Option):
 
 
 class StringOption(Option):
+    """
+    String option, the attribute is set as a Pymux attribute.
+    """
     def __init__(self, attribute, possible_values=None):
         self.attribute = attribute
         self.possible_values = possible_values or []
@@ -63,6 +77,9 @@ class StringOption(Option):
 
 
 class PositiveIntOption(Option):
+    """
+    Positive integer option, the attribute is set as a Pymux attribute.
+    """
     def __init__(self, attribute, possible_values=None):
         self.attribute = attribute
         self.possible_values = ['%s' % i for i in (possible_values or [])]

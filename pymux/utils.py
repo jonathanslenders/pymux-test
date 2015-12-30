@@ -14,6 +14,8 @@ __all__ = (
     'pty_make_controlling_tty',
     'daemonize',
     'set_terminal_size',
+    'nonblocking',
+    'get_default_shell',
 )
 
 
@@ -142,6 +144,21 @@ def set_terminal_size(stdout_fileno, rows, cols):
 
     # Do: TIOCSWINSZ (Set)
     fcntl.ioctl(stdout_fileno, termios.TIOCSWINSZ, buf)
+
+
+class nonblocking(object):
+    """
+    Make fd non blocking.
+    """
+    def __init__(self, fd):
+        self.fd = fd
+
+    def __enter__(self):
+        self.orig_fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl | os.O_NONBLOCK)
+
+    def __exit__(self, *args):
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl)
 
 
 def get_default_shell():

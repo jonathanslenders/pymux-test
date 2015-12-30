@@ -1,7 +1,13 @@
 from __future__ import unicode_literals
 
-#: The command buffer.
+__all__ = (
+    'COMMAND',
+    'PROMPT',
+)
+
+
+#: Name of the command buffer.
 COMMAND = 'COMMAND'
 
-#: Input for a "command-prompt" command.
+#: Name of the input for a "command-prompt" command.
 PROMPT = 'PROMPT'

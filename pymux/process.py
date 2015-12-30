@@ -1,7 +1,9 @@
 """
+The child process.
 """
 from __future__ import unicode_literals
 
+from prompt_toolkit.eventloop.base import EventLoop
 from prompt_toolkit.eventloop.posix_utils import PosixStdinReader
 from prompt_toolkit.document import Document
 from pygments.token import Token
@@ -25,12 +27,31 @@ __all__ = (
 
 class Process(object):
     """
+    Child process.
+    Functionality for parsing the vt100 output (the Pyte screen and stream), as
+    well as sending input to the process.
+
     Usage:
 
         p = Process(eventloop, ...):
         p.start()
+
+    :param eventloop: Prompt_toolkit eventloop. Used for executing blocking
+        stuff in an executor, as well as adding additional readers to the
+        eventloop.
+    :param invalidate: When the screen content changes, and the renderer needs
+        to redraw the output, this callback is called.
+    :param exec_func: Callable that is called in the child process. (Usualy, this calls execv.)
+    :param bell_func: Called when the process does a `bell`.
+    :param done_callback: Called when the process terminates.
     """
     def __init__(self, eventloop, invalidate, exec_func, bell_func=None, done_callback=None):
+        assert isinstance(eventloop, EventLoop)
+        assert callable(invalidate)
+        assert callable(exec_func)
+        assert bell_func is None or callable(bell_func)
+        assert done_callback is None or callable(done_callback)
+
         self.eventloop = eventloop
         self.invalidate = invalidate
         self.exec_func = exec_func
@@ -89,6 +110,9 @@ class Process(object):
                    bell_func=bell_func, done_callback=done_callback)
 
     def _start(self):
+        """
+        Create fork and start the child process.
+        """
         pid = os.fork()
 
         if pid == 0:
@@ -130,6 +154,12 @@ class Process(object):
         self.eventloop.run_in_executor(wait_for_finished)
 
     def set_size(self, width, height):
+        """
+        Set terminal size.
+        """
+        assert isinstance(width, int)
+        assert isinstance(height, int)
+
         if self.master is not None:
             set_terminal_size(self.master, height, width)
         self.screen.resize(lines=height, columns=width)
@@ -269,7 +299,7 @@ class Process(object):
         """
         The name for this process. (Or `None` when unknown.)
         """
-        # TODO: Cache for short time.
+        # TODO: Maybe cache for short time.
         if self.master is not None:
             return get_name_for_fd(self.master)
 

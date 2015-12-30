@@ -54,6 +54,14 @@ _Savepoint = namedtuple("_Savepoint", [
 
 
 class BetterScreen(object):
+    """
+    Custom screen class. Most of the methods are called from a vt100 Pyte
+    stream.
+
+    The data buffer is stored in a :class:`prompt_toolkit.layout.screen.Screen`
+    class, because this way, we can send it to the renderer without any
+    transformation.
+    """
     swap_variables = [
         'mode',
         'margins',
@@ -68,12 +76,14 @@ class BetterScreen(object):
 
     def __init__(self, lines, columns, write_process_input, bell_func=None,
                  get_history_limit=None):
+        assert isinstance(lines, int)
+        assert isinstance(columns, int)
+        assert callable(write_process_input)
+        assert bell_func is None or callable(bell_func)
+        assert get_history_limit is None or callable(get_history_limit)
+
         bell_func = bell_func or (lambda: None)
         get_history_limit = get_history_limit or (lambda: 2000)
-
-        assert callable(write_process_input)
-        assert callable(bell_func)
-        assert callable(get_history_limit)
 
         self.savepoints = []
         self.lines = lines
@@ -89,6 +99,10 @@ class BetterScreen(object):
 
     @property
     def in_application_mode(self):
+        """
+        True when we are in application mode. This means that the process is
+        expecting some other key sequences as input. (Like for the arrows.)
+        """
         # Not in cursor mode.
         return (1 << 5) in self.mode
 
@@ -561,7 +575,7 @@ class BetterScreen(object):
                 line[i + count] = line[i]
                 del line[i]
 
-    def delete_characters(self, count=None):  # XXX: used by pressing 'x' on bash vi mode
+    def delete_characters(self, count=None):
         count = count or 1
 
         line = self.data_buffer[self.pt_screen.cursor_position.y]

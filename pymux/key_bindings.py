@@ -1,3 +1,6 @@
+"""
+Key bindings.
+"""
 from __future__ import unicode_literals
 from prompt_toolkit.enums import IncrementalSearchDirection
 from prompt_toolkit.filters import HasFocus, Condition, HasSelection
@@ -151,8 +154,10 @@ class KeyBindingsManager(object):
             """
             Pasting to the active pane. (Using bracketed paste.)
             """
-            p = pymux.active_process_for_cli(event.cli)
-            p.write_input(event.data, paste=True)
+            pane = pymux.arrangement.get_active_pane(event.cli)
+
+            if not pane.clock_mode:
+                pane.process.write_input(event.data, paste=True)
 
         @registry.add_binding(Keys.Any, filter=has_prefix)
         def _(event):
@@ -281,7 +286,14 @@ class KeyBindingsManager(object):
 
 
 class CustomBinding(object):
+    """
+    Record for storing a single custom key binding.
+    """
     def __init__(self, handler, command, arguments):
+        assert callable(handler)
+        assert isinstance(command, six.text_type)
+        assert isinstance(arguments, list)
+
         self.handler = handler
         self.command = command
         self.arguments = arguments
@@ -292,7 +304,7 @@ def _load_search_bindings(pymux, registry, get_vi_state):
     Load the key bindings for searching. (Vi and Emacs)
 
     This is different from the ones of prompt_toolkit, because we have a
-    separate search buffer for each pane.
+    individual search buffers for each pane.
     """
     is_searching = InScrollBufferSearching(pymux)
     in_scroll_buffer_not_searching = InScrollBufferNotSearching(pymux)
@@ -346,18 +358,21 @@ def _load_search_bindings(pymux, registry, get_vi_state):
     @registry.add_binding(Keys.ControlR, filter=in_scroll_buffer_not_searching)
     @registry.add_binding('?', filter=in_scroll_buffer_not_searching)
     def _(event):
+        " Enter reverse search. "
         search_state = enter_search(event.cli)
         search_state.direction = IncrementalSearchDirection.BACKWARD
 
     @registry.add_binding(Keys.ControlS, filter=in_scroll_buffer_not_searching)
     @registry.add_binding('/', filter=in_scroll_buffer_not_searching)
     def _(event):
+        " Enter forward search. "
         search_state = enter_search(event.cli)
         search_state.direction = IncrementalSearchDirection.FORWARD
 
     @registry.add_binding(Keys.ControlR, filter=is_searching)
     @registry.add_binding(Keys.Up, filter=is_searching)
     def _(event):
+        " Repeat reverse search. (While searching.) "
         pane = pymux.arrangement.get_active_pane(event.cli)
 
         # Update search_state.
@@ -375,6 +390,7 @@ def _load_search_bindings(pymux, registry, get_vi_state):
     @registry.add_binding(Keys.ControlS, filter=is_searching)
     @registry.add_binding(Keys.Down, filter=is_searching)
     def _(event):
+        " Repeat forward search. (While searching.) "
         pane = pymux.arrangement.get_active_pane(event.cli)
 
         # Update search_state.

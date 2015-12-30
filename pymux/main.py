@@ -16,7 +16,7 @@ from prompt_toolkit.layout.screen import Size
 from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
 from prompt_toolkit.utils import Callback
 
-from .arrangement import Arrangement, Pane
+from .arrangement import Arrangement, Pane, Window
 from .commands.commands import handle_command, call_command_handler
 from .commands.completer import create_command_completer
 from .enums import COMMAND, PROMPT
@@ -140,11 +140,6 @@ class Pymux(object):
 
         self.style = PymuxStyle()
 
-    def active_process_for_cli(self, cli):
-        w = self.arrangement.get_active_window(cli)
-        if w:
-            return w.active_process
-
     def get_client_state(self, cli):
         """
         Return the ClientState instance for this CommandLineInterface.
@@ -157,9 +152,13 @@ class Pymux(object):
             return s
 
     def get_title(self, cli):
-        p = self.active_process_for_cli(cli)
-        if p:
-            title = p.screen.title
+        """
+        The title to be displayed in the titlebar of the terminal.
+        """
+        w = self.arrangement.get_active_window(cli)
+
+        if w and w.active_process:
+            title = w.active_process.screen.title
         else:
             title = ''
 
@@ -195,7 +194,21 @@ class Pymux(object):
             return Size(rows=20, columns=80)
 
     def _create_pane(self, window=None, command=None, start_directory=None):
+        """
+        Create a new :class:`pymux.arrangement.Pane` instance. (Don't put it in
+        a window yet.)
+
+        :param window: If a window is given, take the CWD of the current
+            process of that window as the start path for this pane.
+        :param command: If given, run this command instead of `self.default_shell`.
+        :param start_directory: If given, use this as the CWD.
+        """
+        assert window is None or isinstance(window, Window)
+        assert command is None or isinstance(command, six.text_type)
+        assert start_directory is None or isinstance(start_directory, six.text_type)
+
         def done_callback():
+            " When the process finishes. "
             if not self.remain_on_exit:
                 # Remove pane from layout.
                 self.arrangement.remove_pane(pane)
@@ -223,7 +236,7 @@ class Pymux(object):
             path = None
 
         def before_exec():
-            " Called in the process fork. "
+            " Called in the process fork (in the child process). "
             # Go to this directory.
             try:
                 os.chdir(path or self.original_cwd)
@@ -243,6 +256,7 @@ class Pymux(object):
         else:
             command = [self.default_shell]
 
+        # Create process and pane.
         process = Process.from_command(
                 self.eventloop, self.invalidate, command, done_callback,
                 bell_func=bell,
@@ -265,12 +279,24 @@ class Pymux(object):
             c.invalidate()
 
     def create_window(self, cli=None, command=None, start_directory=None, name=None):
+        """
+        Create a new :class:`pymux.arrangement.Window` in the arrangement.
+
+        :param cli: If been given, this window will be focussed for that client.
+        """
+        assert cli is None or isinstance(cli, CommandLineInterface)
+        assert command is None or isinstance(command, six.text_type)
+        assert start_directory is None or isinstance(start_directory, six.text_type)
+
         pane = self._create_pane(None, command, start_directory=start_directory)
 
         self.arrangement.create_window(cli, pane, name=name)
         self.invalidate()
 
     def add_process(self, cli, command=None, vsplit=False, start_directory=None):
+        """
+        Add a new process to the current window. (vsplit/hsplit).
+        """
         assert isinstance(cli, CommandLineInterface)
         assert command is None or isinstance(command, six.text_type)
         assert start_directory is None or isinstance(start_directory, six.text_type)
@@ -311,6 +337,9 @@ class Pymux(object):
         client_state.confirm_command = ''
 
     def handle_command(self, cli, command):
+        """
+        Handle command from the command line.
+        """
         handle_command(self, cli, command)
 
     def show_message(self, cli, message):
@@ -358,6 +387,7 @@ class Pymux(object):
             eventloop=self.eventloop)
 
         application.focus_stack._cli = cli  # Tell _FocusStack about the CLI.
+                                            # XXX: this is a work-around.
 
         # Hide message when a key has been pressed.
         def key_pressed():

@@ -35,6 +35,10 @@ class ServerConnection(object):
             connection.fileno(), self._recv)
 
     def _recv(self):
+        """
+        Data received from the client.
+        (Parse it.)
+        """
         # Read next chunk.
         data = self.connection.recv(1024)
 
@@ -46,6 +50,7 @@ class ServerConnection(object):
             self._recv_buffer += data
 
             while b'\0' in self._recv_buffer:
+                # Zero indicates end of packet.
                 pos = self._recv_buffer.index(b'\0')
                 self._process(self._recv_buffer[:pos])
                 self._recv_buffer = self._recv_buffer[pos + 1:]
@@ -84,6 +89,9 @@ class ServerConnection(object):
             self._create_cli()
 
     def _send_packet(self, data):
+        """
+        Send packet to client.
+        """
         try:
             self.connection.send(json.dumps(data).encode('utf-8') + b'\0')
         except socket.error:
@@ -111,9 +119,13 @@ class ServerConnection(object):
             self._close_cli()
 
     def _create_cli(self):
+        """
+        Create CommandLineInterface for this client.
+        Called when the client wants to attach the UI to the server.
+        """
         output = Vt100_Output(_SocketStdout(self._send_packet),
                               lambda: self.size)
-        input = ClientInput(self._send_packet)
+        input = _ClientInput(self._send_packet)
         self.cli = self.pymux.create_cli(self, output, input)
 
     def _close_cli(self):
@@ -123,6 +135,9 @@ class ServerConnection(object):
         self.cli = None
 
     def suspend_client_to_background(self):
+        """
+        Ask the client to suspend itself. (Like, when Ctrl-Z is pressed.)
+        """
         if self.cli:
             def suspend():
                 self._send_packet({'cmd': 'suspend'})
@@ -187,7 +202,7 @@ class _SocketStdout(object):
         self._buffer = []
 
 
-class ClientInput(Input):
+class _ClientInput(Input):
     """
     Input class that can be given to the CommandLineInterface.
     We only need this for turning the client into raw_mode/cooked_mode.

@@ -13,6 +13,9 @@ __all__ = (
 
 
 class HasPrefix(Filter):
+    """
+    When the prefix key (Usual C-b) has been pressed.
+    """
     def __init__(self, pymux):
         self.pymux = pymux
 

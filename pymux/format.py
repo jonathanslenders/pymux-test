@@ -1,3 +1,6 @@
+"""
+Pymux string formatting.
+"""
 from __future__ import unicode_literals
 import datetime
 import socket
@@ -11,6 +14,13 @@ def format_pymux_string(pymux, cli, string, window=None, pane=None):
     """
     Apply pymux sting formatting. (Similar to tmux.)
     E.g.  #P is replaced by the index of the active pane.
+
+    We try to stay compatible with tmux, if possible.
+    One thing that we won't support (for now) is colors, because our styling
+    works different. (With a Style class.) On the other hand, in the future, we
+    could allow things like `#[token=Token.Title.PID]`. This gives a clean
+    separation of semantics and colors, making it easy to write different color
+    schemes.
     """
     arrangement = pymux.arrangement
 

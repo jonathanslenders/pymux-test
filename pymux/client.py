@@ -5,6 +5,8 @@ from prompt_toolkit.eventloop.posix import _select, call_on_sigwinch
 from prompt_toolkit.eventloop.base import INPUT_TIMEOUT
 from prompt_toolkit.terminal.vt100_output import _get_size, Vt100_Output
 
+from pymux.utils import nonblocking
+
 import fcntl
 import getpass
 import glob
@@ -32,6 +34,11 @@ class Client(object):
         self.socket.setblocking(0)
 
     def run_command(self, command, pane_id=None):
+        """
+        Ask the server to run this command.
+
+        :param pane_id: Optional identifier of the current pane.
+        """
         self._send_packet({
             'cmd': 'run-command',
             'data': command,
@@ -87,12 +94,14 @@ class Client(object):
                         current_timeout = INPUT_TIMEOUT
 
                     else:
-                        # Timeout.
+                        # Timeout. (Tell the server to flush the vt100 Escape.)
                         self._send_packet({'cmd': 'flush-input'})
                         current_timeout = None
 
     def _process(self, data_buffer):
-        " Handle incoming packet. "
+        """
+        Handle incoming packet from server.
+        """
         packet = json.loads(data_buffer.decode('utf-8'))
 
         if packet['cmd'] == 'out':
@@ -123,6 +132,9 @@ class Client(object):
                 cm.__exit__()
 
     def _process_stdin(self):
+        """
+        Received data on stdin. Read and send to server.
+        """
         with nonblocking(sys.stdin.fileno()):
             data = sys.stdin.read()
 
@@ -138,26 +150,12 @@ class Client(object):
         self.socket.send(data + b'\0')
 
     def _send_size(self):
+        " Report terminal size to server. "
         rows, cols = _get_size(sys.stdout.fileno())
         self._send_packet({
             'cmd': 'size',
             'data': [rows, cols]
         })
-
-
-class nonblocking(object):
-    """
-    Make fd non blocking.
-    """
-    def __init__(self, fd):
-        self.fd = fd
-
-    def __enter__(self):
-        self.orig_fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
-        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl | os.O_NONBLOCK)
-
-    def __exit__(self, *args):
-        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl)
 
 
 def list_clients():
