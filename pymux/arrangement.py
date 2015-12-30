@@ -3,6 +3,9 @@ Arrangement of panes.
 
 Don't confuse with the prompt_toolkit VSplit/HSplit classes. This is a higher
 level abstraction of the Pymux window layout.
+
+An arrangement consists of a list of windows. And a window has a list of panes,
+arranged by ordering them in HSplit/VSplit instances.
 """
 from __future__ import unicode_literals
 from .process import Process
@@ -20,7 +23,10 @@ import weakref
 import six
 
 __all__ = (
+    'LayoutTypes',
     'Pane',
+    'HSplit',
+    'VSplit',
     'Window',
     'Arrangement',
 )
@@ -39,6 +45,10 @@ class LayoutTypes:
 
 
 class Pane(object):
+    """
+    One pane, containing one process and a search buffer for going into copy
+    mode or displaying the help.
+    """
     _pane_counter = 1000  # Start at 1000, to be sure to not confuse this with pane indexes.
 
     def __init__(self, process):
@@ -69,6 +79,10 @@ class Pane(object):
         self.search_state = SearchState(ignore_case=False)
 
     def enter_copy_mode(self):
+        """
+        Suspend the process, and copy the screen content to the `scroll_buffer`.
+        That way the user can search through the history and copy/paste.
+        """
         self.process.suspend()
         document, token_list = self.process.create_copy_document()
 
@@ -78,7 +92,7 @@ class Pane(object):
 
     def exit_scroll_buffer(self):
         """
-        Exit help or copy mode.
+        Exit scroll buffer. (Exits help or copy mode.)
         """
         self.process.resume()
         self.display_scroll_buffer = False
@@ -97,7 +111,15 @@ class Pane(object):
 
 
 class _WeightsDictionary(weakref.WeakKeyDictionary):
-    " Dictionary for the weights: weak keys, but defaults to 1. "
+    """
+    Dictionary for the weights: weak keys, but defaults to 1.
+
+    (Weights are used to represent the proportion of pane sizes in
+    HSplit/VSplit lists.)
+
+    This dictionary maps the child (another HSplit/VSplit or Pane), to the
+    size. (Integer.)
+    """
     def __getitem__(self, key):
         try:
             # (Don't use 'super' here. This is a classobj in Python2.)
@@ -107,8 +129,10 @@ class _WeightsDictionary(weakref.WeakKeyDictionary):
 
 
 class _Split(list):
-    """ Base class for horizontal and vertical splits. (This is a higher level
-    split than prompt_toolkit.layout.HSplit.) """
+    """
+    Base class for horizontal and vertical splits. (This is a higher level
+    split than prompt_toolkit.layout.HSplit.)
+    """
     def __init__(self, *a, **kw):
         list.__init__(self, *a, **kw)
 
@@ -175,6 +199,9 @@ class Window(object):
 
     @property
     def active_pane(self):
+        """
+        The current active :class:`.Pane`.
+        """
         return self._active_pane
 
     @active_pane.setter
@@ -190,7 +217,9 @@ class Window(object):
 
     @property
     def previous_active_pane(self):
-        " The previous active pane or None if unknown. "
+        """
+        The previous active :class:`.Pane` or `None` if unknown.
+        """
         p = self._prev_active_pane and self._prev_active_pane()
 
         # Only return when this pane actually still exists in the current
@@ -200,6 +229,9 @@ class Window(object):
 
     @property
     def name(self):
+        """
+        The name for this window as it should be displayed in the status bar.
+        """
         # Name, explicitely set for the window.
         if self.chosen_name:
             return self.chosen_name
@@ -277,7 +309,7 @@ class Window(object):
 
     @property
     def panes(self):
-        " All panes from this Window. "
+        " List with all panes from this Window. "
         result = []
 
         for s in self.splits:
@@ -289,7 +321,7 @@ class Window(object):
 
     @property
     def splits(self):
-        " Return all HSplit/VSplit instances. "
+        " Return a list with all HSplit/VSplit instances. "
         result = []
 
         def collect(split):
@@ -442,6 +474,8 @@ class Window(object):
         Increase the size of the current pane in any of the four directions.
         Positive values indicate an increase, negative values a decrease.
         """
+        assert isinstance(pane, Pane)
+
         def find_split_and_child(split_cls, is_before):
             " Find the split for which we will have to update the weights. "
             child = pane
@@ -521,6 +555,9 @@ class Arrangement(object):
         return w.invalidation_hash()
 
     def get_active_window(self, cli):
+        """
+        The current active :class:`.Window`.
+        """
         assert isinstance(cli, CommandLineInterface)
 
         try:
@@ -610,6 +647,9 @@ class Arrangement(object):
         self.windows = sorted(self.windows, key=lambda w: w.index)
 
     def get_active_pane(self, cli):
+        """
+        The current :class:`.Pane` from the current window.
+        """
         assert isinstance(cli, CommandLineInterface)
 
         w = self.get_active_window(cli)
@@ -617,6 +657,9 @@ class Arrangement(object):
             return w.active_pane
 
     def remove_pane(self, pane):
+        """
+        Remove a :class:`.Pane`. (Look in all windows.)
+        """
         assert isinstance(pane, Pane)
 
         for w in self.windows:
@@ -648,8 +691,10 @@ class Arrangement(object):
             (self.windows.index(w) + 1) % len(self.windows)])
 
     def break_pane(self, cli):
-        """ When the current window has multiple panes, remove the pane from
-        this window and put it in a new window. """
+        """
+        When the current window has multiple panes, remove the pane from this
+        window and put it in a new window.
+        """
         assert isinstance(cli, CommandLineInterface)
 
         w = self.get_active_window(cli)
@@ -668,6 +713,7 @@ class Arrangement(object):
 
     @property
     def has_panes(self):
+        " True when any of the windows has a :class:`.Pane`. "
         for w in self.windows:
             if w.has_panes:
                 return True
