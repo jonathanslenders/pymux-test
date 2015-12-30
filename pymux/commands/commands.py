@@ -364,6 +364,14 @@ def rename_pane(pymux, cli, variables):
     pymux.arrangement.get_active_pane(cli).name = variables['<name>']
 
 
+@cmd('rename-session', options='<name>')
+def rename_session(pymux, cli, variables):
+    """
+    Rename this session.
+    """
+    pymux.session_name = variables['<name>']
+
+
 @cmd('split-window', options='[-v|-h] [(-c <start-directory>)] [<executable>]')
 def split_window(pymux, cli, variables):
     """

@@ -101,7 +101,13 @@ class Pymux(object):
         self.mode_keys_vi_mode = False
         self.history_limit = 2000
         self.default_terminal = 'xterm-256color'
-        self.status_right = '%H:%M %d-%b-%y'
+        self.status_left = '[#S] '
+        self.status_left_length = 10
+        self.status_right = ' %H:%M %d-%b-%y '
+        self.status_right_length = 20
+        self.window_status_current_format = '#I:#W#F'
+        self.window_status_format = '#I:#W#F'
+        self.session_name = '0'
 
         self.options = ALL_OPTIONS
 

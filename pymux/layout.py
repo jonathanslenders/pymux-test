@@ -354,27 +354,39 @@ class LayoutManager(object):
         result = []
         previous_window = self.pymux.arrangement.get_previous_active_window(cli)
 
-        for w in self.pymux.arrangement.windows:
-            i = w.index
-            result.append((Token.StatusBar, ' '))
+        # Display panes.
+        for i, w in enumerate(self.pymux.arrangement.windows):
+            if i > 0:
+                result.append((Token.StatusBar, ' '))
+
             handler = self._create_select_window_handler(w)
 
             if w == self.pymux.arrangement.get_active_window(cli):
-                result.append((Token.StatusBar.Window.Active, '%i:%s*' % (i, w.name), handler))
-
-            elif w == previous_window:
-                result.append((Token.StatusBar.Window, '%i:%s-' % (i, w.name), handler))
+                result.append((
+                    Token.StatusBar.Window.Active,
+                    format_pymux_string(self.pymux, cli,
+                        self.pymux.window_status_current_format, window=w),
+                    handler))
 
             else:
-                result.append((Token.StatusBar.Window, '%i:%s ' % (i, w.name), handler))
+                result.append((
+                    Token.StatusBar.Window,
+                    format_pymux_string(self.pymux, cli,
+                        self.pymux.window_status_format, window=w),
+                    handler))
 
         return result
 
-    def _get_time_tokens(self, cli):
+    def _get_status_left_tokens(self, cli):
+        return [
+            (Token.StatusBar,
+            format_pymux_string(self.pymux, cli, self.pymux.status_left)),
+        ]
+
+    def _get_status_right_tokens(self, cli):
         return [
             (Token.StatusBar,
             format_pymux_string(self.pymux, cli, self.pymux.status_right)),
-            (Token.StatusBar, ' '),
         ]
 
     def _before_prompt_command_tokens(self, cli):
@@ -399,13 +411,24 @@ class LayoutManager(object):
                 # Status bar.
                 ConditionalContainer(
                     content=VSplit([
+                        # Left.
+                        Window(
+                            height=D.exact(1),
+                            get_width=(lambda cli: D(max=self.pymux.status_left_length)),
+                            dont_extend_width=True,
+                            content=TokenListControl(self._get_status_left_tokens,
+                                default_char=Char(' ', Token.StatusBar))),
+                        # List of windows in the middle.
                         Window(
                             height=D.exact(1),
                             content=TokenListControl(self._get_status_tokens,
                                 default_char=Char(' ', Token.StatusBar))),
+                        # Right.
                         Window(
-                            height=D.exact(1), width=D.exact(20),
-                            content=TokenListControl(self._get_time_tokens,
+                            height=D.exact(1),
+                            get_width=(lambda cli: D(max=self.pymux.status_right_length)),
+                            dont_extend_width=True,
+                            content=TokenListControl(self._get_status_right_tokens,
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),

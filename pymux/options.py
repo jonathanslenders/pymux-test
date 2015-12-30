@@ -29,6 +29,9 @@ class SetOptionError(Exception):
 
 
 class OnOffOption(Option):
+    """
+    Boolean on/off option.
+    """
     def __init__(self, attribute):
         self.attribute = attribute
 
@@ -42,6 +45,41 @@ class OnOffOption(Option):
             setattr(pymux, self.attribute, (value == 'on'))
         else:
             raise SetOptionError('Expecting "yes" or "no".')
+
+
+class StringOption(Option):
+    def __init__(self, attribute, possible_values=None):
+        self.attribute = attribute
+        self.possible_values = possible_values or []
+
+    def get_all_values(self, pymux):
+        return self.possible_values + [getattr(pymux, self.attribute)]
+
+    def set_value(self, pymux, value):
+        setattr(pymux, self.attribute, value)
+
+
+class PositiveIntOption(Option):
+    def __init__(self, attribute, possible_values=None):
+        self.attribute = attribute
+        self.possible_values = ['%s' % i for i in (possible_values or [])]
+
+    def get_all_values(self, pymux):
+        return self.possible_values + ['%s' % getattr(pymux, self.attribute)]
+
+    def set_value(self, pymux, value):
+        """
+        Take a string, and return an integer. Raise SetOptionError when the
+        given text does not parse to a positive integer.
+        """
+        try:
+            value = int(value)
+            if value < 0:
+                raise ValueError
+        except ValueError:
+            raise SetOptionError('Expecting an integer.')
+        else:
+            setattr(pymux, self.attribute, value)
 
 
 class KeyPrefixOption(Option):
@@ -83,44 +121,22 @@ class KeysOption(Option):
             raise SetOptionError('Expecting "vi" or "emacs".')
 
 
-class HistoryLimitOption(Option):
-    " Change the history limit. "
-    def get_all_values(self, pymux):
-        return ['200', '500', '1000', '2000', '5000', '10000']
-
-    def set_value(self, pymux, value):
-        try:
-            pymux.history_limit = int(value)
-        except ValueError:
-            raise SetOptionError('Expecting an integer.')
-
-
-class DefaultTerminalOption(Option):
-    def get_all_values(self, pymux):
-        return ['xterm', 'xterm-256color', 'screen']
-
-    def set_value(self, pymux, value):
-        pymux.default_terminal = value
-
-
-class StatusRightOption(Option):
-    def get_all_values(self, pymux):
-        return [pymux.status_right]
-
-    def set_value(self, pymux, value):
-        pymux.status_right = value
-
-
 ALL_OPTIONS = {
     'base-index': BaseIndexOption(),
     'bell': OnOffOption('enable_bell'),
-    'history-limit': HistoryLimitOption(),
+    'history-limit': PositiveIntOption(
+        'history_limit', [200, 500, 1000, 2000, 5000, 10000]),
     'mouse': OnOffOption('enable_mouse_support'),
     'prefix': KeyPrefixOption(),
     'remain-on-exit': OnOffOption('remain_on_exit'),
     'status': OnOffOption('enable_status'),
     'status-keys': KeysOption('status_keys_vi_mode'),
     'mode-keys': KeysOption('mode_keys_vi_mode'),
-    'default-terminal': DefaultTerminalOption(),
-    'status-right': StatusRightOption(),
+    'default-terminal': StringOption(
+        'default_terminal', ['xterm', 'xterm-256color', 'screen']),
+    'status-right': StringOption('status_right'),
+    'status-left': StringOption('status_left'),
+    'status-right-length': PositiveIntOption('status_right_length', [20]),
+    'window-status-format': StringOption('window_status_format'),
+    'window-status-current-format': StringOption('window_status_current_format'),
 }
