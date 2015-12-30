@@ -307,7 +307,7 @@ class Pymux(object):
 
         client_state = self.get_client_state(cli)
         client_state.command_mode = False
-        client_state.prompt_command = ''  # TODO: is this the right place to do this??
+        client_state.prompt_command = ''
         client_state.confirm_command = ''
 
     def handle_command(self, cli, command):
