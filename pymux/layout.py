@@ -441,7 +441,7 @@ class LayoutManager(object):
             ]),
             floats=[
                 Float(bottom=1, left=0, content=MessageToolbar(self.pymux)),
-                Float(left=0, right=0, bottom=0, height=1, content=HSplit([
+                Float(left=0, right=0, bottom=0, content=HSplit([
                     # Wait for confirmation toolbar.
                     ConditionalContainer(
                         content=Window(
@@ -453,7 +453,8 @@ class LayoutManager(object):
                     # ':' prompt toolbar.
                     ConditionalContainer(
                         content=Window(
-                            height=D.exact(1),
+                            height=D(min=1),  # Can be more if the command is multiline.
+                            dont_extend_height=True,
                             content=BufferControl(
                                 buffer_name=COMMAND,
                                 default_char=Char(' ', Token.CommandLine),

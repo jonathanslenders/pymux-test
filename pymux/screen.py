@@ -55,16 +55,16 @@ _Savepoint = namedtuple("_Savepoint", [
 
 class BetterScreen(object):
     swap_variables = [
-            'mode',
-            'margins',
-            'charset',
-            'g0_charset',
-            'g1_charset',
-            'tabstops',
-            'line_offset',
-            'data_buffer',
-            'max_y',
-            ]
+        'mode',
+        'margins',
+        'charset',
+        'g0_charset',
+        'g1_charset',
+        'tabstops',
+        'line_offset',
+        'data_buffer',
+        'max_y',
+    ]
 
     def __init__(self, lines, columns, write_process_input, bell_func=None,
                  get_history_limit=None):
