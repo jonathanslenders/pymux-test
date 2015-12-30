@@ -80,13 +80,13 @@ _numbers = [
     ['xxxxx', 'x   x', 'xxxxx', '    x', 'xxxxx'], # 9
 ]
 
-def _draw_number(screen, x_offset, number, default_token=Token):
+def _draw_number(screen, x_offset, number, token=Token.Clock, default_token=Token):
     " Write number at position. "
     for y, row in enumerate(_numbers[number]):
         screen_row = screen.data_buffer[y]
         for x, n in enumerate(row):
-            token = Token.Clock if n == 'x' else default_token
-            screen_row[x + x_offset] = Char(' ', token)
+            t = token if n == 'x' else default_token
+            screen_row[x + x_offset] = Char(' ', t)
 
 
 class BigClock(UIControl):
@@ -147,9 +147,14 @@ class PaneNumber(UIControl):
     def create_screen(self, cli, width, height):
         screen = Screen(initial_width=width)
 
+        if self.pymux.arrangement.get_active_pane(cli) == self.arrangement_pane:
+            token = Token.PaneNumber.Focussed
+        else:
+            token = Token.PaneNumber
+
         for i, d in enumerate('%s' % (self._get_index(cli))):
             _draw_number(screen, i * 6, int(d),
-                                 default_token=Token.Transparent)
+                         token=token, default_token=Token.Transparent)
 
         return screen
 
@@ -719,69 +724,65 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                 )
             ]),
             # The pane content.
-            ConditionalContainer(
-                content=FloatContainer(
-                    # The body of the pane.
-                    content=HSplit([
-                        # The 'screen' of the pseudo terminal.
-                        ConditionalContainer(
-                            content=PaneWindow(pymux, arrangement_pane, process),
-                            filter=Condition(lambda cli: not arrangement_pane.copy_mode)),
+            FloatContainer(
+                content=HSplit([
+                    # The 'screen' of the pseudo terminal.
+                    ConditionalContainer(
+                        content=PaneWindow(pymux, arrangement_pane, process),
+                        filter=~clock_is_visible & Condition(lambda cli: not arrangement_pane.copy_mode)),
 
-                        # The copy/paste buffer.
-                        ConditionalContainer(
-                            content=Window(BufferControl(
-                                buffer_name='pane-%i' % arrangement_pane.pane_id,
-                                wrap_lines=False,
-                                focus_on_click=True,
-                                default_char=Char(token=Token),
-                                preview_search=True,
-                                get_search_state=lambda cli: arrangement_pane.search_state,
-                                search_buffer_name='search-%i' % arrangement_pane.pane_id,
-                                input_processors=[_UseCopyTokenListProcessor(arrangement_pane)],
-                                highlighters=[
-                                    SearchHighlighter(
-                                       search_buffer_name='search-%i' % arrangement_pane.pane_id,
-                                       get_search_state=lambda cli: arrangement_pane.search_state,
-                                       preview_search=True),
-                                    SelectionHighlighter(),
-                                ],
-                            )),
-                            filter=Condition(lambda cli: arrangement_pane.copy_mode)),
+                    # The copy/paste buffer.
+                    ConditionalContainer(
+                        content=Window(BufferControl(
+                            buffer_name='pane-%i' % arrangement_pane.pane_id,
+                            wrap_lines=False,
+                            focus_on_click=True,
+                            default_char=Char(token=Token),
+                            preview_search=True,
+                            get_search_state=lambda cli: arrangement_pane.search_state,
+                            search_buffer_name='search-%i' % arrangement_pane.pane_id,
+                            input_processors=[_UseCopyTokenListProcessor(arrangement_pane)],
+                            highlighters=[
+                                SearchHighlighter(
+                                   search_buffer_name='search-%i' % arrangement_pane.pane_id,
+                                   get_search_state=lambda cli: arrangement_pane.search_state,
+                                   preview_search=True),
+                                SelectionHighlighter(),
+                            ],
+                        )),
+                        filter=~clock_is_visible & Condition(lambda cli: arrangement_pane.copy_mode)),
 
-                        # Search toolbar. (Displayed when this pane has the focus, and searching.)
-                        ConditionalContainer(
-                            content=SearchWindow(pymux, arrangement_pane),
-                            filter=Condition(lambda cli: arrangement_pane.is_searching))
-                    ]),
+                    # Search toolbar. (Displayed when this pane has the focus, and searching.)
+                    ConditionalContainer(
+                        content=SearchWindow(pymux, arrangement_pane),
+                        filter=~clock_is_visible & Condition(lambda cli: arrangement_pane.is_searching)),
 
-                    # Pane numbers. (Centered.)
-                    floats=[
-                        Float(content=ConditionalContainer(
-                            content=Window(PaneNumber(pymux, arrangement_pane)),
-                            filter=pane_numbers_are_visible)),
-                    ]
-                ),
-                filter=~clock_is_visible,
-            ),
-            # The clock.
-            ConditionalContainer(
-                # Add a dummy VSplit/HSplit around the BigClock in order to center it.
-                # (Using a FloatContainer to do the centering doesn't work well, because
-                # the boundaries are not clipt when the parent is smaller.)
-                content=VSplit([
-                    Window(FillControl()),
-                    HSplit([
-                        Window(FillControl()),
-                        Window(BigClock(), height=D.exact(BigClock.HEIGHT)),
-                        Window(FillControl()),
-                    ]),
-                    Window(FillControl()),
-                ], get_dimensions=lambda cli: [None, D.exact(BigClock.WIDTH), None]),
+                    # The clock.
+                    ConditionalContainer(
+                        # Add a dummy VSplit/HSplit around the BigClock in order to center it.
+                        # (Using a FloatContainer to do the centering doesn't work well, because
+                        # the boundaries are not clipt when the parent is smaller.)
+                        content=VSplit([
+                            Window(FillControl()),
+                            HSplit([
+                                Window(FillControl()),
+                                Window(BigClock(), height=D.exact(BigClock.HEIGHT)),
+                                Window(FillControl()),
+                            ]),
+                            Window(FillControl()),
+                        ], get_dimensions=lambda cli: [None, D.exact(BigClock.WIDTH), None]),
 
-                filter=clock_is_visible,
-            ),
-        ]),
+                        filter=clock_is_visible,
+                    ),
+                ]),
+                # Pane numbers. (Centered.)
+                floats=[
+                    Float(content=ConditionalContainer(
+                        content=Window(PaneNumber(pymux, arrangement_pane)),
+                        filter=pane_numbers_are_visible)),
+                ]
+            )
+        ])
     )
 
 

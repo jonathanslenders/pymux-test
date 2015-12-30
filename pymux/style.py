@@ -38,6 +38,8 @@ ui_style = {
     Token.Message:                     'bg:#bbee88 #222222',
     Token.Background:                  '#888888',
     Token.Clock:                       'bg:#88aa00',
+    Token.PaneNumber:                  'bg:#888888',
+    Token.PaneNumber.Focussed:         'bg:#aa8800',
     Token.Terminated:                  'bg:#aa0000 #ffffff',
 
     Token.ConfirmationToolbar:          'bg:#880000 #ffffff',
