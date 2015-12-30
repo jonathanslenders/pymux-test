@@ -25,6 +25,7 @@ __all__ = (
     'Arrangement',
 )
 
+
 class LayoutTypes:
     # The values are in lowercase with dashes, because that is what users can
     # use at the command line.
@@ -243,7 +244,6 @@ class Window(object):
                 # pane that was at this position.
                 parent.weights[new_split] = parent.weights[self.active_pane]
 
-
         self.active_pane = pane
         self.zoom = False
 
@@ -456,7 +456,7 @@ class Window(object):
                 child = split
                 split = self._get_parent(child)
 
-            return split, child # split can be None!
+            return split, child  # split can be None!
 
         def handle_side(split_cls, is_before, amount, trying_other_side=False):
             " Increase weights on one side. (top/left/right/bottom). "

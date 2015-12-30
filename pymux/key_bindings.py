@@ -221,7 +221,7 @@ class KeyBindingsManager(object):
             except ValueError:  # Not in list.
                 index = 0
 
-            selection_state.type = types[(index + 1 ) % len(types)]
+            selection_state.type = types[(index + 1) % len(types)]
 
         @registry.add_binding(Keys.Any, filter=display_pane_numbers)
         def _(event):
@@ -253,7 +253,7 @@ class KeyBindingsManager(object):
             filter = ~HasPrefix(self.pymux)
 
         filter = filter & ~(WaitsForConfirmation(self.pymux) |
-                             HasFocus(COMMAND) | HasFocus(PROMPT))
+                            HasFocus(COMMAND) | HasFocus(PROMPT))
 
         def key_handler(event):
             " The actual key handler. "
@@ -369,8 +369,8 @@ def _load_search_bindings(pymux, registry, get_vi_state):
 
         # Apply search to current buffer.
         if not direction_changed:
-            pane.scroll_buffer.apply_search(pane.search_state,
-                                          include_current_position=False, count=event.arg)
+            pane.scroll_buffer.apply_search(
+                pane.search_state, include_current_position=False, count=event.arg)
 
     @registry.add_binding(Keys.ControlS, filter=is_searching)
     @registry.add_binding(Keys.Down, filter=is_searching)
@@ -386,5 +386,5 @@ def _load_search_bindings(pymux, registry, get_vi_state):
 
         # Apply search to current buffer.
         if not direction_changed:
-            pane.scroll_buffer.apply_search(pane.search_state,
-                                          include_current_position=False, count=event.arg)
+            pane.scroll_buffer.apply_search(
+                pane.search_state, include_current_position=False, count=event.arg)

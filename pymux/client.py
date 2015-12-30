@@ -106,7 +106,7 @@ class Client(object):
 
         elif packet['cmd'] == 'mode':
             # Set terminal to raw/cooked.
-            action =  packet['data']
+            action = packet['data']
 
             if action == 'raw':
                 cm = raw_mode(sys.stdin.fileno())

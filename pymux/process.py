@@ -342,6 +342,7 @@ def get_cwd_for_pid(pid):
         except OSError:
             pass
 
+
 def get_name_for_fd(fd):
     """
     Return the process name for a given process ID.

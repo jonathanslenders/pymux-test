@@ -68,17 +68,18 @@ class Background(Container):
         return []
 
 _numbers = [
-    ['xxxxx', 'x   x', 'x   x', 'x   x', 'xxxxx'], # 0
-    ['    x', '    x', '    x', '    x', '    x'], # 1
-    ['xxxxx', '    x', 'xxxxx', 'x    ', 'xxxxx'], # 2
-    ['xxxxx', '    x', 'xxxxx', '    x', 'xxxxx'], # 3
-    ['x   x', 'x   x', 'xxxxx', '    x', '    x'], # 4
-    ['xxxxx', 'x    ', 'xxxxx', '    x', 'xxxxx'], # 5
-    ['xxxxx', 'x    ', 'xxxxx', 'x   x', 'xxxxx'], # 6
-    ['xxxxx', '    x', '    x', '    x', '    x'], # 7
-    ['xxxxx', 'x   x', 'xxxxx', 'x   x', 'xxxxx'], # 8
-    ['xxxxx', 'x   x', 'xxxxx', '    x', 'xxxxx'], # 9
+    ['xxxxx', 'x   x', 'x   x', 'x   x', 'xxxxx'],  # 0
+    ['    x', '    x', '    x', '    x', '    x'],  # 1
+    ['xxxxx', '    x', 'xxxxx', 'x    ', 'xxxxx'],  # 2
+    ['xxxxx', '    x', 'xxxxx', '    x', 'xxxxx'],  # 3
+    ['x   x', 'x   x', 'xxxxx', '    x', '    x'],  # 4
+    ['xxxxx', 'x    ', 'xxxxx', '    x', 'xxxxx'],  # 5
+    ['xxxxx', 'x    ', 'xxxxx', 'x   x', 'xxxxx'],  # 6
+    ['xxxxx', '    x', '    x', '    x', '    x'],  # 7
+    ['xxxxx', 'x   x', 'xxxxx', 'x   x', 'xxxxx'],  # 8
+    ['xxxxx', 'x   x', 'xxxxx', '    x', 'xxxxx'],  # 9
 ]
+
 
 def _draw_number(screen, x_offset, number, token=Token.Clock, default_token=Token):
     " Write number at position. "
@@ -176,7 +177,7 @@ class PaneContainer(UIControl):
 
     def has_focus(self, cli):
         return (cli.current_buffer_name != COMMAND and
-            self.pymux.arrangement.get_active_pane(cli) == self.pane)
+                self.pymux.arrangement.get_active_pane(cli) == self.pane)
 
     def mouse_handler(self, cli, mouse_event):
         process = self.process
@@ -261,7 +262,7 @@ class PaneWindow(Window):
 
                     # The token looks like ('C', *attrs). Replace the value of the reverse flag.
                     if token and token[0] == 'C':
-                        token[-1] = not token[-1] # Invert reverse value.
+                        token[-1] = not token[-1]  # Invert reverse value.
                         row[x] = Char(char.char, tuple(token))
 
 
@@ -360,15 +361,15 @@ class LayoutManager(object):
 
             if w == self.pymux.arrangement.get_active_window(cli):
                 token = Token.StatusBar.Window.Current
-                format = self.pymux.window_status_current_format
+                format_str = self.pymux.window_status_current_format
 
             else:
                 token = Token.StatusBar.Window
-                format = self.pymux.window_status_format
+                format_str = self.pymux.window_status_format
 
             result.append((
                 token,
-                format_pymux_string(self.pymux, cli, format, window=w),
+                format_pymux_string(self.pymux, cli, format_str, window=w),
                 self._create_select_window_handler(w)))
 
         return result
@@ -376,13 +377,13 @@ class LayoutManager(object):
     def _get_status_left_tokens(self, cli):
         return [
             (Token.StatusBar,
-            format_pymux_string(self.pymux, cli, self.pymux.status_left)),
+             format_pymux_string(self.pymux, cli, self.pymux.status_left)),
         ]
 
     def _get_status_right_tokens(self, cli):
         return [
             (Token.StatusBar,
-            format_pymux_string(self.pymux, cli, self.pymux.status_right)),
+             format_pymux_string(self.pymux, cli, self.pymux.status_right)),
         ]
 
     def _before_prompt_command_tokens(self, cli):
@@ -412,19 +413,22 @@ class LayoutManager(object):
                             height=D.exact(1),
                             get_width=(lambda cli: D(max=self.pymux.status_left_length)),
                             dont_extend_width=True,
-                            content=TokenListControl(self._get_status_left_tokens,
+                            content=TokenListControl(
+                                self._get_status_left_tokens,
                                 default_char=Char(' ', Token.StatusBar))),
                         # List of windows in the middle.
                         Window(
                             height=D.exact(1),
-                            content=TokenListControl(self._get_status_tokens,
+                            content=TokenListControl(
+                                self._get_status_tokens,
                                 default_char=Char(' ', Token.StatusBar))),
                         # Right.
                         Window(
                             height=D.exact(1),
                             get_width=(lambda cli: D(max=self.pymux.status_right_length)),
                             dont_extend_width=True,
-                            content=TokenListControl(self._get_status_right_tokens,
+                            content=TokenListControl(
+                                self._get_status_right_tokens,
                                 align_right=True,
                                 default_char=Char(' ', Token.StatusBar)))
                     ]),
@@ -501,7 +505,6 @@ class ConfirmationToolbar(TokenListControl):
             ]
 
         super(ConfirmationToolbar, self).__init__(get_tokens, default_char=Char(' ', token))
-
 
 
 class DynamicBody(Container):
@@ -725,11 +728,11 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
         return [(token.PaneIndex, '%3s ' % index)]
 
-
     clock_is_visible = Condition(lambda cli: arrangement_pane.clock_mode)
     pane_numbers_are_visible = Condition(lambda cli: pymux.display_pane_numbers)
 
-    return TracePaneWritePosition(pymux, arrangement_pane,
+    return TracePaneWritePosition(
+        pymux, arrangement_pane,
         content=HSplit([
             # The title bar.
             VSplit([
