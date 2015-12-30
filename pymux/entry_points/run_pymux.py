@@ -46,6 +46,10 @@ def run():
     else:
         pane_id = None
 
+    # Expand filename.
+    if filename:
+        filename = os.path.abspath(os.path.expanduser(filename))
+
     mux = Pymux(source_file=filename, startup_command=command)
 
     # Setup logging
