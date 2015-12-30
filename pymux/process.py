@@ -318,9 +318,10 @@ class Process(object):
             text.append('\n')
             token_list.append((Token, '\n'))
 
-        # Remove last \n.
-        text.pop()
-        token_list.pop()
+        # Remove newlines at the end.
+        while text and text[-1] == '\n':
+            text.pop()
+            token_list.pop()
 
         # Calculate cursor position.
         d = Document(text=''.join(text))
