@@ -4,7 +4,9 @@ Some utilities.
 from __future__ import unicode_literals
 import array
 import fcntl
+import getpass
 import os
+import pwd
 import sys
 import termios
 
@@ -143,3 +145,12 @@ def set_terminal_size(stdout_fileno, rows, cols):
 
     # Do: TIOCSWINSZ (Set)
     fcntl.ioctl(stdout_fileno, termios.TIOCSWINSZ, buf)
+
+
+def get_default_shell():
+    """
+    return the path to the default shell for the current user.
+    """
+    username = getpass.getuser()
+    shell = pwd.getpwnam(username).pw_shell
+    return shell

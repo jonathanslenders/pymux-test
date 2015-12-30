@@ -17,21 +17,20 @@ from prompt_toolkit.terminal.vt100_output import Vt100_Output, _get_size
 from prompt_toolkit.utils import Callback
 
 from .arrangement import Arrangement, Pane
-from .commands.completer import create_command_completer
 from .commands.commands import handle_command, call_command_handler
+from .commands.completer import create_command_completer
 from .enums import COMMAND, PROMPT
 from .key_bindings import KeyBindingsManager
-from .rc import STARTUP_COMMANDS
 from .layout import LayoutManager
 from .log import logger
+from .options import ALL_OPTIONS
 from .process import Process
+from .rc import STARTUP_COMMANDS
 from .server import ServerConnection, bind_socket
 from .style import PymuxStyle
-from .options import ALL_OPTIONS
+from .utils import get_default_shell
 
-import getpass
 import os
-import pwd
 import signal
 import six
 import sys
@@ -102,12 +101,13 @@ class Pymux(object):
         self.history_limit = 2000
         self.default_terminal = 'xterm-256color'
         self.status_left = '[#S] '
-        self.status_left_length = 10
+        self.status_left_length = 20
         self.status_right = ' %H:%M %d-%b-%y '
         self.status_right_length = 20
         self.window_status_current_format = '#I:#W#F'
         self.window_status_format = '#I:#W#F'
         self.session_name = '0'
+        self.default_shell = get_default_shell()
 
         self.options = ALL_OPTIONS
 
@@ -241,7 +241,7 @@ class Pymux(object):
         if command:
             command = command.split()
         else:
-            command = [self._get_default_shell()]
+            command = [self.default_shell]
 
         process = Process.from_command(
                 self.eventloop, self.invalidate, command, done_callback,
@@ -263,12 +263,6 @@ class Pymux(object):
         " Invalidate the UI for all clients. "
         for c in self.clis.values():
             c.invalidate()
-
-    @classmethod
-    def _get_default_shell(cls):
-        username = getpass.getuser()
-        shell = pwd.getpwnam(username).pw_shell
-        return shell
 
     def create_window(self, cli=None, command=None, start_directory=None):
         pane = self._create_pane(None, command, start_directory=start_directory)

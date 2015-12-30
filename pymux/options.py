@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 import six
 
 from .key_mappings import PYMUX_TO_PROMPT_TOOLKIT_KEYS, pymux_key_to_prompt_toolkit_key_sequence
+from .utils import get_default_shell
 
 __all__ = (
     'Option',
@@ -53,7 +54,9 @@ class StringOption(Option):
         self.possible_values = possible_values or []
 
     def get_all_values(self, pymux):
-        return self.possible_values + [getattr(pymux, self.attribute)]
+        return sorted(set(
+            self.possible_values + [getattr(pymux, self.attribute)]
+        ))
 
     def set_value(self, pymux, value):
         setattr(pymux, self.attribute, value)
@@ -65,7 +68,9 @@ class PositiveIntOption(Option):
         self.possible_values = ['%s' % i for i in (possible_values or [])]
 
     def get_all_values(self, pymux):
-        return self.possible_values + ['%s' % getattr(pymux, self.attribute)]
+        return sorted(set(
+            self.possible_values + ['%s' % getattr(pymux, self.attribute)]
+        ))
 
     def set_value(self, pymux, value):
         """
@@ -137,6 +142,9 @@ ALL_OPTIONS = {
     'status-right': StringOption('status_right'),
     'status-left': StringOption('status_left'),
     'status-right-length': PositiveIntOption('status_right_length', [20]),
+    'status-left-length': PositiveIntOption('status_left_length', [20]),
     'window-status-format': StringOption('window_status_format'),
     'window-status-current-format': StringOption('window_status_current_format'),
+    'default-shell': StringOption(
+        'default_shell', [get_default_shell()]),
 }
