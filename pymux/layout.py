@@ -1,5 +1,6 @@
 # encoding: utf-8
 """
+The layout engine. This builds the prompt_toolkit layout.
 """
 from __future__ import unicode_literals
 
@@ -49,6 +50,9 @@ class Background(Container):
     """
     Generate the background of dots, which becomes visible when several clients
     are attached and not all of them have the same size.
+
+    (This is implemented as a Container, rather than a UIControl wrapped in a
+    Window, because it can be done very effecient this way.)
     """
     def reset(self):
         pass
@@ -76,18 +80,15 @@ class Background(Container):
     def walk(self, cli):
         return []
 
-_numbers = [
-    ['xxxxx', 'x   x', 'x   x', 'x   x', 'xxxxx'],  # 0
-    ['    x', '    x', '    x', '    x', '    x'],  # 1
-    ['xxxxx', '    x', 'xxxxx', 'x    ', 'xxxxx'],  # 2
-    ['xxxxx', '    x', 'xxxxx', '    x', 'xxxxx'],  # 3
-    ['x   x', 'x   x', 'xxxxx', '    x', '    x'],  # 4
-    ['xxxxx', 'x    ', 'xxxxx', '    x', 'xxxxx'],  # 5
-    ['xxxxx', 'x    ', 'xxxxx', 'x   x', 'xxxxx'],  # 6
-    ['xxxxx', '    x', '    x', '    x', '    x'],  # 7
-    ['xxxxx', 'x   x', 'xxxxx', 'x   x', 'xxxxx'],  # 8
-    ['xxxxx', 'x   x', 'xxxxx', '    x', 'xxxxx'],  # 9
-]
+
+# Numbers for the clock and pane numbering.
+_numbers = list(zip(*[  # (Transpose x/y.)
+    ['#####', '    #', '#####', '#####', '#   #', '#####', '#####', '#####', '#####', '#####'],
+    ['#   #', '    #', '    #', '    #', '#   #', '#    ', '#    ', '    #', '#   #', '#   #'],
+    ['#   #', '    #', '#####', '#####', '#####', '#####', '#####', '    #', '#####', '#####'],
+    ['#   #', '    #', '#    ', '    #', '    #', '    #', '#   #', '    #', '#   #', '    #'],
+    ['#####', '    #', '#####', '#####', '    #', '#####', '#####', '    #', '#####', '#####'],
+]))
 
 
 def _draw_number(screen, x_offset, number, token=Token.Clock, default_token=Token):
@@ -95,7 +96,7 @@ def _draw_number(screen, x_offset, number, token=Token.Clock, default_token=Toke
     for y, row in enumerate(_numbers[number]):
         screen_row = screen.data_buffer[y]
         for x, n in enumerate(row):
-            t = token if n == 'x' else default_token
+            t = token if n == '#' else default_token
             screen_row[x + x_offset] = Char(' ', t)
 
 
@@ -152,7 +153,7 @@ class PaneNumber(UIControl):
         return 6 * len('%s' % self._get_index(cli)) - 1
 
     def preferred_height(self, cli, width):
-        return 5
+        return self.HEIGHT
 
     def create_screen(self, cli, width, height):
         screen = Screen(initial_width=width)
@@ -169,7 +170,7 @@ class PaneNumber(UIControl):
         return screen
 
 
-class PaneContainer(UIControl):
+class PaneControl(UIControl):
     """
     User control that takes the Screen from a pymux pane/process.
     This also handles mouse support.
@@ -189,6 +190,11 @@ class PaneContainer(UIControl):
                 self.pymux.arrangement.get_active_pane(cli) == self.pane)
 
     def mouse_handler(self, cli, mouse_event):
+        """
+        Handle mouse events in a pane. A click in a non-active pane will select
+        it, one in an active pane, will send the mouse event to the application
+        running inside it.
+        """
         process = self.process
         x = mouse_event.position.x
         y = mouse_event.position.y
@@ -247,15 +253,21 @@ class PaneContainer(UIControl):
 
 
 class PaneWindow(Window):
+    """
+    The window around a :class:`.PaneControl`.
+    """
     def __init__(self, pymux, arrangement_pane, process):
         self._process = process
         super(PaneWindow, self).__init__(
-            content=PaneContainer(pymux, arrangement_pane),
+            content=PaneControl(pymux, arrangement_pane),
             get_vertical_scroll=lambda window: process.screen.line_offset,
             allow_scroll_beyond_bottom=True,
         )
 
     def write_to_screen(self, cli, screen, mouse_handlers, write_position):
+        """
+        Override, in order to implement reverse video efficiently.
+        """
         super(PaneWindow, self).write_to_screen(cli, screen, mouse_handlers, write_position)
 
         # If reverse video is enabled for the whole screen.
@@ -346,6 +358,9 @@ class MessageToolbar(TokenListToolbar):
 
 
 class LayoutManager(object):
+    """
+    The main layout class, that contains the whole Pymux layout.
+    """
     def __init__(self, pymux):
         self.pymux = pymux
         self.layout = self._create_layout()
@@ -365,6 +380,7 @@ class LayoutManager(object):
         return handler
 
     def _get_status_tokens(self, cli):
+        " The tokens for the status bar. "
         result = []
 
         # Display panes.
@@ -410,6 +426,9 @@ class LayoutManager(object):
         return [(Token.CommandLine.Prompt, '%s ' % (client_state.prompt_text, ))]
 
     def _create_layout(self):
+        """
+        Generate the main prompt_toolkit layout.
+        """
         waits_for_confirmation = WaitsForConfirmation(self.pymux)
         waits_for_prompt = WaitsForPrompt(self.pymux)
         in_command_mode = InCommandMode(self.pymux)
@@ -533,6 +552,10 @@ class DynamicBody(Container):
     """
     The dynamic part, which is different for each CLI (for each client). It
     depends on which window/pane is active.
+
+    This makes it possible to have just one main layout class, and
+    automatically rebuild the parts that change if the windows/panes
+    arrangement changes, without doing any synchronisation.
     """
     def __init__(self, pymux):
         self.pymux = pymux
