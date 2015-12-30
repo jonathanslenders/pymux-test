@@ -71,7 +71,8 @@ class Pane(object):
         self.scroll_buffer = Buffer(read_only=True)
         self.copy_token_list = []
         self.display_scroll_buffer = False
-        self.scroll_buffer_contains_help = False
+        self.scroll_buffer_title = ''
+        self.scroll_buffer_contains_text = False  # When it contains custom text.
 
         # Search buffer, for use in copy mode. (Each pane gets its own search buffer.)
         self.search_buffer = Buffer()
@@ -89,6 +90,7 @@ class Pane(object):
         self.scroll_buffer.set_document(document, bypass_readonly=True)
         self.copy_token_list = token_list
         self.display_scroll_buffer = True
+        self.scroll_buffer_title = 'Copy'
 
     def exit_scroll_buffer(self):
         """
@@ -96,9 +98,9 @@ class Pane(object):
         """
         self.process.resume()
         self.display_scroll_buffer = False
-        self.scroll_buffer_contains_help = False
+        self.scroll_buffer_contains_text = False
 
-    def display_help(self, text):
+    def display_text(self, text, title=''):
         """
         Display the given text in the scroll buffer.
         """
@@ -107,7 +109,8 @@ class Pane(object):
         self.scroll_buffer.set_document(Document(text, 0), bypass_readonly=True)
         self.copy_token_list = [(Token, text)]
         self.display_scroll_buffer = True
-        self.scroll_buffer_contains_help = True
+        self.scroll_buffer_contains_text = True
+        self.scroll_buffer_title = title
 
 
 class _WeightsDictionary(weakref.WeakKeyDictionary):

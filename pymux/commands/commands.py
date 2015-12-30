@@ -606,4 +606,27 @@ def list_keys(pymux, cli, variables):
 
     # Display help in pane.
     pane = pymux.arrangement.get_active_pane(cli)
-    pane.display_help(result)
+    pane.display_text(result, title='list-keys')
+
+
+@cmd('list-panes')
+def list_panes(pymux, cli, variables):
+    """
+    Display a list of all the panes.
+    """
+    w = pymux.arrangement.get_active_window(cli)
+    active_pane = w.active_pane
+
+    result = []
+
+    for i, p in enumerate(w.panes):
+        process = p.process
+
+        result.append('%i: [%sx%s] [history %s/%s] %s\n' % (
+            i, process.sx, process.sy,
+            min(pymux.history_limit, process.screen.line_offset + process.sy),
+            pymux.history_limit,
+            ('(active)' if p == active_pane else '')))
+
+    # Display help in pane.
+    active_pane.display_text(''.join(result), title='list-panes')

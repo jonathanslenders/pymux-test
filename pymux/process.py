@@ -41,7 +41,8 @@ class Process(object):
         eventloop.
     :param invalidate: When the screen content changes, and the renderer needs
         to redraw the output, this callback is called.
-    :param exec_func: Callable that is called in the child process. (Usualy, this calls execv.)
+    :param exec_func: Callable that is called in the child process. (Usualy,
+        this calls execv.)
     :param bell_func: Called when the process does a `bell`.
     :param done_callback: Called when the process terminates.
     """
@@ -166,6 +167,9 @@ class Process(object):
 
         self.screen.lines = height
         self.screen.columns = width
+
+        self.sx = width
+        self.sy = height
 
     def _in_child(self):
         " Will be executed in the forked child. "

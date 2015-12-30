@@ -705,14 +705,14 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
         if process.is_terminated:
             result.append((Token.Terminated, ' Terminated '))
 
+        # Scroll buffer info.
         if arrangement_pane.display_scroll_buffer:
-            if arrangement_pane.scroll_buffer_contains_help:
-                result.append((token.CopyMode, ' Help '))
-            else:
-                document = arrangement_pane.scroll_buffer.document
-                result.append((token.CopyMode, ' Copy '))
-                result.append((token.CopyMode.Position, ' %i,%i ' % (
-                    document.cursor_position_row, document.cursor_position_col)))
+            result.append((token.CopyMode, ' %s ' % arrangement_pane.scroll_buffer_title))
+
+            # Cursor position.
+            document = arrangement_pane.scroll_buffer.document
+            result.append((token.CopyMode.Position, ' %i,%i ' % (
+                document.cursor_position_row, document.cursor_position_col)))
 
         if arrangement_pane.name:
             result.append((name_token, ' %s ' % arrangement_pane.name))
