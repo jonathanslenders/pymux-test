@@ -678,11 +678,14 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
         if process.is_terminated:
             result.append((Token.Terminated, ' Terminated '))
 
-        if arrangement_pane.copy_mode:
-            document = arrangement_pane.copy_buffer.document
-            result.append((token.CopyMode, ' Copy '))
-            result.append((token.CopyMode.Position, ' %i,%i ' % (
-                document.cursor_position_row, document.cursor_position_col)))
+        if arrangement_pane.display_scroll_buffer:
+            if arrangement_pane.scroll_buffer_contains_help:
+                result.append((token.CopyMode, ' Help '))
+            else:
+                document = arrangement_pane.scroll_buffer.document
+                result.append((token.CopyMode, ' Copy '))
+                result.append((token.CopyMode.Position, ' %i,%i ' % (
+                    document.cursor_position_row, document.cursor_position_col)))
 
         if arrangement_pane.name:
             result.append((name_token, ' %s ' % arrangement_pane.name))
@@ -729,7 +732,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                     # The 'screen' of the pseudo terminal.
                     ConditionalContainer(
                         content=PaneWindow(pymux, arrangement_pane, process),
-                        filter=~clock_is_visible & Condition(lambda cli: not arrangement_pane.copy_mode)),
+                        filter=~clock_is_visible & Condition(lambda cli: not arrangement_pane.display_scroll_buffer)),
 
                     # The copy/paste buffer.
                     ConditionalContainer(
@@ -750,13 +753,13 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                                 SelectionHighlighter(),
                             ],
                         )),
-                        filter=~clock_is_visible & Condition(lambda cli: arrangement_pane.copy_mode)),
-
+                        filter=~clock_is_visible & Condition(lambda cli: arrangement_pane.display_scroll_buffer)
+                    ),
                     # Search toolbar. (Displayed when this pane has the focus, and searching.)
                     ConditionalContainer(
                         content=SearchWindow(pymux, arrangement_pane),
-                        filter=~clock_is_visible & Condition(lambda cli: arrangement_pane.is_searching)),
-
+                        filter=~clock_is_visible & Condition(lambda cli: arrangement_pane.is_searching)
+                    ),
                     # The clock.
                     ConditionalContainer(
                         # Add a dummy VSplit/HSplit around the BigClock in order to center it.

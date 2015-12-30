@@ -5,6 +5,7 @@ from prompt_toolkit.contrib.completers import WordCompleter
 from prompt_toolkit.document import Document
 
 from .commands import COMMANDS_TO_HANDLERS, get_option_flags_for_command
+from .utils import wrap_argument
 from pymux.arrangement import LayoutTypes
 from pymux.key_mappings import PYMUX_TO_PROMPT_TOOLKIT_KEYS
 
@@ -83,16 +84,9 @@ class ShlexCompleter(Completer):
         parts, part_start_pos = self.parse(text)
 
         for c in self.get_completions_for_parts(parts[:-1], parts[-1], complete_event):
-            yield Completion(self.wrap(parts[-1][:c.start_position] + c.text),
+            yield Completion(wrap_argument(parts[-1][:c.start_position] + c.text),
                              start_position=part_start_pos - len(document.text),
                              display=c.display)
-
-    @classmethod
-    def wrap(cls, text):
-        if not any(x in text for x in [' ', '"', "'", '\\']):
-            return text
-        else:
-            return '"%s"' % (text.replace('\\', r'\\').replace('"', r'\"'), )
 
     @classmethod
     def parse(cls, text):

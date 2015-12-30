@@ -11,11 +11,12 @@ from prompt_toolkit.enums import SEARCH_BUFFER
 from prompt_toolkit.key_binding.vi_state import InputMode
 
 from pymux.arrangement import LayoutTypes
+from pymux.commands.utils import wrap_argument
 from pymux.enums import PROMPT
 from pymux.format import format_pymux_string
 from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence, prompt_toolkit_key_to_vt100_key
-from pymux.options import SetOptionError
 from pymux.log import logger
+from pymux.options import SetOptionError
 
 __all__ = (
     'call_command_handler',
@@ -487,7 +488,7 @@ def send_keys(pymux, cli, variables):
     """
     pane = pymux.arrangement.get_active_pane(cli)
 
-    if pane.copy_mode:
+    if pane.display_scroll_buffer:
         raise CommandException('Cannot send keys. Pane is in copy mode.')
 
     for key in variables['<keys>']:
@@ -568,7 +569,29 @@ def clear_history(pymux, cli, variables):
     " Clear scrollback buffer. "
     pane = pymux.arrangement.get_active_pane(cli)
 
-    if pane.copy_mode:
+    if pane.display_scroll_buffer:
         raise CommandException('Not available in copy mode')
     else:
         pane.process.screen.clear_history()
+
+
+@cmd('list-keys')
+def list_keys(pymux, cli, variables):
+    """
+    Display all configured key bindings.
+    """
+    # Create help string.
+    result = []
+
+    for k, custom_binding in pymux.key_bindings_manager.custom_bindings.items():
+        needs_prefix, key = k
+
+        result.append('bind-key %3s %-10s %s %s' % (
+            ('-n' if needs_prefix else ''), key, custom_binding.command,
+            ' '.join(map(wrap_argument, custom_binding.arguments))))
+
+    result = '\n'.join(sorted(result))
+
+    # Display help in pane.
+    pane = pymux.arrangement.get_active_pane(cli)
+    pane.display_help(result)

@@ -6,9 +6,9 @@ __all__ = (
     'WaitsForConfirmation',
     'InCommandMode',
     'WaitsForPrompt',
-    'InCopyMode',
-    'InCopyModeNotSearching',
-    'InCopyModeSearching',
+    'InScrollBuffer',
+    'InScrollBufferNotSearching',
+    'InScrollBufferSearching',
 )
 
 
@@ -62,7 +62,7 @@ def _confirm_or_prompt_or_command(pymux, cli):
         return True
 
 
-class InCopyMode(Filter):
+class InScrollBuffer(Filter):
     def __init__(self, pymux):
         self.pymux = pymux
 
@@ -71,10 +71,10 @@ class InCopyMode(Filter):
             return False
 
         pane = self.pymux.arrangement.get_active_pane(cli)
-        return pane.copy_mode
+        return pane.display_scroll_buffer
 
 
-class InCopyModeNotSearching(Filter):
+class InScrollBufferNotSearching(Filter):
     def __init__(self, pymux):
         self.pymux = pymux
 
@@ -83,10 +83,10 @@ class InCopyModeNotSearching(Filter):
             return False
 
         pane = self.pymux.arrangement.get_active_pane(cli)
-        return pane.copy_mode and not pane.is_searching
+        return pane.display_scroll_buffer and not pane.is_searching
 
 
-class InCopyModeSearching(Filter):
+class InScrollBufferSearching(Filter):
     def __init__(self, pymux):
         self.pymux = pymux
 
@@ -95,4 +95,4 @@ class InCopyModeSearching(Filter):
             return False
 
         pane = self.pymux.arrangement.get_active_pane(cli)
-        return pane.copy_mode and pane.is_searching
+        return pane.display_scroll_buffer and pane.is_searching

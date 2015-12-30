@@ -7,7 +7,7 @@ from prompt_toolkit.keys import Keys
 from prompt_toolkit.selection import SelectionType
 
 from .enums import COMMAND, PROMPT
-from .filters import WaitsForConfirmation, HasPrefix, InCopyMode, InCopyModeNotSearching, InCopyModeSearching
+from .filters import WaitsForConfirmation, HasPrefix, InScrollBuffer, InScrollBufferNotSearching, InScrollBufferSearching
 from .key_mappings import pymux_key_to_prompt_toolkit_key_sequence
 from .commands.commands import call_command_handler
 
@@ -42,7 +42,7 @@ class KeyBindingsManager(object):
         # however only active when the following `enable_all` condition is met.
         self.pt_key_bindings_manager = pt_KeyBindingManager(
             enable_vi_mode=Condition(enable_vi_mode),
-            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | InCopyMode(pymux)) & ~HasPrefix(pymux),
+            enable_all=(HasFocus(COMMAND) | HasFocus(PROMPT) | InScrollBuffer(pymux)) & ~HasPrefix(pymux),
             enable_auto_suggest_bindings=True,
             enable_search=False,  # We have our own search bindings, that support multiple panes.
             enable_extra_page_navigation=True,
@@ -121,10 +121,10 @@ class KeyBindingsManager(object):
         waits_for_confirmation = WaitsForConfirmation(pymux)
         prompt_or_command_focus = HasFocus(COMMAND) | HasFocus(PROMPT)
         display_pane_numbers = Condition(lambda cli: pymux.display_pane_numbers)
-        in_copy_mode_not_searching = InCopyModeNotSearching(pymux)
+        in_scroll_buffer_not_searching = InScrollBufferNotSearching(pymux)
         pane_input_allowed = ~(prompt_or_command_focus | has_prefix |
                                waits_for_confirmation | display_pane_numbers |
-                               InCopyMode(pymux))
+                               InScrollBuffer(pymux))
 
         @registry.add_binding(Keys.Any, filter=pane_input_allowed, invalidate_ui=False)
         def _(event):
@@ -192,24 +192,25 @@ class KeyBindingsManager(object):
             client_state.confirm_command = None
             client_state.confirm_text = None
 
-        @registry.add_binding(Keys.ControlC, filter=in_copy_mode_not_searching)
+        @registry.add_binding(Keys.ControlC, filter=in_scroll_buffer_not_searching)
+        @registry.add_binding('q', filter=in_scroll_buffer_not_searching)
         def _(event):
             " Exit scroll buffer. "
             pane = pymux.arrangement.get_active_pane(event.cli)
-            pane.exit_copy_mode()
+            pane.exit_scroll_buffer()
 
-        @registry.add_binding(' ', filter=in_copy_mode_not_searching)
+        @registry.add_binding(' ', filter=in_scroll_buffer_not_searching)
         def _(event):
             " Enter selection mode when pressing space in copy mode. "
             event.current_buffer.start_selection(selection_type=SelectionType.CHARACTERS)
 
-        @registry.add_binding(Keys.ControlJ, filter=in_copy_mode_not_searching & HasSelection())
+        @registry.add_binding(Keys.ControlJ, filter=in_scroll_buffer_not_searching & HasSelection())
         def _(event):
             " Copy selection when pressing Enter. "
             clipboard_data = event.current_buffer.copy_selection()
             event.cli.clipboard.set_data(clipboard_data)
 
-        @registry.add_binding('v', filter=in_copy_mode_not_searching & HasSelection())
+        @registry.add_binding('v', filter=in_scroll_buffer_not_searching & HasSelection())
         def _(event):
             " Toggle between selection types. "
             types = [SelectionType.LINES, SelectionType.BLOCK, SelectionType.CHARACTERS]
@@ -293,8 +294,8 @@ def _load_search_bindings(pymux, registry, get_vi_state):
     This is different from the ones of prompt_toolkit, because we have a
     separate search buffer for each pane.
     """
-    is_searching = InCopyModeSearching(pymux)
-    in_copy_mode_not_searching = InCopyModeNotSearching(pymux)
+    is_searching = InScrollBufferSearching(pymux)
+    in_scroll_buffer_not_searching = InScrollBufferNotSearching(pymux)
 
     def search_buffer_is_empty(cli):
         """ Returns True when the search buffer is empty. """
@@ -318,7 +319,7 @@ def _load_search_bindings(pymux, registry, get_vi_state):
         """
         pane = pymux.arrangement.get_active_pane(event.cli)
 
-        input_buffer = pane.copy_buffer
+        input_buffer = pane.scroll_buffer
         search_buffer = pane.search_buffer
 
         # Update search state.
@@ -342,14 +343,14 @@ def _load_search_bindings(pymux, registry, get_vi_state):
         pane.is_searching = True
         return pane.search_state
 
-    @registry.add_binding(Keys.ControlR, filter=in_copy_mode_not_searching)
-    @registry.add_binding('?', filter=in_copy_mode_not_searching)
+    @registry.add_binding(Keys.ControlR, filter=in_scroll_buffer_not_searching)
+    @registry.add_binding('?', filter=in_scroll_buffer_not_searching)
     def _(event):
         search_state = enter_search(event.cli)
         search_state.direction = IncrementalSearchDirection.BACKWARD
 
-    @registry.add_binding(Keys.ControlS, filter=in_copy_mode_not_searching)
-    @registry.add_binding('/', filter=in_copy_mode_not_searching)
+    @registry.add_binding(Keys.ControlS, filter=in_scroll_buffer_not_searching)
+    @registry.add_binding('/', filter=in_scroll_buffer_not_searching)
     def _(event):
         search_state = enter_search(event.cli)
         search_state.direction = IncrementalSearchDirection.FORWARD
@@ -368,7 +369,7 @@ def _load_search_bindings(pymux, registry, get_vi_state):
 
         # Apply search to current buffer.
         if not direction_changed:
-            pane.copy_buffer.apply_search(pane.search_state,
+            pane.scroll_buffer.apply_search(pane.search_state,
                                           include_current_position=False, count=event.arg)
 
     @registry.add_binding(Keys.ControlS, filter=is_searching)
@@ -385,5 +386,5 @@ def _load_search_bindings(pymux, registry, get_vi_state):
 
         # Apply search to current buffer.
         if not direction_changed:
-            pane.copy_buffer.apply_search(pane.search_state,
+            pane.scroll_buffer.apply_search(pane.search_state,
                                           include_current_position=False, count=event.arg)

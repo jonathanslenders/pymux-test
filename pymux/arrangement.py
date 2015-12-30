@@ -8,8 +8,11 @@ from __future__ import unicode_literals
 from .process import Process
 
 from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.document import Document
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.search_state import SearchState
+
+from pygments.token import Token
 
 import math
 import os
@@ -51,11 +54,12 @@ class Pane(object):
 
         # Prompt_toolkit buffer, for displaying scrollable text.
         # (In copy mode, or help mode.)
-        # Note: Because the copy_buffer can only contain text, we also use the
+        # Note: Because the scroll_buffer can only contain text, we also use the
         #       copy_token_list, that contains a token list with color information.
-        self.copy_buffer = Buffer(read_only=True)
+        self.scroll_buffer = Buffer(read_only=True)
         self.copy_token_list = []
-        self.copy_mode = False
+        self.display_scroll_buffer = False
+        self.scroll_buffer_contains_help = False
 
         # Search buffer, for use in copy mode. (Each pane gets its own search buffer.)
         self.search_buffer = Buffer()
@@ -66,13 +70,28 @@ class Pane(object):
         self.process.suspend()
         document, token_list = self.process.create_copy_document()
 
-        self.copy_buffer.set_document(document, bypass_readonly=True)
+        self.scroll_buffer.set_document(document, bypass_readonly=True)
         self.copy_token_list = token_list
-        self.copy_mode = True
+        self.display_scroll_buffer = True
 
-    def exit_copy_mode(self):
+    def exit_scroll_buffer(self):
+        """
+        Exit help or copy mode.
+        """
         self.process.resume()
-        self.copy_mode = False
+        self.display_scroll_buffer = False
+        self.scroll_buffer_contains_help = False
+
+    def display_help(self, text):
+        """
+        Display the given text in the scroll buffer.
+        """
+        self.process.suspend()
+
+        self.scroll_buffer.set_document(Document(text, 0), bypass_readonly=True)
+        self.copy_token_list = [(Token, text)]
+        self.display_scroll_buffer = True
+        self.scroll_buffer_contains_help = True
 
 
 class _WeightsDictionary(weakref.WeakKeyDictionary):

@@ -523,9 +523,10 @@ class _BufferMapping(BufferMapping):
         if name.startswith('pane-'):
             try:
                 id = int(name[len('pane-'):])
-                return self.pymux.panes_by_id[id].copy_buffer
+                return self.pymux.panes_by_id[id].scroll_buffer
             except (ValueError, KeyError):
                 raise KeyError
+
         elif name.startswith('search-'):
             try:
                 id = int(name[len('search-'):])
@@ -562,7 +563,7 @@ class _FocusStack(FocusStack):
             # Copy/search mode.
             pane = self.pymux.arrangement.get_active_pane(self._cli)
 
-            if pane and pane.copy_mode:
+            if pane and pane.display_scroll_buffer:
                 if pane.is_searching:
                     return 'search-%i' % pane.pane_id
                 else:
@@ -582,7 +583,7 @@ class _FocusStack(FocusStack):
         # When the copy/search buffer is in the stack.
         if self._cli:
             pane = self.pymux.arrangement.get_active_pane(self._cli)
-            if pane and pane.copy_mode and value == 'pane-%i' % pane.pane_id:
+            if pane and pane.display_scroll_buffer and value == 'pane-%i' % pane.pane_id:
                 return True
             if pane and pane.is_searching and value == 'search-%i' % pane.pane_id:
                 return True
