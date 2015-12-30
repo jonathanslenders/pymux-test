@@ -601,13 +601,14 @@ class Arrangement(object):
             if w.index == index:
                 return w
 
-    def create_window(self, cli, pane, name=None):
+    def create_window(self, cli, pane, name=None, set_active=True):
         """
         Create a new window that contains just this pane.
 
         :param cli: If been given, this window will be focussed for that client.
         :param pane: The :class:`.Pane` instance to put in the new window.
         :param name: If given, name for the new window.
+        :param set_active: When True, focus the new window.
         """
         assert isinstance(pane, Pane)
         assert cli is None or isinstance(cli, CommandLineInterface)
@@ -628,7 +629,7 @@ class Arrangement(object):
         # Sort windows by index.
         self.windows = sorted(self.windows, key=lambda w: w.index)
 
-        if cli is not None:
+        if cli is not None and set_active:
             self.set_active_window(cli, w)
 
         if name is not None:
@@ -693,10 +694,12 @@ class Arrangement(object):
         self.set_active_window(cli, self.windows[
             (self.windows.index(w) + 1) % len(self.windows)])
 
-    def break_pane(self, cli):
+    def break_pane(self, cli, set_active=True):
         """
         When the current window has multiple panes, remove the pane from this
         window and put it in a new window.
+
+        :param set_active: When True, focus the new window.
         """
         assert isinstance(cli, CommandLineInterface)
 
@@ -705,7 +708,7 @@ class Arrangement(object):
         if len(w.panes) > 1:
             pane = w.active_pane
             self.get_active_window(cli).remove_pane(pane)
-            self.create_window(cli, pane)
+            self.create_window(cli, pane, set_active=set_active)
 
     def rotate_window(self, cli, count=1):
         " Rotate the panes in the active window. "

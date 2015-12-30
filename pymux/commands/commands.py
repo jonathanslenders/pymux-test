@@ -164,9 +164,11 @@ class CommandException(Exception):
 #
 
 
-@cmd('break-pane')
+@cmd('break-pane', options='[-d]')
 def break_pane(pymux, cli, variables):
-    pymux.arrangement.break_pane(cli)
+    dont_focus_window = variables['-d']
+
+    pymux.arrangement.break_pane(cli, set_active=not dont_focus_window)
     pymux.invalidate()
 
 
