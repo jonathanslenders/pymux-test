@@ -24,9 +24,10 @@ from pymux.client import Client, list_clients
 from pymux.utils import daemonize
 
 import docopt
+import getpass
+import logging
 import os
 import sys
-import logging
 
 __all__ = (
     'run',
@@ -45,6 +46,10 @@ def run():
         socket_name, pane_id = socket_name.rsplit(',', 1)
     else:
         pane_id = None
+
+    # Expand socket name. (Make it possible to just accept numbers.)
+    if socket_name and socket_name.isdigit():
+        socket_name = '/tmp/pymux.sock.%s.%s' % (getpass.getuser(), socket_name)
 
     # Expand filename.
     if filename:

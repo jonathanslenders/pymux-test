@@ -143,6 +143,8 @@ class ServerConnection(object):
 def bind_socket(socket_name=None):
     """
     Find a socket to listen on and return it.
+
+    Returns (socket_name, sock_obj)
     """
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
