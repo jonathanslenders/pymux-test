@@ -1,0 +1,84 @@
+Pymux
+=====
+
+*A terminal multiplexer (like `tmux <https://tmux.github.io/>`_) in Python*
+
+::
+
+    pip install pymux
+
+
+Issues, questions, wishes, comments, feedback, remarks? Please create a GitHub
+issue, I appreciate it.
+
+
+Installation
+------------
+
+Simply install ``pymux`` using pip:
+
+::
+
+    pip install pymux
+
+
+What does it do?
+----------------
+
+A terminal multiplexer makes it possible to run multiple applications in the
+same terminal. It does this by emulating a vt100 terminal for each application.
+There are serveral programs doing this. The most famous are GNU Screen and tmux.
+
+Pymux is written entirely in Python. It doesn't need any C extension. It runs
+on all Python versions from 2.6 until 3.5. It should work on OS X and
+Linux/Unix.
+
+
+Compared to tmux
+----------------
+
+On many fronts, pymux is just a clone of tmux. This means that all the default
+shortcuts are the same; the commands are the same or very similar, and a simple
+configuration file could be the same. (There are some small incompatibilities.)
+However, we definitely don't intend to create a fully compatible clone.
+
+Pymux implements a few improvements over tmux:
+
+- There is a completion menu for the command line. (At the bottom of the screen.)
+- The command line has fish-style suggestions.
+- Both Emacs and Vi key bindings for the command line and copy buffer are well
+  developed, thanks to all the effort we have put earlier in prompt_toolkit.
+- Search in the copy buffer is highlighted while searching.
+- Every pane has its own titlebar.
+- When several clients are attached to the same session, each client can watch
+  a different window. When clients are watching different windows, every client
+  uses the full terminal size.
+
+About the performance:
+- tmux is written in C, which is obviously faster than Python. This is
+  noticable when applications generate a lot of output. Where tmux is able to
+  give fast real-time output for for instance ``find /``, pymux will process
+  the output slightly slower, and in this case render the output only every
+  second to the terminal.
+
+The big advantage is that writing it in Python and using ``prompt_toolkit``
+will make implementation of new features very easy.
+
+
+Why create a tmux clone?
+------------------------
+
+Just like ``pyvim`` (A ``Vi`` clone in Python.), this is another experiment. A
+hobby project to challenge the design of ``prompt_toolkit``. The development
+resulted in many improvements in ``prompt_toolkit``, especially performance
+improvements, but also some functionality improvements.
+
+The development is especially interesting, because it touches so many different
+areas that are unknown to most Python developers. It also proves that Python is
+a good tool to create terminal applications.
+
+Further, the intension is to make all pymux code reusable as a library at some
+point. It should be possible to create any full screen ``prompt_toolkit``
+application that embeds a vt100 terminal.
+
+And finally, it's a nice addition for the prompt-toolkit ecosystem.
