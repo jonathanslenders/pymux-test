@@ -1,7 +1,7 @@
 Pymux
 =====
 
-*A terminal multiplexer (like `tmux <https://tmux.github.io/>`_) in Python*
+*A terminal multiplexer (like tmux) in Python*
 
 ::
 
@@ -27,7 +27,10 @@ What does it do?
 
 A terminal multiplexer makes it possible to run multiple applications in the
 same terminal. It does this by emulating a vt100 terminal for each application.
-There are serveral programs doing this. The most famous are GNU Screen and tmux.
+There are serveral programs doing this. The most famous are GNU Screen and
+`tmux <https://tmux.github.io/>`_.
+
+
 
 Pymux is written entirely in Python. It doesn't need any C extension. It runs
 on all Python versions from 2.6 until 3.5. It should work on OS X and
@@ -47,7 +50,8 @@ Pymux implements a few improvements over tmux:
 - There is a completion menu for the command line. (At the bottom of the screen.)
 - The command line has fish-style suggestions.
 - Both Emacs and Vi key bindings for the command line and copy buffer are well
-  developed, thanks to all the effort we have put earlier in prompt_toolkit.
+  developed, thanks to all the effort we have put earlier in `prompt_toolkit
+  <https://github.com/jonathanslenders/python-prompt-toolkit>`_.
 - Search in the copy buffer is highlighted while searching.
 - Every pane has its own titlebar.
 - When several clients are attached to the same session, each client can watch
@@ -61,24 +65,29 @@ About the performance:
   the output slightly slower, and in this case render the output only every
   second to the terminal.
 
-The big advantage is that writing it in Python and using ``prompt_toolkit``
+The big advantage is that writing it in Python and using `prompt_toolkit
+<https://github.com/jonathanslenders/python-prompt-toolkit>`_
 will make implementation of new features very easy.
 
 
 Why create a tmux clone?
 ------------------------
 
-Just like ``pyvim`` (A ``Vi`` clone in Python.), this is another experiment. A
-hobby project to challenge the design of ``prompt_toolkit``. The development
-resulted in many improvements in ``prompt_toolkit``, especially performance
-improvements, but also some functionality improvements.
+Just like `pyvim <https://github.com/jonathanslenders/pyvim>`_ (A ``Vi`` clone
+in Python.), this is another experiment. A hobby project to challenge the
+design of `prompt_toolkit
+<https://github.com/jonathanslenders/python-prompt-toolkit>`_. The development
+resulted in many improvements in `prompt_toolkit
+<https://github.com/jonathanslenders/python-prompt-toolkit>`_, especially
+performance improvements, but also some functionality improvements.
 
 The development is especially interesting, because it touches so many different
 areas that are unknown to most Python developers. It also proves that Python is
 a good tool to create terminal applications.
 
 Further, the intension is to make all pymux code reusable as a library at some
-point. It should be possible to create any full screen ``prompt_toolkit``
-application that embeds a vt100 terminal.
+point. It should be possible to create any full screen `prompt_toolkit
+<https://github.com/jonathanslenders/python-prompt-toolkit>`_ application that
+embeds a vt100 terminal.
 
 And finally, it's a nice addition for the prompt-toolkit ecosystem.
