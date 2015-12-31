@@ -625,7 +625,11 @@ class _FocusStack(FocusStack):
 
         return super(_FocusStack, self).__contains__(value)
 
-    def push(self, buffer_name, replace=False):  # XXX: cleanup: (We don't use this.)
+    def push(self, buffer_name, replace=False):
+        """
+        Called when a :class:`BufferControl` in the layout has been clicked.
+        Make sure that we focus the pane in the :class:`.Arrangement`.
+        """
         self._focus(buffer_name)
         super(_FocusStack, self).push(buffer_name, replace=replace)
 

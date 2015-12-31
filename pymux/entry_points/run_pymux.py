@@ -51,10 +51,15 @@ def run():
     if socket_name and socket_name.isdigit():
         socket_name = '/tmp/pymux.sock.%s.%s' % (getpass.getuser(), socket_name)
 
-    # Expand filename.
+    # Configuration filename.
+    default_config = os.path.abspath(os.path.expanduser('~/.pymux.conf'))
+    if not filename and os.path.exists(default_config):
+        filename = default_config
+
     if filename:
         filename = os.path.abspath(os.path.expanduser(filename))
 
+    # Create 'Pymux'.
     mux = Pymux(source_file=filename, startup_command=command)
 
     # Setup logging
