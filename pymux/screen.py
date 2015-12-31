@@ -169,7 +169,11 @@ class BetterScreen(object):
         # From ``man terminfo`` -- "... hardware tabs are initially
         # set every `n` spaces when the terminal is powered up. Since
         # we aim to support VT102 / VT220 and linux -- we use n = 8.
-        self.tabstops = set(range(7, self.columns, 8))
+
+        # (We choose to create tab stops until x=1000, because we keep the
+        # tab stops when the screen increases in size. The OS X 'ls' command
+        # relies on the stops to be there.)
+        self.tabstops = set(range(8, 1000, 8))
 
         # The original Screen instance, when going to the alternate screen.
         self._original_screen = None
