@@ -107,6 +107,10 @@ class BigClock(UIControl):
     WIDTH = 28
     HEIGHT = 5
 
+    def __init__(self, on_click):
+        assert callable(on_click)
+        self.on_click = on_click
+
     def create_screen(self, cli, width, height):
         screen = Screen(initial_width=width)
 
@@ -129,6 +133,13 @@ class BigClock(UIControl):
         screen.height = self.HEIGHT
         return screen
 
+    def mouse_handler(self, cli, mouse_event):
+        " Click callback. "
+        if mouse_event.event_type == MouseEventTypes.MOUSE_UP:
+            self.on_click(cli)
+        else:
+            return NotImplemented
+
 
 class PaneNumber(UIControl):
     """
@@ -137,9 +148,10 @@ class PaneNumber(UIControl):
     WIDTH = 5
     HEIGHT = 5
 
-    def __init__(self, pymux, arrangement_pane):
+    def __init__(self, pymux, arrangement_pane, on_click):
         self.pymux = pymux
         self.arrangement_pane = arrangement_pane
+        self.on_click = on_click
 
     def _get_index(self, cli):
         window = self.pymux.arrangement.get_active_window(cli)
@@ -168,6 +180,13 @@ class PaneNumber(UIControl):
                          token=token, default_token=Token.Transparent)
 
         return screen
+
+    def mouse_handler(self, cli, mouse_event):
+        " Click callback. "
+        if mouse_event.event_type == MouseEventTypes.MOUSE_UP:
+            self.on_click(cli)
+        else:
+            return NotImplemented
 
 
 class PaneControl(UIControl):
@@ -773,6 +792,11 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
 
         return [(token.PaneIndex, '%3s ' % index)]
 
+    def on_click(cli):
+        " Click handler for the clock. When clicked, select this pane. "
+        pymux.arrangement.get_active_window(cli).active_pane = arrangement_pane
+        pymux.invalidate()
+
     clock_is_visible = Condition(lambda cli: arrangement_pane.clock_mode)
     pane_numbers_are_visible = Condition(lambda cli: pymux.display_pane_numbers)
 
@@ -833,13 +857,13 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                         # (Using a FloatContainer to do the centering doesn't work well, because
                         # the boundaries are not clipt when the parent is smaller.)
                         content=VSplit([
-                            Window(FillControl()),
+                            Window(_FillControl(on_click)),
                             HSplit([
-                                Window(FillControl()),
-                                Window(BigClock(), height=D.exact(BigClock.HEIGHT)),
-                                Window(FillControl()),
+                                Window(_FillControl(on_click)),
+                                Window(BigClock(on_click), height=D.exact(BigClock.HEIGHT)),
+                                Window(_FillControl(on_click)),
                             ]),
-                            Window(FillControl()),
+                            Window(_FillControl(on_click)),
                         ], get_dimensions=lambda cli: [None, D.exact(BigClock.WIDTH), None]),
 
                         filter=clock_is_visible,
@@ -848,12 +872,27 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
                 # Pane numbers. (Centered.)
                 floats=[
                     Float(content=ConditionalContainer(
-                        content=Window(PaneNumber(pymux, arrangement_pane)),
+                        content=Window(PaneNumber(pymux, arrangement_pane, on_click)),
                         filter=pane_numbers_are_visible)),
                 ]
             )
         ])
     )
+
+class _FillControl(FillControl):
+    """
+    Extension to `FillControl` with click handlers.
+    """
+    def __init__(self, click_callback=None):
+        self.click_callback = click_callback
+        super(_FillControl, self).__init__()
+
+    def mouse_handler(self, cli, mouse_event):
+        " Call callback on click. "
+        if mouse_event.event_type == MouseEventTypes.MOUSE_UP and self.click_callback:
+            self.click_callback(cli)
+        else:
+            return NotImplemented
 
 
 class _ContainerProxy(Container):
