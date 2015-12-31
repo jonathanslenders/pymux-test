@@ -57,6 +57,7 @@ Pymux implements a few improvements over tmux:
   uses the full terminal size.
 
 About the performance:
+
 - tmux is written in C, which is obviously faster than Python. This is
   noticable when applications generate a lot of output. Where tmux is able to
   give fast real-time output for for instance ``find /``, pymux will process
