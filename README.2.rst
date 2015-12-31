@@ -89,6 +89,13 @@ application that embeds a vt100 terminal.
 And finally, it's a nice addition for the prompt-toolkit ecosystem.
 
 
+Configuring
+-----------
+
+Create a file ``~/.pymux.conf``, and populate it with commands, like you can
+enter at the command line.
+
+
 Special thanks
 --------------
 
