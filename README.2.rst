@@ -28,7 +28,7 @@ What does it do?
 A terminal multiplexer makes it possible to run multiple applications in the
 same terminal. It does this by emulating a vt100 terminal for each application.
 There are serveral programs doing this. The most famous are `GNU Screen
-<https://www.gnu.org/software/screen/`_ and `tmux <https://tmux.github.io/>`_.
+<https://www.gnu.org/software/screen/>`_ and `tmux <https://tmux.github.io/>`_.
 
 Pymux is written entirely in Python. It doesn't need any C extension. It runs
 on all Python versions from 2.6 until 3.5. It should work on OS X and
@@ -60,9 +60,9 @@ About the performance:
 
 - tmux is written in C, which is obviously faster than Python. This is
   noticable when applications generate a lot of output. Where tmux is able to
-  give fast real-time output for for instance ``find /``, pymux will process
+  give fast real-time output for, for instance ``find /``, pymux will process
   the output slightly slower, and in this case render the output only every
-  second to the terminal.
+  second to the terminal. Usually, this should not be an issue.
 
 The big advantage is that writing it in Python and using `prompt_toolkit
 <https://github.com/jonathanslenders/python-prompt-toolkit>`_
