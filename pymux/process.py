@@ -326,14 +326,22 @@ class Process(object):
         first_row = min(data_buffer.keys())
         last_row = max(data_buffer.keys())
 
+        def token_has_no_background(token):
+            try:
+                # Token looks like ('C', color, bgcolor, bold, underline, ...)
+                return token[2] is None
+            except IndexError:
+                return True
+
         for row_index in range(first_row, last_row + 1):
             row = data_buffer[row_index]
             max_column = max(row.keys()) if row else 0
 
-            # Remove trailing whitespace.
+            # Remove trailing whitespace. (If the background is transparent.)
             row_data = [row[x] for x in range(0, max_column + 1)]
 
-            while row_data and row_data[-1].char.isspace():
+            while (row_data and row_data[-1].char.isspace() and
+                   token_has_no_background(row_data[-1].token)):
                 row_data.pop()
 
             # Walk through row.

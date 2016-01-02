@@ -12,7 +12,7 @@ from prompt_toolkit.layout.dimension import LayoutDimension as D
 from prompt_toolkit.layout.lexers import Lexer
 from prompt_toolkit.layout.lexers import SimpleLexer
 from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.layout.processors import BeforeInput, AppendAutoSuggestion, Processor, Transformation
+from prompt_toolkit.layout.processors import BeforeInput, AfterInput, AppendAutoSuggestion, Processor, Transformation
 from prompt_toolkit.layout.highlighters import SelectionHighlighter, SearchHighlighter
 from prompt_toolkit.layout.prompt import DefaultPrompt
 from prompt_toolkit.layout.screen import Char, Screen
@@ -329,6 +329,12 @@ class SearchWindow(Window):
             else:
                 return [(Token.Search, text)]
 
+        def get_after_input(cli):
+            if focussed(cli):
+                return [(Token.Search.Focussed, ' ')]
+            else:
+                return []
+
         class SearchLexer(Lexer):
             " Color for the search string. "
             def get_tokens(self, cli, text):
@@ -340,7 +346,7 @@ class SearchWindow(Window):
         super(SearchWindow, self).__init__(
             content=BufferControl(
                 buffer_name='search-%i' % arrangement_pane.pane_id,
-                input_processors=[BeforeInput(get_before_input)],
+                input_processors=[BeforeInput(get_before_input), AfterInput(get_after_input)],
                 lexer=SearchLexer(),
                 default_char=Char(token=Token)),
             dont_extend_height=True)

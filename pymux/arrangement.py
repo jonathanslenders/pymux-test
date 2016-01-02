@@ -72,7 +72,6 @@ class Pane(object):
         self.copy_token_list = []
         self.display_scroll_buffer = False
         self.scroll_buffer_title = ''
-        self.scroll_buffer_contains_text = False  # When it contains custom text.
 
         # Search buffer, for use in copy mode. (Each pane gets its own search buffer.)
         self.search_buffer = Buffer()
@@ -84,13 +83,29 @@ class Pane(object):
         Suspend the process, and copy the screen content to the `scroll_buffer`.
         That way the user can search through the history and copy/paste.
         """
-        self.process.suspend()
         document, token_list = self.process.create_copy_document()
+        self._enter_scroll_buffer('Copy', document, token_list)
+
+    def display_text(self, text, title=''):
+        """
+        Display the given text in the scroll buffer.
+        """
+        self._enter_scroll_buffer(
+            title,
+            document=Document(text, 0),
+            token_list=[(Token, text)])
+
+    def _enter_scroll_buffer(self, title, document, token_list):
+        # Suspend child process.
+        self.process.suspend()
 
         self.scroll_buffer.set_document(document, bypass_readonly=True)
         self.copy_token_list = token_list
         self.display_scroll_buffer = True
-        self.scroll_buffer_title = 'Copy'
+        self.scroll_buffer_title = title
+
+        # Reset search state.
+        self.search_state = SearchState(ignore_case=False)
 
     def exit_scroll_buffer(self):
         """
@@ -98,19 +113,6 @@ class Pane(object):
         """
         self.process.resume()
         self.display_scroll_buffer = False
-        self.scroll_buffer_contains_text = False
-
-    def display_text(self, text, title=''):
-        """
-        Display the given text in the scroll buffer.
-        """
-        self.process.suspend()
-
-        self.scroll_buffer.set_document(Document(text, 0), bypass_readonly=True)
-        self.copy_token_list = [(Token, text)]
-        self.display_scroll_buffer = True
-        self.scroll_buffer_contains_text = True
-        self.scroll_buffer_title = title
 
 
 class _WeightsDictionary(weakref.WeakKeyDictionary):
