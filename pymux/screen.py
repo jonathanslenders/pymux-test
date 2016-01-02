@@ -879,17 +879,28 @@ class BetterScreen(object):
                                     underline=False, italic=False, blink=False, reverse=False)
 
             elif attr in (38, 48):
-                # 256 colors.
                 n = attrs.pop()
-                if n != 5:
-                    return
 
-                if attr == 38:
-                    m = attrs.pop()
-                    replace["color"] = self._256_colors.get(1024 + m)
-                elif attr == 48:
-                    m = attrs.pop()
-                    replace["bgcolor"] = self._256_colors.get(1024 + m)
+                # 256 colors.
+                if n == 5:
+                    if attr == 38:
+                        m = attrs.pop()
+                        replace["color"] = self._256_colors.get(1024 + m)
+                    elif attr == 48:
+                        m = attrs.pop()
+                        replace["bgcolor"] = self._256_colors.get(1024 + m)
+
+                # True colors.
+                if n == 2:
+                    try:
+                        color_str = '%02x%02x%02x' % (attrs.pop(), attrs.pop(), attrs.pop())
+                    except IndexError:
+                        pass
+                    else:
+                        if attr == 38:
+                            replace["color"] = color_str
+                        elif attr == 48:
+                            replace["bgcolor"] = color_str
 
         self._attrs = self._attrs._replace(**replace)
 
