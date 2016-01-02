@@ -403,6 +403,8 @@ class Pymux(object):
         # change size, so everything has to be redrawn.)
         self.invalidate()
 
+        cli.on_invalidate += lambda: self.invalidate()
+
         # Handle start-up comands.
         # (Does initial key bindings.)
         if not self._startup_done:

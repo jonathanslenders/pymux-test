@@ -55,6 +55,7 @@ Pymux implements a few improvements over tmux:
 - When several clients are attached to the same session, each client can watch
   a different window. When clients are watching different windows, every client
   uses the full terminal size.
+- Support for 24bit true color.
 
 About the performance:
 

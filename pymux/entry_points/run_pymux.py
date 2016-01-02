@@ -2,7 +2,12 @@
 """
 pymux: Pure Python terminal multiplexer.
 Usage:
-    pymux [(standalone|start-server|attach)] [-d] [(-S <socket>)] [(-f <file>)] [(--log <logfile>)] [--] [<command>]
+    pymux [(standalone|start-server|attach)] [-d]
+          [--truecolor]
+          [(-S <socket>)]
+          [(-f <file>)]
+          [(--log <logfile>)]
+          [--] [<command>]
     pymux list-sessions
     pymux -h | --help
     pymux <command>
@@ -13,9 +18,12 @@ Options:
     start-server : Run a server daemon that can be attached later on.
     attach       : Attach to a running session.
 
+    -f           : Path to configuration file. By default: '~/.pymux.conf'.
     -S           : Unix socket path.
     -d           : Detach all other clients, when attaching.
     --log        : Logfile.
+    --truecolor  : Render true color (24 bit) instead of 256 colors.
+                   (Each client can set this separately.)
 """
 from __future__ import unicode_literals, absolute_import
 
@@ -40,6 +48,7 @@ def run():
     socket_name_from_env = not a['<socket>'] and os.environ.get('PYMUX')
     filename = a['<file>']
     command = a['<command>']
+    true_color = a['--truecolor']
 
     # Parse pane_id from socket_name. It looks like "socket_name,pane_id"
     if socket_name and ',' in socket_name:
@@ -96,7 +105,9 @@ def run():
         detach_other_clients = a['-d']
 
         if socket_name:
-            Client(socket_name).attach(detach_other_clients=detach_other_clients)
+            Client(socket_name).attach(
+                detach_other_clients=detach_other_clients,
+                true_color=true_color)
         else:
             # Connect to the first server.
             for c in list_clients():
@@ -124,7 +135,7 @@ def run():
             # daemon. (Otherwise the `waitpid` call won't work.)
             mux.run_server()
         else:
-            Client(socket_name).attach()
+            Client(socket_name).attach(true_color=true_color)
 
     else:
         print('Invalid command.')
