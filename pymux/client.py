@@ -7,7 +7,6 @@ from prompt_toolkit.terminal.vt100_output import _get_size, Vt100_Output
 
 from pymux.utils import nonblocking
 
-import fcntl
 import getpass
 import glob
 import json
