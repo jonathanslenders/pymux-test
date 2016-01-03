@@ -18,6 +18,7 @@ from wcwidth import wcwidth
 from prompt_toolkit.layout.screen import Screen, Char
 from prompt_toolkit.styles import Attrs
 from prompt_toolkit.terminal.vt100_output import FG_ANSI_COLORS, BG_ANSI_COLORS
+from prompt_toolkit.utils import get_cwidth
 from collections import namedtuple
 
 import copy
@@ -352,10 +353,14 @@ class BetterScreen(object):
         pt_screen = self.pt_screen
 
         # Translating a given character.
-        char = char.translate([self.g0_charset,
-                               self.g1_charset][self.charset])
+        if self.charset:
+            char = char.translate(self.g1_charset)
+        else:
+            char = char.translate(self.g0_charset)
 
-        char_width = wcwidth(char)
+        # Calculate character width. (We use the prompt_toolkit function which
+        # has built-in caching.)
+        char_width = get_cwidth(char)
 
         # If this was the last column in a line and auto wrap mode is
         # enabled, move the cursor to the beginning of the next line,
