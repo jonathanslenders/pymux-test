@@ -98,6 +98,9 @@ def call_command_handler(command, pymux, cli, arguments):
 def cmd(name, options=''):
     """
     Decorator for all commands.
+
+    Commands will receive (pymux, cli, variables) as input.
+    Commands can raise CommandException.
     """
     # Validate options.
     if options:

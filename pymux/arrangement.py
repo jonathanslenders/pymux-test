@@ -459,9 +459,22 @@ class Window(object):
         """
         Select next layout. (Cycle through predefined layouts.)
         """
+        # List of all layouts. (When we have just two panes, only toggle
+        # between horizontal/vertical.)
+        if len(self.panes) == 2:
+            all_layouts = [LayoutTypes.EVEN_HORIZONTAL, LayoutTypes.EVEN_VERTICAL]
+        else:
+            all_layouts = LayoutTypes._ALL
+
+        # Get index of current layout.
         layout = self.previous_selected_layout or LayoutTypes._ALL[-1]
-        index = LayoutTypes._ALL.index(layout)
-        new_layout = LayoutTypes._ALL[(index + count) % len(LayoutTypes._ALL)]
+        try:
+            index = all_layouts.index(layout)
+        except ValueError:
+            index = 0
+
+        # Switch to new layout.
+        new_layout = all_layouts[(index + count) % len(all_layouts)]
         self.select_layout(new_layout)
 
     def select_previous_layout(self):
