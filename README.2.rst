@@ -80,7 +80,7 @@ More screenshots
 
 Demonstration of 24bit color support and the autocompletion menu:
 
-.. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/pymux.png
+.. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/menu-true-color.png
 
 What happens if another client with a smaller screen size attaches:
 
