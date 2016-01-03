@@ -4,7 +4,8 @@ Custom `Screen` class for the `pyte` library.
 Changes compared to the original `Screen` class:
     - We store the layout in a prompt_toolkit.layout.screen.Screen instance.
       This allows fast rendering in a prompt_toolkit user control.
-    - 256 colour support (xterm)
+    - 256 colour and true color support.
+    - CPR support and device attributes.
 """
 from __future__ import unicode_literals
 from collections import defaultdict
