@@ -116,15 +116,19 @@ And finally, it's a nice addition for the prompt-toolkit ecosystem.
 The roadmap
 -----------
 
-There is no official roadmap. All code is written for the fun. Of course, we
-have many ideas and all input is welcome.
+There is no official roadmap, the code is mostly written for the fun and of
+course, time is limited, but I use pymux professionally and I'm eager to
+implement new ideas.
 
-Probably we'll support color schemes. Maybe, we will support extensions written
-in Python. Maybe we will further improve mouse support. Maybe we will make the
-code base reusable and allow any full screen prompt_toolkit application to
-embed a vt100 terminal. (Imagine a terminal emulator embedded in `pyvim
-<https://github.com/jonathanslenders/pyvim>`_.) Maybe we will create some cool
-widgets to traverse the windows and panes.
+Some ideas:
+
+- Support for color schemes.
+- Support for extensions written in Python.
+- Improved mouse support. (Reporting of mouse movement.)
+- Parts of pymux could become a library, so that any prompt_toolkit application
+  can embed a vt100 terminal. (Imagine a terminal emulator embedded in `pyvim
+  <https://github.com/jonathanslenders/pyvim>`_.)
+- Maybe some cool widgets to traverse the windows and panes.
 
 
 About Mac OS X support
