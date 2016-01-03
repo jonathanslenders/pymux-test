@@ -266,8 +266,11 @@ class BetterScreen(object):
         .. warning:: User-defined charsets are currently not supported.
         """
         if code in cs.MAPS:
-            setattr(self, {"(": "g0_charset", ")": "g1_charset"}[mode],
-                    cs.MAPS[code])
+            charset_map = cs.MAPS[code]
+            if mode == '(':
+                self.g0_charset = charset_map
+            elif mode == ')':
+                self.g1_charset = charset_map
 
     def set_mode(self, *modes, **kwargs):
         # Private mode codes are shifted, to be distingiushed from non
@@ -930,3 +933,6 @@ class BetterScreen(object):
     def send_device_attributes(self, data):
         response = '\x1b[>84;0;0c'
         self.write_process_input(response)
+
+    def debug(self, *args, **kwargs):
+        pass

@@ -29,11 +29,13 @@ class BetterStream(Stream):
         NEL: "next_line",
     })
 
-    def __init__(self):
+    def __init__(self, screen):
         super(BetterStream, self).__init__()
+
         self.handlers['square_close'] = self._square_close
         self.handlers['escape'] = self._escape
         self._square_close_data = []
+        self.listener = screen
 
     def _escape(self, char):
         if char == ']':
@@ -56,3 +58,20 @@ class BetterStream(Stream):
             pass
         else:
             super(BetterStream, self)._arguments(char)
+
+    def dispatch(self, event, *args, **kwargs):
+        """
+        A few additions to improve performance.
+
+        The code from Pyte has a few 'hasattr' calls in here, which is
+        inefficient.
+        """
+        try:
+            handler = getattr(self.listener, event)
+            handler(*args, **self.flags)
+        finally:
+            # __after__ is used to set the correct screen height.
+            self.listener.__after__(self)
+
+            if kwargs.get('reset', True):
+                self.reset()

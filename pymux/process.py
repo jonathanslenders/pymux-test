@@ -75,7 +75,8 @@ class Process(object):
         self.screen = BetterScreen(self.sx, self.sy,
                                    write_process_input=self.write_input,
                                    bell_func=bell_func)
-        self.stream = BetterStream()
+
+        self.stream = BetterStream(self.screen)
         self.stream.attach(self.screen)
 
     def start(self):
