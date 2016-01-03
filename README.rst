@@ -46,7 +46,7 @@ shortcuts are the same; the commands are the same or very similar, and even a
 simple configuration file could be the same. (There are some small
 incompatibilities.) However, we definitely don't intend to create a fully
 compatible clone. Right now, only a subset of the command options that tmux
-provides are support.
+provides are supported.
 
 Pymux implements a few improvements over tmux:
 
@@ -65,7 +65,7 @@ Pymux implements a few improvements over tmux:
 About the performance:
 
 - Tmux is written in C, which is obviously faster than Python. This is
-  noticable when applications generate a lot of output. Where tmux is able to
+  noticeable when applications generate a lot of output. Where tmux is able to
   give fast real-time output for, for instance ``find /`` or ``yes``, pymux
   will process the output slightly slower, and in this case render the output
   only a few times per second to the terminal. Usually, this should not be an
@@ -106,7 +106,7 @@ The development is especially interesting, because it touches so many different
 areas that are unknown to most Python developers. It also proves that Python is
 a good tool to create terminal applications.
 
-Further, the intension is to make all pymux code reusable as a library at some
+Further, the intention is to make all pymux code reusable as a library at some
 point. It should be possible to create any full screen prompt_toolkit
 application that embeds a vt100 terminal.
 
@@ -147,7 +147,8 @@ Configuring
 -----------
 
 Create a file ``~/.pymux.conf``, and populate it with commands, like you can
-enter at the command line.
+enter at the command line. There is an `example config <>`_ in the examples
+directory.
 
 
 What if it crashes?
