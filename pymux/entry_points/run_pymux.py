@@ -3,9 +3,7 @@
 pymux: Pure Python terminal multiplexer.
 Usage:
     pymux [(standalone|start-server|attach)] [-d]
-          [--truecolor]
-          [(-S <socket>)]
-          [(-f <file>)]
+          [--truecolor] [(-S <socket>)] [(-f <file>)]
           [(--log <logfile>)]
           [--] [<command>]
     pymux list-sessions
@@ -50,7 +48,7 @@ def run():
     command = a['<command>']
     true_color = a['--truecolor']
 
-    # Parse pane_id from socket_name. It looks like "socket_name,pane_id"
+    # Parse pane_id from socket_name. It looks like "socket_name,pane_id".
     if socket_name and ',' in socket_name:
         socket_name, pane_id = socket_name.rsplit(',', 1)
     else:
@@ -71,7 +69,7 @@ def run():
     # Create 'Pymux'.
     mux = Pymux(source_file=filename, startup_command=command)
 
-    # Setup logging
+    # Setup logging.
     if a['<logfile>']:
         logging.basicConfig(filename=a['<logfile>'], level=logging.DEBUG)
 
@@ -121,10 +119,6 @@ def run():
         Client(socket_name).run_command(a['<command>'], pane_id)
 
     elif not socket_name:
-        if socket_name_from_env:
-            _socket_from_env_warning()
-            sys.exit(1)
-
         # Run client/server combination.
         socket_name = mux.listen_on_socket(socket_name)
         pid = daemonize()
@@ -138,8 +132,12 @@ def run():
             Client(socket_name).attach(true_color=true_color)
 
     else:
-        print('Invalid command.')
-        sys.exit(1)
+        if socket_name_from_env:
+            _socket_from_env_warning()
+            sys.exit(1)
+        else:
+            print('Invalid command.')
+            sys.exit(1)
 
 
 def _socket_from_env_warning():
