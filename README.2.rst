@@ -7,7 +7,7 @@ Pymux
 
     pip install pymux
 
-.. image :: https://github.com/jonathanslenders/pymux-test/raw/master/docs/images/pymux.png
+.. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/pymux.png
 
 
 Issues, questions, wishes, comments, feedback, remarks? Please create a GitHub
