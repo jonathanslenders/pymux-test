@@ -14,7 +14,7 @@ long_description = open(
 setup(
     name='pymux',
     author='Jonathan Slenders',
-    version='0.1',
+    version='0.2',
     license='LICENSE',
     url='https://github.com/jonathanslenders/',
     description='Pure Python terminal multiplexer.',
