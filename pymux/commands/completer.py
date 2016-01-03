@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.completion import Completer
 from prompt_toolkit.contrib.completers import WordCompleter
 from prompt_toolkit.document import Document
 
@@ -23,8 +24,41 @@ def create_command_completer(pymux):
     return ShlexCompleter(partial(get_completions_for_parts, pymux=pymux))
 
 
-_command_completer = WordCompleter(sorted(COMMANDS_TO_HANDLERS.keys()),
-                                   ignore_case=True, WORD=True, match_middle=True)
+class CommandCompleter(Completer):
+    """
+    Completer for command names.
+    """
+    def __init__(self):
+        # Completer for full command names.
+        self._command_completer = WordCompleter(
+            sorted(COMMANDS_TO_HANDLERS.keys()),
+            ignore_case=True, WORD=True, match_middle=True)
+
+        # Completer for aliases.
+        self._aliases_completer = WordCompleter(
+            sorted(ALIASES.keys()),
+            ignore_case=True, WORD=True, match_middle=True)
+
+    def get_completions(self, document, complete_event):
+        # First, complete on full command names.
+        found = False
+
+        for c in self._command_completer.get_completions(document, complete_event):
+            found = True
+            yield c
+
+        # When no matches are found, complete aliases instead.
+        # The completion however, inserts the full name.
+        if not found:
+            for c in self._aliases_completer.get_completions(document, complete_event):
+                full_name = ALIASES.get(c.display)
+
+                yield Completion(full_name,
+                                 start_position=c.start_position,
+                                 display='%s (%s)' % (c.display, full_name))
+
+
+_command_completer = CommandCompleter()
 _layout_type_completer = WordCompleter(sorted(LayoutTypes._ALL), WORD=True)
 _keys_completer = WordCompleter(sorted(PYMUX_TO_PROMPT_TOOLKIT_KEYS.keys()),
                                 ignore_case=True, WORD=True)
