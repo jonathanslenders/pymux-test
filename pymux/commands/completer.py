@@ -126,7 +126,8 @@ class ShlexCompleter(Completer):
         for c in self.get_completions_for_parts(parts[:-1], parts[-1], complete_event):
             yield Completion(wrap_argument(parts[-1][:c.start_position] + c.text),
                              start_position=part_start_pos - len(document.text),
-                             display=c.display)
+                             display=c.display,
+                             display_meta=c.display_meta)
 
     @classmethod
     def parse(cls, text):
