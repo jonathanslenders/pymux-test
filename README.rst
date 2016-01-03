@@ -123,11 +123,15 @@ Some ideas:
 
 - Support for color schemes.
 - Support for extensions written in Python.
+- Better support for scripting. (Right now, it's already possible to run pymux
+  commands from inside the shell of a pane. E.g. ``pymux split-window``.
+  However, status codes and feedback aren't transferred yet.)
 - Improved mouse support. (Reporting of mouse movement.)
 - Parts of pymux could become a library, so that any prompt_toolkit application
   can embed a vt100 terminal. (Imagine a terminal emulator embedded in `pyvim
   <https://github.com/jonathanslenders/pyvim>`_.)
 - Maybe some cool widgets to traverse the windows and panes.
+- Better autocompletion.
 
 
 About Mac OS X support
