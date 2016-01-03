@@ -17,11 +17,25 @@ def pymux_key_to_prompt_toolkit_key_sequence(key):
     """
     Turn a pymux description of a key. E.g.  "C-a" or "M-x" into a
     prompt-toolkit key sequence.
-    """
-    if len(key) == 1 and key.isalnum():
-        return (key, )
 
-    return PYMUX_TO_PROMPT_TOOLKIT_KEYS.get(key) or tuple(key)
+    Raises `ValueError` if the key is not known.
+    """
+    # Make the c- and m- prefixes case insensitive.
+    if key.lower().startswith('m-c-'):
+        key = 'M-C-' + key[4:]
+    elif key.lower().startswith('c-'):
+        key = 'C-' + key[2:]
+    elif key.lower().startswith('m-'):
+        key = 'M-' + key[2:]
+
+    # Lookup key.
+    try:
+        return PYMUX_TO_PROMPT_TOOLKIT_KEYS[key]
+    except KeyError:
+        if len(key) == 1:
+            return (key, )
+        else:
+            raise ValueError('Unknown key: %r' % (key, ))
 
 
 # Create a mapping from prompt_toolkit keys to their ANSI sequences.

@@ -112,8 +112,12 @@ class KeyPrefixOption(Option):
 
     def set_value(self, pymux, value):
         # Translate prefix to prompt_toolkit
-        keys = pymux_key_to_prompt_toolkit_key_sequence(value)
-        pymux.key_bindings_manager.prefix = keys
+        try:
+            keys = pymux_key_to_prompt_toolkit_key_sequence(value)
+        except ValueError:
+            raise SetOptionError('Invalid key: %r' % (value, ))
+        else:
+            pymux.key_bindings_manager.prefix = keys
 
 
 class BaseIndexOption(Option):

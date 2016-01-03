@@ -46,12 +46,14 @@ def format_pymux_string(pymux, cli, string, window=None, pane=None):
         return window.name
 
     def window_flags():
+        z = 'Z' if window.zoom else ''
+
         if window == arrangement.get_active_window(cli):
-            return '*'
+            return '*' + z
         elif window == arrangement.get_previous_active_window(cli):
-            return '-'
+            return '-' + z
         else:
-            return ' '
+            return z + ' '
 
     def name_of_session():
         return pymux.session_name

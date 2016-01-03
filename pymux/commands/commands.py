@@ -484,8 +484,11 @@ def bind_key(pymux, cli, variables):
     arguments = variables['<arguments>']
     needs_prefix = not variables['-n']
 
-    pymux.key_bindings_manager.add_custom_binding(
-        key, command, arguments, needs_prefix=needs_prefix)
+    try:
+        pymux.key_bindings_manager.add_custom_binding(
+            key, command, arguments, needs_prefix=needs_prefix)
+    except ValueError:
+        raise CommandException('Invalid key: %r' % (key, ))
 
 
 @cmd('unbind-key', options='[-n] <key>')
@@ -512,7 +515,10 @@ def send_keys(pymux, cli, variables):
 
     for key in variables['<keys>']:
         # Translate key from pymux key to prompt_toolkit key.
-        keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(key)
+        try:
+            keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(key)
+        except ValueError:
+            raise CommandException('Invalid key: %r' % (key, ))
 
         # Translate prompt_toolkit key to VT100 key.
         for k in keys_sequence:

@@ -238,6 +238,7 @@ class KeyBindingsManager(object):
     def add_custom_binding(self, key_name, command, arguments, needs_prefix=False):
         """
         Add custom binding (for the "bind-key" command.)
+        Raises ValueError if the give `key_name` is an invalid name.
 
         :param key_name: Pymux key name, for instance "C-a" or "M-x".
         """
@@ -249,6 +250,7 @@ class KeyBindingsManager(object):
         self.remove_custom_binding(key_name, needs_prefix=needs_prefix)
 
         # Translate the pymux key name into a prompt_toolkit key sequence.
+        # (Can raise ValueError.)
         keys_sequence = pymux_key_to_prompt_toolkit_key_sequence(key_name)
 
         # Create handler and add to Registry.
