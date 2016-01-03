@@ -23,6 +23,8 @@ Simply install ``pymux`` using pip:
 
     pip install pymux
 
+Start it by typing ``pymux``.
+
 
 What does it do?
 ----------------
@@ -33,17 +35,17 @@ There are serveral programs doing this. The most famous are `GNU Screen
 <https://www.gnu.org/software/screen/>`_ and `tmux <https://tmux.github.io/>`_.
 
 Pymux is written entirely in Python. It doesn't need any C extension. It runs
-on all Python versions from 2.6 until 3.5. It should work on OS X and
-Linux/Unix.
+on all Python versions from 2.6 until 3.5. It should work on OS X and Linux.
 
 
 Compared to tmux
 ----------------
 
 On many fronts, pymux is just a clone of tmux. This means that all the default
-shortcuts are the same; the commands are the same or very similar, and a simple
-configuration file could be the same. (There are some small incompatibilities.)
-However, we definitely don't intend to create a fully compatible clone.
+shortcuts are the same; the commands are the same or very similar, and even a
+simple configuration file could be the same. (There are some small
+incompatibilities.) However, we definitely don't intend to create a fully
+compatible clone.
 
 Pymux implements a few improvements over tmux:
 
