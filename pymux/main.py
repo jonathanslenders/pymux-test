@@ -498,13 +498,15 @@ class Pymux(object):
         # Clean up socket.
         os.remove(self.socket_name)
 
-    def run_standalone(self):
+    def run_standalone(self, true_color=False):
         """
         Run pymux standalone, rather than using a client/server architecture.
         This is mainly useful for debugging.
         """
         self._runs_standalone = True
-        cli = self.create_cli(connection=None, output=Vt100_Output.from_pty(sys.stdout))
+        cli = self.create_cli(
+            connection=None,
+            output=Vt100_Output.from_pty(sys.stdout, true_color=true_color))
         cli._is_running = False
         cli.run()
 

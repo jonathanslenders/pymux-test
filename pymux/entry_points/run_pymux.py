@@ -74,7 +74,7 @@ def run():
         logging.basicConfig(filename=a['<logfile>'], level=logging.DEBUG)
 
     if a['standalone']:
-        mux.run_standalone()
+        mux.run_standalone(true_color=true_color)
 
     elif a['list-sessions'] or a['<command>'] == 'list-sessions':
         for c in list_clients():
