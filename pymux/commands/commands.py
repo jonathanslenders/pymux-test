@@ -11,6 +11,7 @@ from prompt_toolkit.enums import SEARCH_BUFFER
 from prompt_toolkit.key_binding.vi_state import InputMode
 
 from pymux.arrangement import LayoutTypes
+from pymux.commands.aliases import ALIASES
 from pymux.commands.utils import wrap_argument
 from pymux.enums import PROMPT
 from pymux.format import format_pymux_string
@@ -78,6 +79,9 @@ def call_command_handler(command, pymux, cli, arguments):
     :param arguments: List of options.
     """
     assert isinstance(arguments, list)
+
+    # Resolve aliases.
+    command = ALIASES.get(command, command)
 
     try:
         handler = COMMANDS_TO_HANDLERS[command]
@@ -630,3 +634,8 @@ def list_panes(pymux, cli, variables):
 
     # Display help in pane.
     active_pane.display_text(''.join(result), title='list-panes')
+
+
+# Check whether all aliases point to real commands.
+for k in ALIASES.values():
+    assert k in COMMANDS_TO_HANDLERS

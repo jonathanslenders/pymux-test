@@ -4,8 +4,10 @@ from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.contrib.completers import WordCompleter
 from prompt_toolkit.document import Document
 
+from .aliases import ALIASES
 from .commands import COMMANDS_TO_HANDLERS, get_option_flags_for_command
 from .utils import wrap_argument
+
 from pymux.arrangement import LayoutTypes
 from pymux.key_mappings import PYMUX_TO_PROMPT_TOOLKIT_KEYS
 
@@ -30,6 +32,10 @@ _keys_completer = WordCompleter(sorted(PYMUX_TO_PROMPT_TOOLKIT_KEYS.keys()),
 
 def get_completions_for_parts(parts, last_part, complete_event, pymux):
     completer = None
+
+    # Resolve aliases.
+    if len(parts) > 0:
+        parts = [ALIASES.get(parts[0], parts[0])] + parts[1:]
 
     if len(parts) == 0:
         # New command.
