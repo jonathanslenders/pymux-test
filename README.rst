@@ -119,10 +119,10 @@ The roadmap
 There is no official roadmap. All code is written for the fun. Of course, we
 have many ideas and all input is welcome.
 
-Maybe, we will support extensions written in Python. Maybe we will further
-improve mouse support. Maybe we will make the code base reusable and allow any
-full screen prompt_toolkit application to embed a vt100 terminal. (Imagine a
-terminal emulator embedded in `pyvim
+Probably we'll support color schemes. Maybe, we will support extensions written
+in Python. Maybe we will further improve mouse support. Maybe we will make the
+code base reusable and allow any full screen prompt_toolkit application to
+embed a vt100 terminal. (Imagine a terminal emulator embedded in `pyvim
 <https://github.com/jonathanslenders/pyvim>`_.) Maybe we will create some cool
 widgets to traverse the windows and panes.
 
