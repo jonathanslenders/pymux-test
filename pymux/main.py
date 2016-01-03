@@ -568,7 +568,16 @@ class _BufferMapping(BufferMapping):
         else:
             return super(_BufferMapping, self).__getitem__(name)
 
-    def _get_real_buffer_name(self, cli):
+    def current(self, cli):
+        """
+        Return the currently focussed Buffer.
+        """
+        return self[self.current_name(cli)]
+
+    def current_name(self, cli):
+        """
+        Name of te current buffer.
+        """
         client_state = self.pymux.get_client_state(cli)
 
         # Confirm.
@@ -594,15 +603,6 @@ class _BufferMapping(BufferMapping):
 
         return DUMMY_BUFFER
 
-    def current(self, cli):
-        """
-        Return the currently focussed Buffer.
-        """
-        return self[self._get_real_buffer_name(cli)]
-
-    def current_name(self, cli):
-        return self._get_real_buffer_name(cli)
-
     def focus(self, cli, buffer_name):
         """
         Focus buffer with the given name.
@@ -614,6 +614,9 @@ class _BufferMapping(BufferMapping):
         super(_BufferMapping, self).focus(cli, buffer_name)
 
     def push(self, cli, buffer_name):
+        """
+        Push to focus stack.
+        """
         self._focus(cli, buffer_name)
         super(_BufferMapping, self).push(cli, buffer_name)
 
