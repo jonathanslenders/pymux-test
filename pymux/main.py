@@ -8,7 +8,6 @@ from prompt_toolkit.enums import DUMMY_BUFFER
 from prompt_toolkit.eventloop.callbacks import EventLoopCallbacks
 from prompt_toolkit.eventloop.posix import PosixEventLoop
 from prompt_toolkit.filters import Condition
-from prompt_toolkit.focus_stack import FocusStack
 from prompt_toolkit.input import PipeInput
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.key_binding.vi_state import InputMode, ViState
@@ -375,7 +374,6 @@ class Pymux(object):
             layout=self.layout_manager.layout,
             key_bindings_registry=self.key_bindings_manager.registry,
             buffers=_BufferMapping(self),
-            focus_stack=_FocusStack(self, on_focus_changed=Callback(on_focus_changed)),
             mouse_support=Condition(lambda cli: self.enable_mouse_support),
             use_alternate_screen=True,
             style=self.style,
@@ -386,9 +384,6 @@ class Pymux(object):
             output=output,
             input=input,
             eventloop=self.eventloop)
-
-        application.focus_stack._cli = cli  # Tell _FocusStack about the CLI.
-                                            # XXX: this is a work-around.
 
         # Hide message when a key has been pressed.
         def key_pressed():
@@ -573,74 +568,61 @@ class _BufferMapping(BufferMapping):
         else:
             return super(_BufferMapping, self).__getitem__(name)
 
+    def _get_real_buffer_name(self, cli):
+        client_state = self.pymux.get_client_state(cli)
 
-class _FocusStack(FocusStack):
-    def __init__(self, pymux, on_focus_changed=None):
-        super(_FocusStack, self).__init__(on_focus_changed=on_focus_changed)
+        # Confirm.
+        if client_state.confirm_text:
+            return DUMMY_BUFFER
 
-        self._cli = None
-        self.pymux = pymux
+        # Custom prompt.
+        if client_state.prompt_command:
+            return PROMPT
 
-    def _get_real_buffer_name(self):
-        if self._cli:
-            client_state = self.pymux.get_client_state(self._cli)
+        # Command mode.
+        if client_state.command_mode:
+            return COMMAND
 
-            # Confirm.
-            if client_state.confirm_text:
-                return DUMMY_BUFFER
+        # Copy/search mode.
+        pane = self.pymux.arrangement.get_active_pane(cli)
 
-            # Custom prompt.
-            if client_state.prompt_command:
-                return PROMPT
-
-            # Command mode.
-            if client_state.command_mode:
-                return COMMAND
-
-            # Copy/search mode.
-            pane = self.pymux.arrangement.get_active_pane(self._cli)
-
-            if pane and pane.display_scroll_buffer:
-                if pane.is_searching:
-                    return 'search-%i' % pane.pane_id
-                else:
-                    return 'pane-%i' % pane.pane_id
+        if pane and pane.display_scroll_buffer:
+            if pane.is_searching:
+                return 'search-%i' % pane.pane_id
+            else:
+                return 'pane-%i' % pane.pane_id
 
         return DUMMY_BUFFER
 
-    @property
-    def current(self):
-        return self._get_real_buffer_name()
-
-    @property
-    def previous(self):
-        return DUMMY_BUFFER  # Not used.
-
-    def __contains__(self, value):  # XXX: cleanup. (We don't use this.)
-        # When the copy/search buffer is in the stack.
-        if self._cli:
-            pane = self.pymux.arrangement.get_active_pane(self._cli)
-            if pane and pane.display_scroll_buffer and value == 'pane-%i' % pane.pane_id:
-                return True
-            if pane and pane.is_searching and value == 'search-%i' % pane.pane_id:
-                return True
-
-        return super(_FocusStack, self).__contains__(value)
-
-    def push(self, buffer_name, replace=False):
+    def current(self, cli):
         """
+        Return the currently focussed Buffer.
+        """
+        return self[self._get_real_buffer_name(cli)]
+
+    def current_name(self, cli):
+        return self._get_real_buffer_name(cli)
+
+    def focus(self, cli, buffer_name):
+        """
+        Focus buffer with the given name.
+
         Called when a :class:`BufferControl` in the layout has been clicked.
         Make sure that we focus the pane in the :class:`.Arrangement`.
         """
-        self._focus(buffer_name)
-        super(_FocusStack, self).push(buffer_name, replace=replace)
+        self._focus(cli, buffer_name)
+        super(_BufferMapping, self).focus(cli, buffer_name)
 
-    def _focus(self, buffer_name):
-        if buffer_name.startswith('pane-') and self._cli:
+    def push(self, cli, buffer_name):
+        self._focus(cli, buffer_name)
+        super(_BufferMapping, self).push(cli, buffer_name)
+
+    def _focus(self, cli, buffer_name):
+        if buffer_name.startswith('pane-'):
             id = int(buffer_name[len('pane-'):])
             pane = self.pymux.panes_by_id[id]
 
-            w = self.pymux.arrangement.get_active_window(self._cli)
+            w = self.pymux.arrangement.get_active_window(cli)
             w.active_pane = pane
 
 
