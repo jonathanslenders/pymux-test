@@ -259,9 +259,9 @@ class Pymux(object):
 
         # Create process and pane.
         process = Process.from_command(
-                self.eventloop, self.invalidate, command, done_callback,
-                bell_func=bell,
-                before_exec_func=before_exec)
+            self.eventloop, self.invalidate, command, done_callback,
+            bell_func=bell,
+            before_exec_func=before_exec)
 
         pane = Pane(process)
 
