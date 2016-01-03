@@ -121,6 +121,14 @@ Create a file ``~/.pymux.conf``, and populate it with commands, like you can
 enter at the command line.
 
 
+What if it crashes?
+-------------------
+
+If for some reason pymux crashes, it will attempt to write a stack trace to
+``/tmp/pymux.crash``. It is possible that the user interface freezes. Please
+create a GitHub issue with this stack trace.
+
+
 Special thanks
 --------------
 
