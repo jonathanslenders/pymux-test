@@ -108,11 +108,8 @@ The development is especially interesting, because it touches so many different
 areas that are unknown to most Python developers. It also proves that Python is
 a good tool to create terminal applications.
 
-Further, the intention is to make all pymux code reusable as a library at some
-point. It should be possible to create any full screen prompt_toolkit
-application that embeds a vt100 terminal.
-
-And finally, it's a nice addition for the prompt-toolkit ecosystem.
+Further, experimenting and hacking with pymux will be easier than tmux, as
+Python is more accessible.
 
 
 The roadmap
