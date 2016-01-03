@@ -63,7 +63,8 @@ About the performance:
   noticable when applications generate a lot of output. Where tmux is able to
   give fast real-time output for, for instance ``find /``, pymux will process
   the output slightly slower, and in this case render the output only every
-  second to the terminal. Usually, this should not be an issue.
+  second to the terminal. Usually, this should not be an issue. If it is,
+  `Pypy <http://pypy.org/>`_ should provide a significant speedup.
 
 The big advantage is that writing it in Python and using `prompt_toolkit
 <https://github.com/jonathanslenders/python-prompt-toolkit>`_
