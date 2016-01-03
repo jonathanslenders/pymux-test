@@ -51,7 +51,7 @@ provides are supported.
 Pymux implements a few improvements over tmux:
 
 - There is a completion menu for the command line. (At the bottom of the screen.)
-- The command line has fish-style suggestions.
+- The command line has `fish-style <http://fishshell.com/>`_ suggestions.
 - Both Emacs and Vi key bindings for the command line and copy buffer are well
   developed, thanks to all the effort we have put earlier in `prompt_toolkit
   <https://github.com/jonathanslenders/python-prompt-toolkit>`_.
