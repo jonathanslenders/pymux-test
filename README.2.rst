@@ -90,6 +90,29 @@ application that embeds a vt100 terminal.
 And finally, it's a nice addition for the prompt-toolkit ecosystem.
 
 
+The roadmap
+-----------
+
+There is no official roadmap. All code is written for the fun. Of course, we
+have many ideas, and all input is welcome.
+
+
+About Mac OS X support
+----------------------
+
+Pymux should work perfectly on OS X, just like on Linux systems. There is one
+bug however: window names are not updated automatically according to the name
+of the process. It displays ``(noname)`` on OS X.
+
+The reason for this is that on Linux, it's very easy to get the process name.
+It works by reading the content of ``/proc/(process_group)/cmdline``.  On OS X,
+this appears to be a system call, named ``proc_pidinfo``. There is a library
+called ``psutil`` that has the required functionality, but it's written in C. I
+won't include that, we don't want to depend on modules that require
+compilation. But if someone could contribute something based on ctypes, that
+would be much appreciated.
+
+
 Configuring
 -----------
 
@@ -106,3 +129,4 @@ Special thanks
 - `prompt_toolkit
   <https://github.com/jonathanslenders/python-prompt-toolkit>`_, for the UI
   toolkit.
+- tmux, for the inspiration.
