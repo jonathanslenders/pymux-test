@@ -16,6 +16,7 @@ from pymux.commands.utils import wrap_argument
 from pymux.enums import PROMPT
 from pymux.format import format_pymux_string
 from pymux.key_mappings import pymux_key_to_prompt_toolkit_key_sequence, prompt_toolkit_key_to_vt100_key
+from pymux.layout import focus_right, focus_left, focus_up, focus_down
 from pymux.log import logger
 from pymux.options import SetOptionError
 
@@ -178,7 +179,6 @@ def break_pane(pymux, cli, variables):
 
 @cmd('select-pane', options='(-L|-R|-U|-D|-t <pane-id>)')
 def select_pane(pymux, cli, variables):
-    from pymux.layout import focus_right, focus_left, focus_up, focus_down
 
     if variables['-t']:
         pane_id = variables['<pane-id>']
