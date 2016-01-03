@@ -147,8 +147,9 @@ Configuring
 -----------
 
 Create a file ``~/.pymux.conf``, and populate it with commands, like you can
-enter at the command line. There is an `example config <>`_ in the examples
-directory.
+enter at the command line. There is an `example config
+<https://github.com/jonathanslenders/pymux-test/blob/master/examples/example-config.conf>`_
+in the examples directory.
 
 
 What if it crashes?
