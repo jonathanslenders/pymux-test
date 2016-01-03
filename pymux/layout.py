@@ -784,7 +784,7 @@ def _create_container_for_process(pymux, arrangement_pane, zoom=False):
             result.append((token, ' '))
 
         return result + [
-            (token.Title, format_pymux_string(pymux, cli, ' #T '))  # XXX: Make configurable.
+            (token.Title, format_pymux_string(pymux, cli, ' #T ', pane=arrangement_pane))  # XXX: Make configurable.
         ]
 
     def get_pane_index(cli):
