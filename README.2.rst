@@ -73,6 +73,22 @@ The big advantage is that writing it in Python and using `prompt_toolkit
 will make implementation of new features very easy.
 
 
+More screenshots
+----------------
+
+Demonstration of 24bit color support and the autocompletion menu:
+
+.. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/pymux.png
+
+What happens if another client with a smaller screen size attaches:
+
+.. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/multiple-clients.png
+
+When a pane enters copy mode, search results are highlighted.
+
+.. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/copy-mode.png
+
+
 Why create a tmux clone?
 ------------------------
 
