@@ -109,7 +109,8 @@ def run():
         else:
             # Connect to the first server.
             for c in list_clients():
-                c.attach(detach_other_clients=detach_other_clients)
+                c.attach(detach_other_clients=detach_other_clients,
+                         true_color=true_color)
                 break
             else:  # Nobreak.
                 print('No pymux instance found.')
