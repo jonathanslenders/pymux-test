@@ -565,6 +565,10 @@ class Arrangement(object):
         self._active_window_for_cli = weakref.WeakKeyDictionary()
         self._prev_active_window_for_cli = weakref.WeakKeyDictionary()
 
+        # The active window of the last CLI. Used as default when a new session
+        # is attached.
+        self._last_active_window = None
+
     def invalidation_hash(self, cli):
         """
         When this changes, the layout needs to be rebuild.
@@ -581,7 +585,7 @@ class Arrangement(object):
         try:
             return self._active_window_for_cli[cli]
         except KeyError:
-            self._active_window_for_cli[cli] = self.windows[0]
+            self._active_window_for_cli[cli] = self._last_active_window or self.windows[0]
             return self.windows[0]
 
     def set_active_window(self, cli, window):
@@ -591,6 +595,7 @@ class Arrangement(object):
         previous = self.get_active_window(cli)
         self._prev_active_window_for_cli[cli] = previous
         self._active_window_for_cli[cli] = window
+        self._last_active_window = window
 
     def set_active_window_from_pane_id(self, cli, pane_id):
         """
