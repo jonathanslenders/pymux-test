@@ -37,7 +37,7 @@ ui_style = {
     Token.StatusBar:                    'bg:#444444 #ffffff',
     Token.StatusBar.Window:             'bg:#888888',
     Token.StatusBar.Window.Current:     '#88ff88 bold',
-    Token.AutoSuggestion:               'bg:#884444 #ff8888',
+    Token.AutoSuggestion:               'bg:#4e5e4e #88aa88',
     Token.Message:                      'bg:#bbee88 #222222',
     Token.Background:                   '#888888',
     Token.Clock:                        'bg:#88aa00',

@@ -41,11 +41,12 @@ on all Python versions from 2.6 until 3.5. It should work on OS X and Linux.
 Compared to tmux
 ----------------
 
-On many fronts, pymux is just a clone of tmux. This means that all the default
+To some extend, pymux is a clone of tmux. This means that all the default
 shortcuts are the same; the commands are the same or very similar, and even a
 simple configuration file could be the same. (There are some small
 incompatibilities.) However, we definitely don't intend to create a fully
-compatible clone.
+compatible clone. Right now, only a subset of the command options that tmux
+provides are support.
 
 Pymux implements a few improvements over tmux:
 
@@ -59,26 +60,27 @@ Pymux implements a few improvements over tmux:
 - When several clients are attached to the same session, each client can watch
   a different window. When clients are watching different windows, every client
   uses the full terminal size.
-- Support for 24bit true color.
+- Support for 24bit true color. (Disabled by default.)
 
 About the performance:
 
-- tmux is written in C, which is obviously faster than Python. This is
+- Tmux is written in C, which is obviously faster than Python. This is
   noticable when applications generate a lot of output. Where tmux is able to
-  give fast real-time output for, for instance ``find /``, pymux will process
-  the output slightly slower, and in this case render the output only every
-  second to the terminal. Usually, this should not be an issue. If it is,
-  `Pypy <http://pypy.org/>`_ should provide a significant speedup.
+  give fast real-time output for, for instance ``find /`` or ``yes``, pymux
+  will process the output slightly slower, and in this case render the output
+  only a few times per second to the terminal. Usually, this should not be an
+  issue. If it is, `Pypy <http://pypy.org/>`_ should provide a significant
+  speedup.
 
-The big advantage is that writing it in Python and using `prompt_toolkit
-<https://github.com/jonathanslenders/python-prompt-toolkit>`_
-will make implementation of new features very easy.
+The big advantage of using Python and `prompt_toolkit
+<https://github.com/jonathanslenders/python-prompt-toolkit>`_ is that the
+implementation of new features becomes very easy.
 
 
 More screenshots
 ----------------
 
-Demonstration of 24bit color support and the autocompletion menu:
+24 bit color support and the autocompletion menu:
 
 .. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/menu-true-color.png
 
@@ -86,7 +88,7 @@ What happens if another client with a smaller screen size attaches:
 
 .. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/multiple-clients.png
 
-When a pane enters copy mode, search results are highlighted.
+When a pane enters copy mode, search results are highlighted:
 
 .. image :: https://raw.githubusercontent.com/jonathanslenders/pymux-test/master/images/copy-mode.png
 
@@ -115,7 +117,14 @@ The roadmap
 -----------
 
 There is no official roadmap. All code is written for the fun. Of course, we
-have many ideas, and all input is welcome.
+have many ideas and all input is welcome.
+
+Maybe, we will support extensions written in Python. Maybe we will further
+improve mouse support. Maybe we will make the code base reusable and allow any
+full screen prompt_toolkit application to embed a vt100 terminal. (Imagine a
+terminal emulator embedded in `pyvim
+<https://github.com/jonathanslenders/pyvim>`_.) Maybe we will create some cool
+widgets to traverse the windows and panes.
 
 
 About Mac OS X support
