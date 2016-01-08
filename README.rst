@@ -1,3 +1,7 @@
+This is the old repository of pymux. It's only archived here for those interested in the history.
+Please go instead to: https://github.com/jonathanslenders/pymux
+
+
 Pymux
 =====
 
